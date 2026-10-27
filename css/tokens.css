@@ -19,6 +19,7 @@
   --pending: #C9702D;
   --pending-bg: rgba(201,112,45,.16);
   --pending-text: #8A4A12;
+  --pending-line: rgba(201,112,45,.35);
   --danger: #A32D2D;
   --danger-bg: rgba(163,45,45,.12);
 
@@ -52,6 +53,8 @@
   --tint: rgba(30,26,23,.08);
   --tint-soft: rgba(30,26,23,.06);
   --forest-tint: rgba(36,65,47,.10);
+  --record-shadow: 0 14px 36px rgba(90,50,30,.14);
+  --record-mark: linear-gradient(135deg, #1F3A2C, #3F7A5A);
   --pending-bg-soft: rgba(201,112,45,.14);
   --overlay: rgba(30,26,23,.45);
   --on-gradient-bg: rgba(255,255,255,.22);

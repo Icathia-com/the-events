@@ -89,8 +89,17 @@ const ORGS = {
   },
 };
 
+const YISHUN_ABOUT = 'Visit seniors living alone in pairs for a chat, a quick check on how they are doing, and a hand with small errands. We pair every new volunteer with someone who has visited before.\n\nFirst-time volunteers are approved after a short call with our coordinator.';
+
 // [id, canvas day, start, end, title, org, area, cause, spots, approval, cover label, venue, meeting point, bring, description]
+// The first two are past events, so claims can be tried: the canvas claim (design/Claim-Hours.dc.html) and the
+// Yishun visit in Mei Lin's hours record. The other eight are the sample events from the seeding day on.
 const EVENTS = [
+  ['changi', '2026-10-10', '08:00', '11:00', 'Changi beach clean-up', 'shore', 'east', 'environment', 40, false, 'CHANGI\nCLEAN-UP',
+    'Changi Beach Park, carpark 7', 'Carpark 7, by the shelter', 'Hat, sunscreen and a reusable bottle. Gloves and bags are provided.',
+    'A three-hour sweep of the Changi stretch we adopted. We weigh what we collect at the end and share the total with everyone who came.'],
+  ['past-yishun', '2026-10-14', '14:00', '16:00', 'Befriending visit: Yishun seniors', 'silver', 'north', 'elderly', 10, true, 'YISHUN\nVISIT',
+    'Yishun', 'Void deck of the block, by the lift lobby', 'A small snack to share and your volunteer lanyard', YISHUN_ABOUT],
   ['pantry', '2026-10-27', '17:00', '19:00', 'Evening pantry restock', 'harvest', 'central', 'food', 12, false, 'PANTRY\nRESTOCK',
     'Harvest Table community pantry, Toa Payoh', 'Pantry side door, next to the lift', 'Nothing; aprons are provided',
     'Restock the shelves of our community pantry after the evening delivery. Light lifting and sorting by expiry date.'],
@@ -98,8 +107,7 @@ const EVENTS = [
     'Harvest Table warehouse', 'Loading bay B, ask for the duty volunteer', 'Covered shoes and a water bottle',
     'Help us sort donated dry goods into family packs for the week’s deliveries. No experience needed; a team lead shows you the packing list. Standing for most of the shift.'],
   ['yishun', '2026-10-28', '14:00', '16:00', 'Befriending visit: Yishun seniors', 'silver', 'north', 'elderly', 10, true, 'YISHUN\nVISIT',
-    'Yishun', 'Void deck of the block, by the lift lobby', 'A small snack to share and your volunteer lanyard',
-    'Visit seniors living alone in pairs for a chat, a quick check on how they are doing, and a hand with small errands. We pair every new volunteer with someone who has visited before.\n\nFirst-time volunteers are approved after a short call with our coordinator.'],
+    'Yishun', 'Void deck of the block, by the lift lobby', 'A small snack to share and your volunteer lanyard', YISHUN_ABOUT],
   ['beach', '2026-10-31', '07:30', '10:00', 'East Coast beach clean-up', 'shore', 'east', 'environment', 60, false, 'BEACH\nCLEAN-UP',
     'East Coast Park, Area C', 'Carpark C1, by the bicycle rental', 'Hat, sunscreen and a reusable bottle. Gloves and bags are provided.',
     'A two-and-a-half-hour sweep of the shoreline. We weigh what we collect at the end and share the total with everyone who came.'],
@@ -118,7 +126,7 @@ const EVENTS = [
 ];
 
 // The exact address for events with a hidden location, readable once a volunteer is approved.
-const HIDDEN_VENUES = { yishun: 'Yishun Street 11, sample block' };
+const HIDDEN_VENUES = { yishun: 'Yishun Street 11, sample block', 'past-yishun': 'Yishun Street 11, sample block' };
 
 // [key, name, follows]. Everyone signs in at name@example.com; uids are sample-<key>.
 const PEOPLE = [
@@ -144,6 +152,8 @@ const emailOf = (name) => `${name.toLowerCase().replace(/\s+/g, '.')}@example.co
 const nameOf = Object.fromEntries(PEOPLE.map(([key, name]) => [key, name]));
 
 const REGISTRATIONS = {
+  changi: { going: ['meilin', 'darren', 'farid'] },
+  'past-yishun': { going: ['aisha', 'esther', 'meilin'] },
   pantry: { going: ['aisha', 'chloe', 'jun', 'meilin'] },
   sort: { going: ['ben', 'darren', 'esther', 'farid', 'grace', 'ivy'] },
   yishun: { going: ['aisha', 'ben', 'chloe', 'darren', 'esther', 'farid', 'grace'], pending: ['hari', 'ivy'] },
@@ -153,6 +163,18 @@ const REGISTRATIONS = {
   trees: { going: ['farid', 'grace', 'hari'] },
   kids: {},
 };
+
+// Attendance at the past events: [event, person, status, check-in time].
+// - Mei Lin checked in at the Changi clean-up but wasn't checked out: Home offers the canvas claim.
+// - Farid's claim there was made 9 days ago, so it confirms itself the next time he opens the app.
+// - Aisha checked in at the Yishun visit without checking out: her claim goes to Mei Lin.
+// - Mei Lin's own hours there are confirmed (the first line of her hours record).
+const ATTENDANCE = [
+  ['changi', 'meilin', 'checked_in', '07:42'],
+  ['changi', 'farid', 'claimed', '07:50'],
+  ['past-yishun', 'aisha', 'checked_in', '13:52'],
+  ['past-yishun', 'meilin', 'confirmed', null],
+];
 
 // Mei Lin's past hours, from the canvas hours record:
 // [entry id, title, org, canvas day, hours, confirmed by, reference number, cover label].
@@ -195,14 +217,22 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const nudge = toNamedWeekday(title, at(day, start));
     const startAt = Timestamp.fromMillis(at(day, start).toMillis() + nudge);
     const endAt = Timestamp.fromMillis(at(day, end).toMillis() + nudge);
+    const hours = (endAt.toMillis() - startAt.toMillis()) / 3600e3;
+    const attendance = ATTENDANCE.filter(([eventId]) => eventId === id);
+    const by = org === 'silver' ? uidOf('meilin') : 'seed'; // who decided, checked in and confirmed
+    // Registered (and approved) a few days before the event, or before today for events still to come.
+    const before = (days) => Timestamp.fromMillis(Math.min(Date.now(), startAt.toMillis()) - days * DAY);
     put(`events/${id}`, {
       orgId: org, orgName: ORGS[org].name, title, description, cause, area, venue, meetingPoint, bring,
-      startAt, endAt, hours: (endAt.toMillis() - startAt.toMillis()) / 3600e3,
+      startAt, endAt, hours,
       cover: { colors: ORGS[org].logoColors.slice(), label },
       visibility: 'public', status: 'scheduled',
       registration: { open: true, approval, capacity, waitlist: true, group: false },
       ticketTypes: [],
-      counts: { going: (regs.going || []).length, pending: (regs.pending || []).length, waitlist: 0, attended: 0 },
+      counts: {
+        going: (regs.going || []).length, pending: (regs.pending || []).length, waitlist: 0,
+        attended: attendance.filter(([, , status]) => status === 'confirmed').length,
+      },
       hideExactLocation: id in HIDDEN_VENUES, checkInMode: 'standard', checkInLocked: false,
       createdBy: org === 'silver' ? uidOf('meilin') : 'seed', ...stamps,
     });
@@ -213,12 +243,21 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     for (const status of ['going', 'pending']) {
       for (const key of regs[status] || []) {
         n += 1;
-        const decided = approval && status === 'going' ? { decidedAt: daysAgo(n), decidedBy: org === 'silver' ? uidOf('meilin') : 'seed' } : {};
+        const decided = approval && status === 'going' ? { decidedAt: before(n), decidedBy: by } : {};
         put(`events/${id}/registrations/${uidOf(key)}`, {
-          uid: uidOf(key), name: nameOf[key], status, ticketTypeId: null, answers: {}, registeredAt: daysAgo(n + 1), ...decided, ...stamps,
+          uid: uidOf(key), name: nameOf[key], status, ticketTypeId: null, answers: {}, registeredAt: before(n + 1), ...decided, ...stamps,
         });
-        if (status === 'going') put(`events/${id}/going/${uidOf(key)}`, { name: shortName(nameOf[key]), since: daysAgo(n + 1) });
+        if (status === 'going') put(`events/${id}/going/${uidOf(key)}`, { name: shortName(nameOf[key]), since: before(n + 1) });
       }
+    }
+
+    for (const [, key, status, time] of attendance) {
+      put(`events/${id}/attendance/${uidOf(key)}`, {
+        uid: uidOf(key), name: nameOf[key], status, hours, updatedAt: serverTimestamp(),
+        ...(time ? { checkedInAt: Timestamp.fromMillis(at(day, time).toMillis() + nudge), checkedInBy: by } : {}),
+        ...(status === 'claimed' ? { claimedAt: daysAgo(9), autoConfirmAt: daysAgo(2) } : {}),
+        ...(status === 'confirmed' ? { checkedOutAt: endAt, checkedOutBy: by, confirmedAt: endAt, confirmedBy: by } : {}),
+      });
     }
   }
 

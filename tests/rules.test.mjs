@@ -476,6 +476,103 @@ describe('check-in, check-out and staff', () => {
   });
 });
 
+describe('claims and auto-confirm', () => {
+  const WEEK = 7 * 86400e3;
+  const ago = (days) => new Date(Date.now() - days * 86400e3);
+  const ended = { startAt: new Date(Date.now() - 5 * 3600e3), endAt: new Date(Date.now() - 2 * 3600e3) };
+  const counts = (over = {}) => ({ going: 1, pending: 1, waitlist: 0, attended: 0, ...over });
+  const st = serverTimestamp;
+  const event = (times = ended) => ({
+    orgId: 'open', orgName: 'Open Org', title: 'Beach clean-up', visibility: 'public', status: 'scheduled', ...times, hours: 3,
+    counts: counts(), registration: { open: true, approval: false, capacity: 40, waitlist: true, group: false },
+  });
+  const attendance = (over = {}) => ({
+    uid: 'alice', name: 'Alice A.', status: 'checked_in', hours: 3, checkedInAt: ago(0.2), checkedInBy: 'mei', updatedAt: new Date(), ...over,
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'events/e9': event(),
+      'events/e9/registrations/alice': { uid: 'alice', name: 'Alice A.', status: 'going' },
+      'events/e9/registrations/bob': { uid: 'bob', name: 'Bob B.', status: 'pending' },
+    });
+  });
+
+  // A claim without a check-in, the way the app writes it.
+  const claim = (uid, over = {}) => setDoc(doc(dbAs(uid), `events/e9/attendance/${uid}`), {
+    uid, name: 'Alice A.', status: 'claimed', hours: 3, claimedAt: st(), updatedAt: st(), ...over,
+  });
+  const claimAfterCheckIn = (autoConfirmAt) => updateDoc(doc(dbAs('alice'), 'events/e9/attendance/alice'), {
+    status: 'claimed', claimedAt: st(), autoConfirmAt, updatedAt: st(),
+  });
+
+  // Confirming a claim: the attendance and the attended count, in one write.
+  function confirm(by, fields) {
+    const db = dbAs(by);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'events/e9'), { counts: counts({ attended: 1 }), countsBy: 'alice' });
+    batch.update(doc(db, 'events/e9/attendance/alice'), { status: 'confirmed', confirmedAt: st(), updatedAt: st(), ...fields });
+    return batch.commit();
+  }
+  const autoConfirm = () => confirm('alice', { confirmedBy: 'auto' });
+
+  it('after the event, a volunteer who was going claims its hours', async () => {
+    await assertSucceeds(claim('alice'));
+  });
+
+  it('no claim before the event ends, without a going registration, for other hours or for someone else', async () => {
+    await seedDocs({ 'events/e9': event({ startAt: new Date(), endAt: new Date(Date.now() + 3600e3) }) });
+    await assertFails(claim('alice'));
+    await seedDocs({ 'events/e9': event() });
+    await assertFails(claim('bob', { name: 'Bob B.' }));
+    await assertFails(claim('alice', { hours: 5 }));
+    await assertFails(setDoc(doc(dbAs('bob'), 'events/e9/attendance/alice'), {
+      uid: 'alice', name: 'Alice A.', status: 'claimed', hours: 3, claimedAt: st(), updatedAt: st(),
+    }));
+  });
+
+  it('a claim cannot confirm itself, use another name, or set an auto-confirm date without a check-in', async () => {
+    await assertFails(claim('alice', { status: 'confirmed', confirmedAt: st(), confirmedBy: 'auto' }));
+    await assertFails(claim('alice', { name: 'Someone Else' }));
+    await assertFails(claim('alice', { autoConfirmAt: new Date(Date.now() + WEEK) }));
+  });
+
+  it('a claim after a check-in sets its auto-confirm date 7 days ahead, not sooner', async () => {
+    await seedDocs({ 'events/e9/attendance/alice': attendance() });
+    await assertFails(claimAfterCheckIn(new Date(Date.now() + 86400e3)));
+    await assertSucceeds(claimAfterCheckIn(new Date(Date.now() + WEEK)));
+  });
+
+  it('the organiser confirms or declines a claim', async () => {
+    const claimed = attendance({ status: 'claimed', claimedAt: ago(1), autoConfirmAt: new Date(Date.now() + 6 * 86400e3) });
+    await seedDocs({ 'events/e9/attendance/alice': claimed });
+    await assertSucceeds(confirm('mei', { checkedOutAt: st(), checkedOutBy: 'mei', confirmedBy: 'mei' }));
+    await seedDocs({ 'events/e9': event(), 'events/e9/attendance/alice': claimed });
+    await assertSucceeds(updateDoc(doc(dbAs('mei'), 'events/e9/attendance/alice'), { status: 'declined', updatedAt: st() }));
+  });
+
+  it('once its date has passed, the volunteer\'s app confirms the claim, and the attended count moves', async () => {
+    await seedDocs({ 'events/e9/attendance/alice': attendance({ status: 'claimed', claimedAt: ago(8), autoConfirmAt: ago(1) }) });
+    await assertSucceeds(autoConfirm());
+  });
+
+  it('auto-confirm waits for its date and 7 days after the claim, and needs a check-in', async () => {
+    await seedDocs({ 'events/e9/attendance/alice': attendance({ status: 'claimed', claimedAt: ago(8), autoConfirmAt: ago(-1) }) });
+    await assertFails(autoConfirm());
+    await seedDocs({ 'events/e9/attendance/alice': attendance({ status: 'claimed', claimedAt: ago(3), autoConfirmAt: ago(1) }) });
+    await assertFails(autoConfirm());
+    await seedDocs({ 'events/e9/attendance/alice': { uid: 'alice', name: 'Alice A.', status: 'claimed', hours: 3, claimedAt: ago(8), updatedAt: ago(8) } });
+    await assertFails(autoConfirm());
+  });
+
+  it('a declined claim stays declined', async () => {
+    await seedDocs({ 'events/e9/attendance/alice': attendance({ status: 'declined', claimedAt: ago(8), autoConfirmAt: ago(1) }) });
+    await assertFails(claimAfterCheckIn(new Date(Date.now() + WEEK)));
+    await assertFails(autoConfirm());
+  });
+});
+
 describe('events: creating and editing', () => {
   const start = new Date(Date.now() + 3 * 86400e3), end = new Date(start.getTime() + 2 * 3600e3);
   const newEvent = (over = {}) => ({

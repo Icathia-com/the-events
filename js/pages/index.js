@@ -1,11 +1,11 @@
 // Home (design/Home.dc.html).
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, claimInvites, confirmWithCode, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations,
+  AREAS, CAUSES, claimInvites, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations,
   listPublicEvents, myAttendance, myMemberships, myRegistrations, syncHours,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
-import { openScanner } from '../scanner.js';
+import { scanCheckOut } from '../scanner.js';
 import {
   addDays, avatarHtml, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
   eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, shortDay, toast,
@@ -14,6 +14,7 @@ import {
 const CAL_BEFORE = 14;   // days shown before today in the shifts tile
 const CAL_DAYS = 70;
 const CAL_COL = 100;     // px per day column
+const CLAIM_DAYS = 30;   // how long after an event Home offers to claim its hours
 const AREA_IDS = ['north', 'northeast', 'east', 'central', 'west'];
 
 const user = await requireUser();
@@ -95,29 +96,10 @@ $('my-qr').addEventListener('click', () => showQr());
 $('past-link').insertAdjacentHTML('beforeend', icon('chevron'));
 $('orgs-link').insertAdjacentHTML('beforeend', icon('chevron'));
 
-// Check-out: the organiser's code is a link to the event page with the code (event.html?id=…&checkout=…).
-function scanCheckOut(event) {
-  const scanner = openScanner({
-    title: 'Scan the check-out code',
-    onText: async (text) => {
-      let link = null;
-      try { link = new URL(text); } catch { /* not a link */ }
-      const code = link?.origin === location.origin && link.pathname.endsWith('/event.html') && link.searchParams.get('checkout');
-      if (!code) { scanner.showResult(`<div class="scan-card"><span class="vol-name">Not a check-out code</span></div>`); return; }
-      if (link.searchParams.get('id') !== event.id) { scanner.showResult(`<div class="scan-card"><span class="vol-name">This code is for another event</span></div>`); return; }
-      try {
-        const hours = await confirmWithCode(event.id, user.uid, code);
-        await syncHours(user.uid).catch(() => 0);
-        scanner.close();
-        toast(`${hoursText(hours)} confirmed`);
-        setTimeout(() => location.reload(), 1200);
-      } catch (err) {
-        console.warn(err);
-        scanner.showResult(`<div class="scan-card"><span class="vol-name">That check-out code didn’t work</span></div>`);
-      }
-    },
-  });
-}
+const checkOut = (event) => scanCheckOut(event.id, user.uid, (hours) => {
+  toast(`${hoursText(hours)} confirmed`);
+  setTimeout(() => location.reload(), 1200);
+});
 
 // Your events
 
@@ -154,12 +136,28 @@ if (upcoming.length) {
     const button = ev.target.closest('[data-checkin]');
     if (button) showQr(upcoming.find((e) => e.id === button.dataset.checkin));
     const out = ev.target.closest('[data-checkout]');
-    if (out) scanCheckOut(upcoming.find((e) => e.id === out.dataset.checkout));
+    if (out) checkOut(upcoming.find((e) => e.id === out.dataset.checkout));
   });
   dragScroll(upEl, 'x');
 } else {
   upEl.innerHTML = `<a class="glass empty-card" href="#all"><span class="card-title">Nothing registered yet</span>${icon('chevron', 18)}</a>`;
 }
+
+// Hours to claim: events of the last 30 days that ended without the hours confirmed or claimed
+const claimable = regEvents.filter((e) => {
+  const end = e.endAt.toDate();
+  const status = attendance[e.id]?.status;
+  return e.regStatus === 'going' && end <= now && now - end < CLAIM_DAYS * 86400e3 && (!status || status === 'checked_in');
+}).sort((a, b) => -byStart(a, b));
+const onDay = (date) => (daysFromToday(date, now) === 0 ? 'today' : `on ${shortDay(date, now)}`);
+$('claims').innerHTML = claimable.map((e) => {
+  const checkedInAt = attendance[e.id]?.checkedInAt?.toDate();
+  const line = checkedInAt ? `You checked in ${onDay(checkedInAt)} but were not checked out` : `No check-in recorded · ${shortDay(e.startAt.toDate(), now)}`;
+  return `<a class="glass claim-card" href="claim.html?id=${encodeURIComponent(e.id)}">
+    <span class="claim-icon">${icon('clock', 18, 2)}</span>
+    <span class="claim-text"><span class="claim-title">Claim ${esc(hoursText(Number(e.hours) || 0))} for ${esc(e.title)}</span>
+      <span class="claim-line">${esc(line)}</span></span>${icon('chevron', 16)}</a>`;
+}).join('');
 
 // Organisations you follow: the first three, then a tile to find more
 

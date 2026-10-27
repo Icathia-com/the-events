@@ -71,6 +71,27 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 8: Check-out with the code has no time limit and doesn't need a check-in first, since neither the brief nor the canvas sets one. A volunteer who is going and has the code can confirm their own hours, so a photo of the code passed on would work too; rotating codes (Phase 3) close that gap. The code stays the same for the whole event in Phase 1, as section 6 says, so the canvas's "New code every minute" is left out. The attendance record keeps the code that was scanned (`code`), which the rules check.
 - Slice 8: Left out: letter requests on Check-out and hours (Phase 3), and the canvas's "Sample scan" button.
 - Slice 8 (production): A collection group index on `staffInvites.email`, so people can find their invites when they sign in. It's in `firestore.indexes.json`.
+- Slice 9: A claim is always for the event's hours, as in the canvas's "Claim 3 hours without a code"; the rules check this.
+- Slice 9: Auto-confirm, Phase 1:
+  - A claim made after a check-in confirms itself 7 days later. The volunteer's app does it the next time it opens Home, Profile, the hours record or the claim page.
+  - The rules count the 7 days by the server's clock.
+  - These confirmations are stored as `confirmedBy: "auto"` (section 6 only lists "code" or an admin's uid), and the record says "confirmed automatically after 7 days".
+- Slice 9: Home shows a claim card for each event of the last 30 days that ended without hours confirmed or claimed, newest first. Older events can still be claimed at `claim.html?id=`.
+  - The canvas only draws the checked-in card. Without a check-in, the second line reads "No check-in recorded · Thu 15 Oct".
+- Slice 9: On the claim page:
+  - "You will get a notification either way." is left out, since notifications are Phase 3. So is the canvas's "Sample scan" button.
+  - States the canvas doesn't draw use short lines: "Claim declined", "Claims are for volunteers who were going to this event." and "Hours can be claimed once the event has ended."
+- Slice 9: Hours record:
+  - Each line shows its own reference number, as the brief has it.
+  - The record's Reference is the newest entry's. The canvas's VN-2026-00482 is Mei Lin's newest entry, and this way each version of the record has its own reference.
+  - The verification code opens `verify.html?ref=` with that reference. That page is Phase 3, so the link doesn't work yet.
+  - Period runs from the earliest entry's month to the latest's: "Aug to Oct 2026" for Mei Lin, where the canvas says "Jan to Oct 2026".
+  - "Confirmed by" names the person only on their own record ("confirmed by Mei Lin Tan", as on the canvas). Otherwise it says "confirmed by the organiser", because volunteers can't read organisers' profiles.
+  - The heading reads "The Events" where the canvas says "Volunteer Network". Share and Download PDF are hidden until Phase 3, along with the letter request card.
+- Slice 9 (seed): The brief lists eight sample events. Two past events from the canvas are added so claims can be tried:
+  - The Changi beach clean-up, 17 days before seeding. Mei Lin checked in but wasn't checked out. Farid's claim is past its auto-confirm date. Darren was going and has no check-in.
+  - The Yishun visit from Mei Lin's hours record. Aisha checked in but wasn't checked out. Esther was going and has no check-in. Mei Lin's own hours are confirmed.
+- Slice 9 (rules): When a volunteer writes their own attendance (a check-out with the code, or a claim), it must carry the name on their registration. That stops a made-up name appearing in the organiser's lists.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -392,7 +413,7 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - Only admins invite and remove staff. An invite can only be accepted by the person whose verified email it names, and only as staff.
 
 **Tested**
-- `npm test`: 135 of 135 pass (109 rules tests, 26 QR tests). The 8 new rules tests cover:
+- `npm test`: 109 of 109 pass (83 rules tests, 26 QR tests). The 8 new rules tests cover:
   - A staff check-in.
   - A volunteer confirming with the code, and the wrong code, other hours or someone else's attendance refused.
   - The check-in record kept after check-out.
@@ -420,3 +441,58 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 9: claim hours and the hours record.
+
+## 28 Oct 2026: Phase 1, slice 9: Claims and the hours record
+
+**Done**
+- `claim.html` (`design/Claim-Hours.dc.html`):
+  - The event card, then one of the canvas states:
+    - With a check-in: "You checked in at 1:52 PM".
+    - Without one: "No check-in recorded".
+  - Scan the organiser's check-out code, or "Claim 2 hours without a code".
+  - After claiming: "Claim sent to Silver Companions". With a check-in it confirms itself on a date 7 days later.
+  - After a scan or a confirmation: "2 hours confirmed".
+  - Also: Claim declined, not going, and not ended yet.
+- Home: the canvas claim card ("Claim 3 hours for Changi beach clean-up · You checked in on Sun 11 Oct but were not checked out") under Your events.
+- `hours.html` (`design/Hours-Record.dc.html`):
+  - The record: volunteer, confirmed hours, period and reference.
+  - Each entry with its organisation, date, how it was confirmed, its reference number and its hours.
+  - The verification code (`verify.html?ref=`).
+  - Claims still waiting, each with View.
+- `data.js`:
+  - `claimHours` and `getMyAttendance`.
+  - `syncHours` first confirms claims that are past their date. Home, Profile, the record and the claim page all run it.
+- `scanner.js`: the volunteer's check-out scan is shared by Home and the claim page.
+- Rules:
+  - After the event, a volunteer who was going can claim its hours for themselves: the event's hours, under their registered name.
+  - A claim after a check-in must set its auto-confirm date 7 days ahead.
+  - The volunteer's app can confirm the claim once that date has passed, and 7 days after the claim by the server's clock. The attended count moves with it.
+  - A declined claim can't be claimed again.
+- Seed: the two past events and their attendance (see Decisions to confirm).
+
+**Tested**
+- `npm test`: 117 of 117 pass (91 rules tests, 26 QR tests). The 8 new rules tests cover:
+  - Claiming after the event.
+  - Claims refused before the end, without a going registration, for other hours, for someone else, under another name, or confirming themselves.
+  - The auto-confirm date: 7 days after a check-in, and none without one.
+  - The organiser confirming and declining.
+  - Auto-confirm once due, and not before its date or 7 days after the claim.
+  - A declined claim staying declined.
+- Browser at 390 px against the emulators:
+  - Aisha:
+    - Her Home shows "Claim 2 hours for Befriending visit: Yishun seniors" for the past Yishun visit.
+    - She claims: "Claim sent to Silver Companions", confirming itself on Wed 4 Nov (7.00 days ahead), with her check-in kept.
+    - Her record shows "2 hours waiting for confirmation".
+  - Esther, who has no check-in: her claim reads "The organiser needs to confirm you were there."
+  - Mei Lin:
+    - Her Home shows her own Changi claim card.
+    - On the Yishun visit's check-out page she confirms Aisha's claim ("2 h confirmed") and declines Esther's ("Declined").
+  - Aisha's record then has the visit with reference VN-2026-69806, period Oct 2026, the verification code and no pending claims. Esther's claim page says "Claim declined", and her Home no longer offers the claim.
+  - Mei Lin claims her Changi hours. Her record matches the canvas: 14 hours, reference VN-2026-00482, five lines "confirmed by Mei Lin Tan" or "by check-out code", and "3 hours waiting for confirmation · Changi beach clean-up · Shoreline Keepers · confirms itself on 4 Nov".
+  - Farid opens the app: his claim past its date confirms itself ("3 hours volunteered this year"), and his record says "confirmed automatically after 7 days".
+  - Darren scans the Changi check-out code from the claim page: "3 hours confirmed". The Changi counts end at 2 attended.
+  - No sideways scrolling, no console errors.
+- Slice 8's two-browser check-in and check-out test still passes with the new seed and the shared scanner.
+
+**Next**
+- Slice 10: the app manifest and service worker, the empty Notifications page, the section 10 acceptance checks, Lighthouse, and `docs/TRY-IT.md`.

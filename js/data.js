@@ -248,11 +248,52 @@ export const declineClaim = (eventId, uid) =>
 
 export const setCheckInMode = (eventId, fields) => updateEvent(eventId, fields);
 
-// The volunteer's own attendance on their events, by event id (checked in, confirmed or claimed).
+// The volunteer's own attendance on their events, by event id (checked in, confirmed, claimed or declined).
 export async function myAttendance(uid) {
   const snaps = await getDocs(query(collectionGroup(db, 'attendance'),
-    where('uid', '==', uid), where('status', 'in', ['checked_in', 'confirmed', 'claimed'])));
+    where('uid', '==', uid), where('status', 'in', ['checked_in', 'confirmed', 'claimed', 'declined'])));
   return Object.fromEntries(snaps.docs.map((d) => [d.ref.parent.parent.id, d.data()]));
+}
+
+export async function getMyAttendance(eventId, uid) {
+  return (await getDoc(doc(db, 'events', eventId, 'attendance', uid))).data() || null;
+}
+
+// Claims
+
+const WEEK = 7 * 86400e3;
+
+// After the event, a volunteer who was going claims its hours without the code. A claim after a check-in confirms
+// itself 7 days later (autoConfirmAt) unless the organisation decides first.
+export function claimHours(eventId, uid) {
+  return runTransaction(db, async (tx) => {
+    const attRef = doc(db, 'events', eventId, 'attendance', uid);
+    const event = (await tx.get(doc(db, 'events', eventId))).data();
+    const reg = (await tx.get(doc(db, 'events', eventId, 'registrations', uid))).data();
+    const att = (await tx.get(attRef)).data();
+    if (att && att.status !== 'checked_in') return;
+    const fields = { name: reg.name, status: 'claimed', hours: event.hours, claimedAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    if (att?.checkedInAt) fields.autoConfirmAt = Timestamp.fromMillis(Date.now() + WEEK);
+    if (att) tx.update(attRef, fields);
+    else tx.set(attRef, { uid, ...fields });
+  });
+}
+
+// Phase 1 auto-confirm, run by the volunteer's own app (section 8): claims past autoConfirmAt confirm themselves,
+// and the attended count moves with each.
+async function autoConfirmClaims(uid) {
+  const claims = await getDocs(query(collectionGroup(db, 'attendance'), where('uid', '==', uid), where('status', '==', 'claimed')));
+  for (const claim of claims.docs) {
+    const { autoConfirmAt, claimedAt } = claim.data();
+    if (!autoConfirmAt || !claimedAt || Math.max(autoConfirmAt.toMillis(), claimedAt.toMillis() + WEEK) > Date.now()) continue;
+    const eventRef = claim.ref.parent.parent;
+    await runTransaction(db, async (tx) => {
+      const event = (await tx.get(eventRef)).data();
+      if ((await tx.get(claim.ref)).data()?.status !== 'claimed') return;
+      tx.update(eventRef, { counts: { ...event.counts, attended: (event.counts?.attended || 0) + 1 }, countsBy: uid });
+      tx.update(claim.ref, { status: 'confirmed', confirmedAt: serverTimestamp(), confirmedBy: 'auto', updatedAt: serverTimestamp() });
+    }).catch((err) => console.warn(`Couldn’t confirm the claim for ${eventRef.id}`, err));
+  }
 }
 
 // Staff
@@ -297,10 +338,11 @@ export async function pastEventCounts(orgId) {
   return counts;
 }
 
-// Phase 1 confirm path, run by the volunteer's own app: a ledger entry for each attendance the organisation has
-// confirmed, each with a new reference number, and hoursTotal moved by the same hours. Entries whose confirmation
-// was undone are removed. Returns how many entries were added.
+// Phase 1 confirm path, run by the volunteer's own app: claims due to confirm themselves are confirmed, then a ledger
+// entry is added for each confirmed attendance, each with a new reference number, and hoursTotal moved by the same
+// hours. Entries whose confirmation was undone are removed. Returns how many entries were added.
 export async function syncHours(uid) {
+  await autoConfirmClaims(uid).catch((err) => console.warn(err));
   const [confirmed, entries] = await Promise.all([
     getDocs(query(collectionGroup(db, 'attendance'), where('uid', '==', uid), where('status', '==', 'confirmed'))),
     getDocs(collection(db, 'users', uid, 'hours')),

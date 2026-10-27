@@ -413,8 +413,9 @@ service cloud.firestore {
       match /attendance/{uid} {
         function validAttendance(a) {
           return a.keys().hasOnly(['uid', 'name', 'status', 'hours', 'checkedInAt', 'checkedInBy', 'checkedOutAt', 'checkedOutBy',
-                   'confirmedAt', 'confirmedBy', 'claimedAt', 'autoConfirmAt', 'code', 'updatedAt'])
+                   'confirmedAt', 'confirmedBy', 'claimedAt', 'autoConfirmAt', 'code', 'updatedAt', 'sample'])
             && a.uid == uid
+            && a.get('sample', true) == true
             && a.status in ['checked_in', 'confirmed', 'claimed', 'declined']
             && a.hours is number && a.hours >= 0 && a.hours <= 24
             && (a.status != 'confirmed' || (a.confirmedAt is timestamp && a.confirmedBy is string))
@@ -441,6 +442,7 @@ service cloud.firestore {
           let a = request.resource.data;
           return isSelf(uid) && statusBefore(eventId, uid) == 'going'
             && validAttendance(a)
+            && a.name == get(regPath(eventId, uid)).data.name
             && a.status == 'confirmed' && a.confirmedBy == 'code'
             && a.confirmedAt == request.time && a.checkedOutAt == request.time && a.checkedOutBy == uid
             && a.hours == get(eventPath(eventId)).data.hours
@@ -453,6 +455,49 @@ service cloud.firestore {
           && resource.data.status in ['checked_in', 'claimed']
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['name', 'status', 'hours', 'code', 'checkedOutAt', 'checkedOutBy', 'confirmedAt', 'confirmedBy', 'updatedAt']);
+
+        // After the event ends, a volunteer who was going claims its hours without the code (section 7). A claim made
+        // after the organisation checked them in confirms itself 7 days later (autoConfirmAt) unless the organisation
+        // decides first; the client's clock sets autoConfirmAt, so it gets an hour either way.
+        function claimByVolunteer() {
+          let a = request.resource.data;
+          let e = get(eventPath(eventId)).data;
+          return isSelf(uid) && statusBefore(eventId, uid) == 'going'
+            && request.time > e.endAt
+            && validAttendance(a)
+            && a.name == get(regPath(eventId, uid)).data.name
+            && a.status == 'claimed' && a.claimedAt == request.time && a.hours == e.hours
+            && ('checkedInAt' in a
+              ? a.autoConfirmAt is timestamp
+                && a.autoConfirmAt > request.time + duration.value(167, 'h')
+                && a.autoConfirmAt < request.time + duration.value(169, 'h')
+              : !('autoConfirmAt' in a))
+            && attendedMoves();
+        }
+
+        allow create: if claimByVolunteer()
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'status', 'hours', 'claimedAt', 'updatedAt']);
+        allow update: if claimByVolunteer()
+          && resource.data.status == 'checked_in'
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'status', 'hours', 'claimedAt', 'autoConfirmAt', 'updatedAt']);
+
+        // Phase 1 auto-confirm (section 8): the volunteer's own app confirms the claim once autoConfirmAt has passed,
+        // and no sooner than 7 days after the claim by the server's clock. The attended count moves with it.
+        function autoConfirm() {
+          let a = request.resource.data;
+          return isSelf(uid) && statusBefore(eventId, uid) == 'going'
+            && resource.data.status == 'claimed'
+            && resource.data.autoConfirmAt is timestamp
+            && request.time >= resource.data.autoConfirmAt
+            && request.time >= resource.data.claimedAt + duration.value(7, 'd')
+            && validAttendance(a)
+            && a.status == 'confirmed' && a.confirmedBy == 'auto' && a.confirmedAt == request.time
+            && a.diff(resource.data).affectedKeys().hasOnly(['status', 'confirmedAt', 'confirmedBy', 'updatedAt'])
+            && attendedMoves();
+        }
+
+        allow update: if autoConfirm();
       }
 
       // Check-in and check-out codes for the organisation; the exact venue also for approved volunteers.

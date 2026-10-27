@@ -99,4 +99,6 @@ organisations/{orgId}/staffInvites/{email}
                                         with role "staff" and the invite is removed
 events/{eventId}/attendance/{uid}
   code                                  the check-out code the volunteer scanned, when confirmedBy is "code"
+  confirmedBy                           also "auto": a claim after a check-in that confirmed itself 7 days later
+                                        (the hours entry copies it)
 ```
