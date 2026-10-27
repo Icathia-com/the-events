@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Event chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+input::placeholder{color:#6B5E55}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden; display: flex; flex-direction: column">
+<div style="display: flex; align-items: center; gap: 12px; padding: 60px 20px 12px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; box-sizing: border-box; padding: 4px; display: flex; align-items: flex-end; background: linear-gradient(135deg, #7A3E2A, #D08A5E); color: #FFFFFF; font-size: 7px; font-weight: 800; line-height: 1.05; white-space: pre-line">YISHUN
+VISIT</span><span style="display: flex; flex-direction: column; min-width: 0; flex: 1"><span style="font-size: 17px; font-weight: 700; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Befriending visit: Yishun seniors</span><span style="font-size: 12.5px; color: rgba(255,255,255,.85)">{{memberLine}}</span></span><button onClick="{{toggleInfo}}" aria-label="Chat settings" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></button></div>
+
+<sc-if value="{{notStarted}}" hint-placeholder-val="{{ false }}"><div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px"><div class="card" style="padding: 28px 22px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; width: 100%; box-sizing: border-box"><span style="width: 60px; height: 60px; border-radius: 20px; background: rgba(30,26,23,.06); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg></span><span style="font-size: 18px; font-weight: 700">Start event chat</span><span style="font-size: 13.5px; color: #6B5E55; line-height: 1.5">A group chat for this event's hosts and registered volunteers. New volunteers join automatically; it closes a week after the event.</span><button onClick="{{start}}" style="margin-top: 6px; height: 48px; padding: 0 24px; border-radius: 24px; border: 0; background: #24412F; color: #FFFFFF; font-size: 15px; font-weight: 700; cursor: pointer">Start chat</button></div></div></sc-if>
+
+<sc-if value="{{started}}" hint-placeholder-val="{{ true }}"><div id="msgs" class="hide-sb" style="flex: 1; overflow-y: auto; padding: 8px 20px 12px; display: flex; flex-direction: column; gap: 10px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<span style="align-self: center; padding: 4px 12px; border-radius: 12px; background: rgba(255,255,255,.5); font-size: 11.5px; font-weight: 700; color: #4A3F38">Today</span>
+<sc-for list="{{msgs}}" as="m" hint-placeholder-count="4"><div style="{{m.wrap}}"><sc-if value="{{m.showAv}}" hint-placeholder-val="{{ true }}"><span style="{{m.av}}">{{m.ini}}</span></sc-if><div style="{{m.col}}"><sc-if value="{{m.showName}}" hint-placeholder-val="{{ true }}"><span style="font-size: 11.5px; font-weight: 700; color: #6B5E55; padding: 0 6px">{{m.name}}</span></sc-if><span style="{{m.bubble}}">{{m.text}}</span><span style="font-size: 10.5px; color: #6B5E55; padding: 0 6px">{{m.when}}</span></div></div></sc-for>
+</div>
+<div style="padding: 10px 16px 24px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: linear-gradient(180deg, rgba(248,238,232,0) 0%, rgba(248,238,232,.9) 40%)"><button aria-label="Attach a photo" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.9); background: rgba(255,255,255,.62); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex-shrink: 0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E1A17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg></button><input aria-label="Message" placeholder="Message" value="{{draft}}" onChange="{{setDraft}}" style="flex: 1; min-width: 0; height: 46px; border-radius: 23px; border: 1px solid rgba(255,255,255,.9); background: rgba(255,255,255,.72); padding: 0 16px; font-family: inherit; font-size: 15px; font-weight: 500; color: #1E1A17; outline: none; box-sizing: border-box"><button onClick="{{send}}" disabled="{{cantSend}}" aria-label="Send" style="{{sendStyle}}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2-6z"/></svg></button></div></sc-if>
+
+<sc-if value="{{infoOpen}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; z-index: 50; background: rgba(30,26,23,0.35); display: flex; align-items: flex-end"><div role="dialog" aria-modal="true" aria-label="Chat settings" style="width: 100%; box-sizing: border-box; border-radius: 28px 28px 0 0; background: rgba(255,255,255,0.97); padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 12px"><div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 20px; font-weight: 700">Chat settings</span><button onClick="{{toggleInfo}}" aria-label="Close" style="width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(30,26,23,0.06); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A17" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div style="border-radius: 18px; background: rgba(30,26,23,.04); padding: 0 14px"><div style="display: flex; align-items: center; gap: 12px; min-height: 54px"><span style="display: flex; flex-direction: column; gap: 1px; flex: 1"><span style="font-size: 15px; font-weight: 600">Only hosts can post</span><span style="font-size: 12px; color: #6B5E55">Volunteers can read but not reply</span></span><button role="switch" aria-checked="{{hostOnlyOn}}" aria-label="Only hosts can post" onClick="{{toggleHostOnly}}" style="{{hoTrack}}"><span style="{{hoKnob}}"></span></button></div><div style="display: flex; align-items: center; gap: 12px; min-height: 54px; border-top: 1px solid rgba(30,26,23,.07)"><span style="display: flex; flex-direction: column; gap: 1px; flex: 1"><span style="font-size: 15px; font-weight: 600">Mute notifications</span><span style="font-size: 12px; color: #6B5E55">For you only</span></span><button role="switch" aria-checked="{{muteOn}}" aria-label="Mute notifications" onClick="{{toggleMute}}" style="{{muTrack}}"><span style="{{muKnob}}"></span></button></div></div><a href="Volunteers.dc.html" draggable="false" style="height: 50px; border-radius: 25px; border: 1px solid rgba(30,26,23,.12); background: rgba(255,255,255,.9); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700">See members ({{memberCount}})</a><button onClick="{{close}}" style="height: 50px; border-radius: 25px; border: 1px solid rgba(163,45,45,.3); background: rgba(255,255,255,.9); color: #A32D2D; font-size: 15px; font-weight: 700; cursor: pointer">Close chat for everyone</button></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let m = null, on = true; try { m = JSON.parse(localStorage.getItem('vn.chat') || 'null'); on = localStorage.getItem('vn.chatOn') !== '0'; } catch (e) {} this.state = { started: on, msgs: Array.isArray(m) ? m : [{ who: 'host', name: 'Mei Lin Tan', text: 'Welcome to the chat for Wednesday’s visit. We meet at the void deck of the block at 1:50 PM; I’ll share the block number here on the day.', when: '09:12' }, { who: 'p1', name: 'Aisha Rahman', text: 'Thanks Mei Lin. Is it okay to bring kueh for the seniors?', when: '09:30' }, { who: 'host', name: 'Mei Lin Tan', text: 'Yes please, something soft is best. A few of them have trouble with hard snacks.', when: '09:34' }, { who: 'p3', name: 'Chloe Lim', text: 'I can bring extra umbrellas in case it rains.', when: '10:05' }], draft: '', infoOpen: false, hostOnly: false, mute: false }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const G = { host: ['#7A3E2A', '#D08A5E'], p1: ['#1F4E6E', '#5B9BC2'], p3: ['#8A5A1E', '#D9A24A'] };
+    const initials = (s) => s.split(/\s+/).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    const track = (on) => 'position:relative;width:52px;height:30px;border-radius:15px;border:0;padding:0;cursor:pointer;flex-shrink:0;transition:background .25s ease;background:' + (on ? '#24412F' : 'rgba(30,26,23,.18)');
+    const knob = (on) => 'position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s ease;transform:translateX(' + (on ? 22 : 0) + 'px)';
+    const msgs = st.msgs.map((m, i) => { const me = m.who === 'host', prev = st.msgs[i - 1], same = prev && prev.who === m.who, g = G[m.who] || ['#2E5C44', '#5FA37B']; return { text: m.text, when: m.when, name: m.name + (me ? ' · Host' : ''), ini: initials(m.name), showAv: !me && !same, showName: !same,
+      wrap: 'display:flex;gap:8px;align-items:flex-end;' + (me ? 'flex-direction:row-reverse' : 'padding-left:' + (same ? '40px' : '0')),
+      av: 'width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(135deg,' + g[0] + ',' + g[1] + ')',
+      col: 'display:flex;flex-direction:column;gap:3px;max-width:78%;' + (me ? 'align-items:flex-end' : 'align-items:flex-start'),
+      bubble: 'padding:10px 14px;font-size:14.5px;line-height:1.45;' + (me ? 'border-radius:18px 18px 4px 18px;background:#24412F;color:#FFFFFF' : 'border-radius:18px 18px 18px 4px;background:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.9);color:#1E1A17') }; });
+    const can = st.draft.trim().length > 0;
+    const keep = (list) => { try { localStorage.setItem('vn.chat', JSON.stringify(list)); } catch (e) {} };
+    return {
+      started: st.started, notStarted: !st.started, memberLine: st.started ? '9 members · hosts and registered volunteers' : 'Chat not started', memberCount: 9,
+      start: () => { try { localStorage.setItem('vn.chatOn', '1'); } catch (e) {} this.setState({ started: true }); },
+      msgs: msgs, draft: st.draft, setDraft: (e) => this.setState({ draft: e.target.value }), cantSend: !can,
+      sendStyle: 'width:46px;height:46px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;cursor:' + (can ? 'pointer' : 'default') + ';flex-shrink:0;background:' + (can ? '#24412F' : 'rgba(30,26,23,.15)') + ';color:' + (can ? '#FFFFFF' : 'rgba(30,26,23,.45)'),
+      send: () => { if (!can) return; const list = st.msgs.concat([{ who: 'host', name: 'Mei Lin Tan', text: st.draft.trim(), when: 'Now' }]); keep(list); this.setState({ msgs: list, draft: '' }); setTimeout(() => { const el = document.getElementById('msgs'); if (el) el.scrollTop = el.scrollHeight; }, 30); },
+      infoOpen: st.infoOpen, toggleInfo: () => this.setState({ infoOpen: !st.infoOpen }),
+      hostOnlyOn: String(st.hostOnly), hoTrack: track(st.hostOnly), hoKnob: knob(st.hostOnly), toggleHostOnly: () => this.setState({ hostOnly: !st.hostOnly }),
+      muteOn: String(st.mute), muTrack: track(st.mute), muKnob: knob(st.mute), toggleMute: () => this.setState({ mute: !st.mute }),
+      close: () => { try { localStorage.setItem('vn.chatOn', '0'); } catch (e) {} this.setState({ started: false, infoOpen: false }); },
+      vDown: this.dragDown('msgs', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

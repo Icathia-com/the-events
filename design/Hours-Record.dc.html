@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Hours record</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0;text-decoration:none}
+.doc{border-radius:20px;background:#FFFFFF;border:1px solid rgba(30,26,23,.08);box-shadow:0 14px 36px rgba(90,50,30,.14);padding:20px;display:flex;flex-direction:column;gap:12px;flex-shrink:0}
+.qr{width:72px;height:72px;border-radius:8px;background-color:#FFFFFF;background-image:repeating-linear-gradient(0deg,#1E1A17 0 3px,transparent 3px 6px),repeating-linear-gradient(90deg,#1E1A17 0 3px,transparent 3px 6px);background-blend-mode:screen;box-shadow:inset 0 0 0 4px #FFFFFF,inset 0 0 0 5px #1E1A17;opacity:.9;flex-shrink:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="hr" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Profile.dc.html" draggable="false" aria-label="Back to Profile" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Hours record</span><button aria-label="Share record" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg></button><button aria-label="Download PDF" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></svg></button></div>
+<div class="doc"><div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px"><span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; font-weight: 800; letter-spacing: .08em; color: #6B5E55">VOLUNTEER NETWORK</span><span style="font-size: 20px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15">Record of volunteer hours</span></span><span style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #1F3A2C, #3F7A5A); flex-shrink: 0"></span></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 0; border-top: 1px solid rgba(30,26,23,.08); border-bottom: 1px solid rgba(30,26,23,.08)"><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 11px; font-weight: 700; color: #6B5E55">Volunteer</span><span style="font-size: 14px; font-weight: 700">Mei Lin Tan</span></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 11px; font-weight: 700; color: #6B5E55">Confirmed hours</span><span style="font-size: 14px; font-weight: 700">{{total}} hours</span></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 11px; font-weight: 700; color: #6B5E55">Period</span><span style="font-size: 14px; font-weight: 700">Jan to Oct 2026</span></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 11px; font-weight: 700; color: #6B5E55">Reference</span><span style="font-size: 14px; font-weight: 700">VN-2026-00482</span></span></div>
+<div style="display: flex; flex-direction: column"><sc-for list="{{rows}}" as="r" hint-placeholder-count="5"><div style="{{r.row}}"><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 13.5px; font-weight: 700">{{r.title}}</span><span style="font-size: 11.5px; color: #6B5E55">{{r.line}}</span></span><span style="{{r.h}}">{{r.hours}}</span></div></sc-for></div>
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 4px"><span class="qr" role="img" aria-label="Verification code"></span><span style="font-size: 11.5px; color: #6B5E55; line-height: 1.5">Scan to verify this record at [verify link]. Each line was confirmed by the organisation named, at the time shown in the app's log.</span></div></div>
+<sc-if value="{{hasPending}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 12px"><span style="width: 40px; height: 40px; border-radius: 12px; background: rgba(201,112,45,.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A4A12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1"><span style="font-size: 14.5px; font-weight: 700">3 hours waiting for confirmation</span><span style="font-size: 12.5px; color: #6B5E55">Changi beach clean-up · Shoreline Keepers · confirms itself on 17 Oct</span></span><a href="Claim-Hours.dc.html" draggable="false" style="font-size: 13px; font-weight: 700; color: #24412F">View</a></div></sc-if>
+<div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px"><span style="font-size: 16px; font-weight: 700">Request a signed letter</span><span style="font-size: 13px; color: #6B5E55; line-height: 1.5">For school, work or an award application. The organisation issues it on its letterhead, signed by its coordinator.</span><sc-if value="{{notSent}}" hint-placeholder-val="{{ true }}"><div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{orgs}}" as="o" hint-placeholder-count="3"><button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="{{o.style}}">{{o.label}}</button></sc-for></div><button onClick="{{send}}" disabled="{{cantSend}}" style="{{sendStyle}}">{{sendLabel}}</button></sc-if><sc-if value="{{sent}}" hint-placeholder-val="{{ false }}"><span style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(46,125,91,.12); font-size: 13.5px; font-weight: 700; color: #1E6B42"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>Request sent to {{sentOrg}}. You get a notification when the letter is ready.</span></sc-if></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { pick: '', sent: '' }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const ROWS = [['Befriending visit: Yishun seniors', 'Silver Companions · 14 Oct 2026 · confirmed by Mei Lin Tan', 2], ['Food pack sorting morning', 'Harvest Table SG · 26 Sep 2026 · confirmed by check-out code', 3], ['Mid-Autumn visit: Ang Mo Kio', 'Silver Companions · 27 Sep 2026 · confirmed by Mei Lin Tan', 3], ['Reading club, four Saturdays', 'Little Readers · Aug 2026 · confirmed by check-out code', 4], ['Grocery run for homebound seniors', 'Silver Companions · 6 Sep 2026 · confirmed by Mei Lin Tan', 2]];
+    const ORGS = [['silver', 'Silver Companions'], ['harvest', 'Harvest Table SG'], ['readers', 'Little Readers']];
+    const sentName = (ORGS.find((o) => o[0] === st.sent) || [])[1] || '';
+    return {
+      total: ROWS.reduce((a, r) => a + r[2], 0), rows: ROWS.map((r, i) => ({ title: r[0], line: r[1], hours: r[2] + ' h', h: 'font-size:14px;font-weight:800;color:#1E6B42;flex-shrink:0', row: 'display:flex;align-items:center;gap:12px;padding:9px 0;' + (i ? 'border-top:1px solid rgba(30,26,23,.06)' : '') })),
+      hasPending: true, notSent: !st.sent, sent: !!st.sent, sentOrg: sentName,
+      orgs: ORGS.map((o) => { const on = st.pick === o[0]; return { label: o[1], on: String(on), pick: () => this.setState({ pick: o[0] }), style: 'height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.12)') + ';background:' + (on ? '#24412F' : 'rgba(255,255,255,.8)') + ';color:' + (on ? '#FFFFFF' : '#1E1A17') }; }),
+      cantSend: !st.pick, sendLabel: st.pick ? 'Send request' : 'Choose an organisation', sendStyle: 'height:48px;border-radius:24px;border:0;font-size:14.5px;font-weight:700;cursor:' + (st.pick ? 'pointer' : 'default') + ';background:' + (st.pick ? '#24412F' : 'rgba(30,26,23,.15)') + ';color:' + (st.pick ? '#FFFFFF' : 'rgba(30,26,23,.45)'), send: () => { if (st.pick) this.setState({ sent: st.pick }); },
+      vDown: this.dragDown('hr', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

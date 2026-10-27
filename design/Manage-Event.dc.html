@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Manage event</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.row{display:flex;align-items:center;gap:12px;padding:0 16px;min-height:62px;width:100%;box-sizing:border-box;border:0;background:none;cursor:pointer;text-align:left;font-family:inherit;color:#1E1A17;text-decoration:none}
+.row+.row{border-top:1px solid rgba(30,26,23,.07)}
+.ic{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#FFFFFF}
+.ic svg{width:18px;height:18px}
+.t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.t b{font-size:15px;font-weight:700}
+.t span{font-size:12.5px;color:#6B5E55}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0;overflow:hidden}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="mg" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 14px; padding-top: 8px; flex-shrink: 0"><a href="Event-Detail.dc.html" draggable="false" aria-label="Back to the event" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.5); background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center; color: #FFFFFF; flex-shrink: 0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><div style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; line-height: 1.1">Manage event</span><span style="font-size: 13px; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{title}}</span></div></div>
+
+<a href="Event-Detail.dc.html" draggable="false" class="card" style="display: flex; align-items: center; gap: 12px; padding: 12px"><span style="{{cover}}">{{coverText}}</span><span style="display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1"><span style="font-size: 15.5px; font-weight: 700; line-height: 1.25">{{title}}</span><span style="font-size: 12.5px; color: #4A3F38">{{when}}</span><span style="display: flex; gap: 6px; flex-wrap: wrap"><span style="{{statusStyle}}">{{statusText}}</span><span style="padding: 3px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; background: rgba(30,26,23,.07); color: #4A3F38">{{visText}}</span></span></span></a>
+
+<div class="card">
+<a href="Event-Create.dc.html" draggable="false" class="row"><span class="ic" style="background: #24412F"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12.5 7.5l4 4"/></svg></span><span class="t"><b>Event details</b><span>Name, description, time and location</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Volunteers.dc.html" draggable="false" class="row"><span class="ic" style="background: #C9702D"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2a5 5 0 0 1 6 4.8"/></svg></span><span class="t"><b>Volunteers</b><span>{{volLine}}</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Hosts.dc.html" draggable="false" class="row"><span class="ic" style="background: #5A3E7A"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 3l1 2 2 .3-1.5 1.4.4 2-1.9-1-1.9 1 .4-2L16 5.3l2-.3z"/></svg></span><span class="t"><b>Hosts</b><span>Add co-hosts and event staff</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Check-In.dc.html" draggable="false" class="row"><span class="ic" style="background: #1F4E6E"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v2M17 20h4M14 20h1"/></svg></span><span class="t"><b>Check-in options</b><span>QR scanning, manual attendance and staff</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Check-Out.dc.html" draggable="false" class="row"><span class="ic" style="background: #2E7D5B"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="t"><b>Check-out and hours</b><span>Check-out code, confirm hours, claims from volunteers</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+</div>
+
+<div class="card">
+<a href="Access.dc.html" draggable="false" class="row"><span class="ic" style="background: #2E7D5B"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4V7a1 1 0 0 1 1-1z"/><path d="M14.5 6.5v2M14.5 11v2M14.5 15.5v2"/></svg></span><span class="t"><b>Access and registration</b><span>Visibility, spots, approval, free or paid on site</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Vouchers.dc.html" draggable="false" class="row"><span class="ic" style="background: #8A5A1E"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6z"/><path d="M9 8v8M15 8v8"/></svg></span><span class="t"><b>Vouchers and access codes</b><span>Codes for groups, partners or reserved spots</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Questions.dc.html" draggable="false" class="row"><span class="ic" style="background: #B04A6A"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><span class="t"><b>Registration questions</b><span>What to ask volunteers when they sign up</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Blasts.dc.html" draggable="false" class="row"><span class="ic" style="background: #C2704F"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></span><span class="t"><b>Announcements</b><span>Message everyone who registered</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+<a href="Insights.dc.html" draggable="false" class="row"><span class="ic" style="background: #3E5A1E"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></span><span class="t"><b>Insights</b><span>Page views, registrations and attendance</span></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a>
+</div>
+
+<div class="card">
+<a href="Invite.dc.html" draggable="false" class="row" style="min-height: 54px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A3F38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.5"/><path d="M3 20a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg><span class="t"><b style="font-size: 15px; font-weight: 600">Invite volunteers</b></span></a>
+<a href="Check-In.dc.html" draggable="false" class="row" style="min-height: 54px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A3F38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="t"><b style="font-size: 15px; font-weight: 600">Check in volunteers</b></span></a>
+<a href="Event-Chat.dc.html" draggable="false" class="row" style="min-height: 54px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A3F38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span class="t"><b style="font-size: 15px; font-weight: 600">Start event chat</b></span></a>
+</div>
+
+<div class="card">
+<a href="Event-Create.dc.html" draggable="false" class="row" style="min-height: 54px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A3F38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="t"><b style="font-size: 15px; font-weight: 600">Clone event</b></span></a>
+<button onClick="{{openTransfer}}" class="row" style="min-height: 54px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A3F38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg><span class="t"><b style="font-size: 15px; font-weight: 600">Transfer to another organisation</b></span></button>
+</div>
+<div class="card"><button onClick="{{openCancel}}" disabled="{{cancelled}}" class="row" style="min-height: 54px; color: #A32D2D"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg><span class="t"><b style="font-size: 15px; font-weight: 600; color: #A32D2D">{{cancelLabel}}</b></span></button></div>
+</div>
+
+<sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; z-index: 50; background: rgba(30,26,23,0.35); display: flex; align-items: flex-end"><div role="dialog" aria-modal="true" aria-label="{{sheetTitle}}" style="width: 100%; box-sizing: border-box; border-radius: 28px 28px 0 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -12px 40px rgba(90,50,30,0.25)"><div style="display: flex; align-items: center; justify-content: space-between"><span style="width: 44px; height: 44px; border-radius: 14px; background: rgba(30,26,23,0.06); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1E1A17" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></span><button onClick="{{closeSheet}}" aria-label="Close" style="width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(30,26,23,0.06); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A17" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><span style="font-size: 20px; font-weight: 700">{{sheetTitle}}</span><span style="font-size: 14px; color: #4A3F38; line-height: 1.5; white-space: pre-line">{{sheetBody}}</span>
+<sc-if value="{{isTransfer}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 6px; padding-top: 4px"><sc-for list="{{orgOpts}}" as="o" hint-placeholder-count="3"><button onClick="{{o.pick}}" aria-pressed="{{o.on}}" style="{{o.style}}"><span style="{{o.av}}">{{o.ini}}</span>{{o.name}}</button></sc-for></div></sc-if>
+<button onClick="{{confirmSheet}}" disabled="{{confirmOff}}" style="{{confirmStyle}}">{{confirmText}}</button></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let id = 'yishun', c = {}; try { id = localStorage.getItem('vn.ev') || 'yishun'; c = JSON.parse(localStorage.getItem('vn.cancelled') || '{}') || {}; } catch (e) {} this.state = { id: id, cancelled: !!c[id], sheet: '', pickOrg: '' }; }
+
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const BASE = {
+      sort: { day: '2026-10-28', time: '9:00 AM', end: '12:00 PM', title: 'Food pack sorting morning', cap: 20, left: 8, cover: ['#8A5A1E', '#D9A24A', 'FOOD\nPACKS'] },
+      yishun: { day: '2026-10-28', time: '2:00 PM', end: '4:00 PM', title: 'Befriending visit: Yishun seniors', cap: 10, left: 3, appr: true, pending: 2, cover: ['#7A3E2A', '#D08A5E', 'YISHUN\nVISIT'] },
+      beach: { day: '2026-10-31', time: '7:30 AM', end: '10:00 AM', title: 'East Coast beach clean-up', cap: 60, left: 25, cover: ['#1F4E6E', '#5B9BC2', 'BEACH\nCLEAN-UP'] },
+      read: { day: '2026-10-31', time: '10:00 AM', end: '12:00 PM', title: 'Saturday reading club', cap: 8, left: 4, appr: true, cover: ['#5A3E7A', '#9C7BC4', 'READING\nCLUB'] },
+      dogs: { day: '2026-11-01', time: '9:00 AM', end: '1:00 PM', title: 'Shelter dog walking', cap: 12, left: 6, cover: ['#2E5C44', '#5FA37B', 'DOG\nWALKING'] },
+      trees: { day: '2026-11-04', time: '6:00 PM', end: '8:00 PM', title: 'Tree planting on the green corridor', cap: 40, left: 15, cover: ['#3E5A1E', '#8CB83E', 'TREE\nPLANTING'] },
+      kids: { day: '2026-11-07', time: '3:00 PM', end: '5:00 PM', title: 'Children’s craft afternoon', cap: 10, left: 10, cover: ['#B04A6A', '#E58AA8', 'CRAFT\nAFTERNOON'] }
+    };
+    const ORGS = [{ id: 'harvest', name: 'Harvest Table SG', grad: ['#8A5A1E', '#D9A24A'] }, { id: 'shore', name: 'Shoreline Keepers', grad: ['#1F4E6E', '#5B9BC2'] }, { id: 'readers', name: 'Little Readers', grad: ['#5A3E7A', '#9C7BC4'] }];
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const parseDay = (d) => { const p = String(d || '').split('-').map(Number); return new Date(p[0] || 2026, (p[1] || 1) - 1, p[2] || 1); };
+    const initials = (s) => (String(s).replace(/[^A-Za-z ]/g, ' ').split(/\s+/).filter((w) => w && !/^(the|of|and|sg)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join('')) || 'VN';
+    const coverStyle = (c, w, h, r, fs) => 'width:' + w + ';height:' + h + 'px;border-radius:' + r + 'px;flex-shrink:0;box-sizing:border-box;padding:' + Math.round(h / 9) + 'px;display:flex;align-items:flex-end;background:' + (c[3] ? 'center/cover no-repeat url(' + c[3] + ')' : 'linear-gradient(135deg,' + c[0] + ' 0%,' + c[1] + ' 100%)') + ';color:#FFFFFF;font-size:' + fs + 'px;font-weight:800;letter-spacing:.02em;line-height:1.05;white-space:pre-line;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)';
+    let created = []; try { created = JSON.parse(localStorage.getItem('vn.newEvents') || '[]') || []; } catch (e) {}
+    const st = this.state;
+    const e = BASE[st.id] || created.find((x) => x.id === st.id) || BASE.yishun;
+    const dt = parseDay(e.day);
+    const going = e.cap ? Math.max(0, Number(e.cap) - Number(e.left)) : 0, pending = e.pending || 0;
+    const sheet = st.sheet, isT = sheet === 'transfer', isC = sheet === 'cancel';
+    const orgOpts = ORGS.map((o) => { const on = st.pickOrg === o.id; return { name: o.name, ini: initials(o.name), on: String(on), pick: () => this.setState({ pickOrg: o.id }),
+      style: 'height:52px;padding:0 12px;border-radius:16px;display:flex;align-items:center;gap:12px;font-size:14.5px;font-weight:700;cursor:pointer;text-align:left;border:1px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.12)') + ';background:' + (on ? 'rgba(36,65,47,.08)' : 'rgba(255,255,255,.8)') + ';color:#1E1A17',
+      av: 'width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,' + o.grad[0] + ',' + o.grad[1] + ')' }; });
+    return {
+      title: e.title, cover: coverStyle(e.cover, '64px', 64, 14, 10), coverText: e.cover[2],
+      when: DOW[dt.getDay()] + ' ' + dt.getDate() + ' ' + MON[dt.getMonth()] + ', ' + e.time + (e.end ? ' – ' + e.end : ''),
+      statusText: st.cancelled ? 'Cancelled' : (e.cap ? going + ' of ' + e.cap + ' spots filled' : going + ' registered'),
+      statusStyle: 'padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;' + (st.cancelled ? 'background:rgba(163,45,45,.12);color:#A32D2D' : 'background:rgba(46,125,91,.14);color:#1E6B42'),
+      visText: e.vis === 'draft' ? 'Draft' : e.vis === 'followers' ? 'Followers only' : 'Public',
+      volLine: going + ' going' + (pending ? ' · ' + pending + ' waiting for approval' : '') + ' · mark attendance here',
+      cancelled: st.cancelled, cancelLabel: st.cancelled ? 'Event cancelled' : 'Cancel event',
+      sheet: !!sheet, isTransfer: isT, sheetTitle: isT ? 'Transfer to another organisation' : 'Cancel this event?',
+      sheetBody: isT ? 'The other organisation’s admins will manage this event and its registrations. You will no longer see it under your organisation.' : 'Everyone who registered gets a cancellation notice right away. This cannot be undone.',
+      openTransfer: () => this.setState({ sheet: 'transfer', pickOrg: '' }), openCancel: () => this.setState({ sheet: 'cancel' }), closeSheet: () => this.setState({ sheet: '' }),
+      orgOpts: orgOpts, confirmOff: isT && !st.pickOrg, confirmText: isT ? 'Transfer event' : 'Cancel event and notify volunteers',
+      confirmStyle: 'height:52px;border-radius:26px;border:0;font-size:15px;font-weight:700;margin-top:4px;cursor:pointer;color:#FFFFFF;background:' + (isC ? '#A32D2D' : (st.pickOrg ? '#24412F' : 'rgba(30,26,23,.15)')) + (isT && !st.pickOrg ? ';color:rgba(30,26,23,.45);cursor:default' : ''),
+      confirmSheet: () => { if (isC) { let c = {}; try { c = JSON.parse(localStorage.getItem('vn.cancelled') || '{}') || {}; c[st.id] = true; localStorage.setItem('vn.cancelled', JSON.stringify(c)); } catch (x) {} this.setState({ cancelled: true, sheet: '' }); } else { this.setState({ sheet: '' }); } },
+      vDown: this.dragDown('mg', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

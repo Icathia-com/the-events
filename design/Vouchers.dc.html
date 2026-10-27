@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Vouchers and access codes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+.lbl{font-size:13px;font-weight:700;color:#6B5E55;padding:4px 4px 0}
+.in{height:48px;border-radius:14px;border:0;background:rgba(30,26,23,.06);padding:0 14px;font-family:inherit;font-size:15px;font-weight:600;color:#1E1A17;outline:none;width:100%;box-sizing:border-box}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="vc" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1; line-height: 1.1">Vouchers and access codes</span><button onClick="{{toggleNew}}" aria-label="New code" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div>
+<sc-if value="{{editing}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px"><span style="font-size: 17px; font-weight: 700">New code</span><input aria-label="Code" placeholder="Code, for example TEAMABC" value="{{code}}" onChange="{{setCode}}" class="in" style="text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700">
+<div class="lbl" style="padding-top: 0">What the code does</div><div style="display: flex; flex-direction: column; gap: 8px"><sc-for list="{{kinds}}" as="k" hint-placeholder-count="4"><button onClick="{{k.pick}}" role="radio" aria-checked="{{k.on}}" style="{{k.style}}"><span style="{{k.ring}}"><sc-if value="{{k.sel}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if></span><span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14.5px; font-weight: 700">{{k.label}}</span><span style="font-size: 12px; color: #6B5E55">{{k.help}}</span></span></button></sc-for></div>
+<sc-if value="{{isDiscount}}" hint-placeholder-val="{{ false }}"><label style="display: flex; align-items: center; gap: 12px"><span style="font-size: 14.5px; font-weight: 600; flex: 1">Discount on the on-site fee (S$)</span><input type="number" min="1" step="1" placeholder="[Amount]" aria-label="Discount amount" value="{{amt}}" onChange="{{setAmt}}" class="in" style="width: 100px; height: 40px; text-align: right"></label></sc-if>
+<label style="display: flex; align-items: center; gap: 12px"><span style="font-size: 14.5px; font-weight: 600; flex: 1">Can be used</span><input type="number" min="1" step="1" placeholder="Unlimited" aria-label="Maximum uses" value="{{uses}}" onChange="{{setUses}}" class="in" style="width: 110px; height: 40px; text-align: right"><span style="font-size: 13px; color: #6B5E55">times</span></label>
+<label style="display: flex; align-items: center; gap: 12px"><span style="font-size: 14.5px; font-weight: 600; flex: 1">Expires</span><input type="date" aria-label="Expiry date" value="{{exp}}" onChange="{{setExp}}" class="in" style="width: 150px; height: 40px"></label>
+<div style="display: flex; gap: 8px"><button onClick="{{toggleNew}}" style="height: 48px; padding: 0 18px; border-radius: 24px; border: 1px solid rgba(30,26,23,.12); background: rgba(255,255,255,.9); font-size: 14.5px; font-weight: 700; cursor: pointer">Cancel</button><button onClick="{{save}}" disabled="{{cantSave}}" style="{{saveStyle}}">Create code</button></div></div></sc-if>
+<sc-if value="{{hasList}}" hint-placeholder-val="{{ false }}"><div class="lbl">Active codes</div><div class="card" style="padding: 2px 14px"><sc-for list="{{list}}" as="v" hint-placeholder-count="2"><div style="{{v.row}}"><span style="{{v.ic}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6z"/><path d="M9 8v8M15 8v8"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 15px; font-weight: 800; letter-spacing: 0.06em">{{v.code}}</span><span style="font-size: 12.5px; color: #6B5E55">{{v.line}}</span></span><span style="font-size: 12px; font-weight: 700; color: #4A3F38; white-space: nowrap">{{v.used}}</span><button onClick="{{v.remove}}" aria-label="{{v.removeAria}}" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(30,26,23,.12); background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; color: #6B5E55; flex-shrink: 0"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></sc-for></div></sc-if>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center"><span style="width: 60px; height: 60px; border-radius: 20px; background: rgba(30,26,23,.06); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6z"/><path d="M9 8v8M15 8v8"/></svg></span><span style="font-size: 17px; font-weight: 700">No codes yet</span><span style="font-size: 13.5px; color: #6B5E55; line-height: 1.5">A code can hold spots for a partner or a company team, let regular volunteers skip approval, or take money off an on-site fee.</span><button onClick="{{toggleNew}}" style="margin-top: 6px; height: 46px; padding: 0 22px; border-radius: 23px; border: 0; background: #24412F; color: #FFFFFF; font-size: 14.5px; font-weight: 700; cursor: pointer">New code</button></div></sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let v = null; try { v = JSON.parse(localStorage.getItem('vn.vouchers') || 'null'); } catch (e) {} this.state = { list: Array.isArray(v) ? v : [{ code: 'TEAMABC', kind: 'reserve', uses: '8', used: 3, exp: '2026-10-28' }], editing: false, code: '', kind: 'reserve', amt: '', uses: '', exp: '2026-10-28' }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const KINDS = [['reserve', 'Reserved spots', 'Holds spots that only people with the code can take, for example a company team or a school group.'], ['skip', 'Skip approval', 'Volunteers with the code are approved instantly, for example your regulars.'], ['unlock', 'Unlock a hidden event', 'Lets someone register for a followers-only or draft event.'], ['discount', 'Discount', 'Takes an amount off a fee collected on site.']];
+    const K = {}; KINDS.forEach((k) => { K[k[0]] = k; });
+    const ring = (on) => 'width:22px;height:22px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;border:2px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.3)') + ';background:' + (on ? '#24412F' : 'transparent');
+    const keep = (list, patch) => { try { localStorage.setItem('vn.vouchers', JSON.stringify(list)); } catch (e) {} this.setState(Object.assign({ list: list }, patch || {})); };
+    const can = st.code.trim().length >= 3 && (st.kind !== 'discount' || st.amt);
+    const list = st.list.map((v, i) => ({ code: v.code, line: (K[v.kind] ? K[v.kind][1] : 'Code') + (v.kind === 'discount' && v.amt ? ' · S$' + v.amt + ' off' : '') + (v.exp ? ' · until ' + v.exp.slice(8) + '/' + v.exp.slice(5, 7) : ''), used: (v.used || 0) + ' of ' + (v.uses || '∞') + ' used', removeAria: 'Delete code ' + v.code,
+      ic: 'width:38px;height:38px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#FFFFFF;background:' + (v.kind === 'discount' ? '#8A5A1E' : v.kind === 'skip' ? '#2E7D5B' : v.kind === 'unlock' ? '#5A3E7A' : '#1F4E6E'),
+      row: 'display:flex;align-items:center;gap:12px;padding:12px 0;' + (i ? 'border-top:1px solid rgba(30,26,23,.07)' : ''), remove: () => keep(st.list.filter((x, j) => j !== i)) }));
+    return {
+      editing: st.editing, toggleNew: () => this.setState({ editing: !st.editing, code: '', kind: 'reserve', amt: '', uses: '' }),
+      code: st.code, setCode: (e) => this.setState({ code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }),
+      kinds: KINDS.map((k) => { const on = k[0] === st.kind; return { label: k[1], help: k[2], on: String(on), sel: on, ring: ring(on), pick: () => this.setState({ kind: k[0] }), style: 'display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:14px;text-align:left;cursor:pointer;font-family:inherit;color:#1E1A17;border:1px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.1)') + ';background:' + (on ? 'rgba(36,65,47,.07)' : 'rgba(255,255,255,.9)') }; }),
+      isDiscount: st.kind === 'discount', amt: st.amt, setAmt: (e) => this.setState({ amt: e.target.value }), uses: st.uses, setUses: (e) => this.setState({ uses: e.target.value }), exp: st.exp, setExp: (e) => this.setState({ exp: e.target.value }),
+      cantSave: !can, saveStyle: 'flex:1;height:48px;border-radius:24px;border:0;font-size:14.5px;font-weight:700;cursor:' + (can ? 'pointer' : 'default') + ';background:' + (can ? '#24412F' : 'rgba(30,26,23,.15)') + ';color:' + (can ? '#FFFFFF' : 'rgba(30,26,23,.45)'),
+      save: () => { if (can) keep(st.list.concat([{ code: st.code.trim(), kind: st.kind, amt: st.amt, uses: st.uses, used: 0, exp: st.exp }]), { editing: false, code: '', amt: '', uses: '' }); },
+      list: list, hasList: list.length > 0, empty: list.length === 0 && !st.editing,
+      vDown: this.dragDown('vc', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

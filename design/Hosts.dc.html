@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Hosts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+.lbl{font-size:13px;font-weight:700;color:#6B5E55;padding:4px 4px 0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="hs" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Hosts</span></div>
+<div class="lbl">Shown on the event page</div>
+<div class="card" style="padding: 2px 14px"><sc-for list="{{hosts}}" as="h" hint-placeholder-count="2"><div style="{{h.row}}"><span style="{{h.av}}">{{h.ini}}</span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{h.name}}</span><span style="font-size: 12.5px; color: #6B5E55">{{h.line}}</span></span><sc-if value="{{h.fixed}}" hint-placeholder-val="{{ true }}"><span style="padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; background: rgba(36,65,47,.10); color: #24412F">{{h.role}}</span></sc-if><sc-if value="{{h.editable}}" hint-placeholder-val="{{ false }}"><button onClick="{{h.cycle}}" aria-label="{{h.roleAria}}" style="height: 32px; padding: 0 10px; border-radius: 16px; border: 1px solid rgba(30,26,23,.15); background: rgba(255,255,255,.8); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px">{{h.role}} <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><button onClick="{{h.remove}}" aria-label="{{h.removeAria}}" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(30,26,23,.12); background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; color: #6B5E55; margin-left: 4px"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></sc-if></div></sc-for></div>
+<div class="lbl">Add a host</div>
+<div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px"><input aria-label="Name, email or mobile number" placeholder="Name, email or mobile number" value="{{draft}}" onChange="{{setDraft}}" style="height: 48px; border-radius: 14px; border: 0; background: rgba(30,26,23,.06); padding: 0 14px; font-family: inherit; font-size: 15px; font-weight: 600; color: #1E1A17; outline: none; width: 100%; box-sizing: border-box"><div style="display: flex; gap: 8px; flex-wrap: wrap"><sc-for list="{{roleChips}}" as="r" hint-placeholder-count="3"><button onClick="{{r.pick}}" aria-pressed="{{r.on}}" style="{{r.style}}">{{r.label}}</button></sc-for></div><span style="font-size: 12.5px; color: #6B5E55; line-height: 1.5">{{roleHelp}}</span><button onClick="{{add}}" disabled="{{cantAdd}}" style="{{addBtn}}">Add host</button></div>
+<div class="lbl">Partner organisation</div>
+<div class="card" style="padding: 2px 14px"><sc-for list="{{partners}}" as="p" hint-placeholder-count="2"><div style="{{p.row}}"><span style="{{p.av}}">{{p.ini}}</span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 15px; font-weight: 700">{{p.name}}</span><span style="font-size: 12.5px; color: #6B5E55">{{p.line}}</span></span><button onClick="{{p.toggle}}" aria-pressed="{{p.on}}" style="{{p.btn}}">{{p.btnText}}</button></div></sc-for></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let h = null, pt = []; try { h = JSON.parse(localStorage.getItem('vn.hosts') || 'null'); pt = JSON.parse(localStorage.getItem('vn.partners') || '[]') || []; } catch (e) {} this.state = { hosts: Array.isArray(h) ? h : [{ name: 'Mei Lin Tan', role: 'Co-host', g: ['#5A3E7A', '#9C7BC4'] }], partners: pt, draft: '', role: 'Co-host' }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const ROLES = ['Co-host', 'Staff', 'Guest speaker'];
+    const HELP = { 'Co-host': 'Can edit the event, approve volunteers and send announcements.', 'Staff': 'Can check volunteers in and see the list. Cannot edit the event.', 'Guest speaker': 'Shown on the event page only. No access to manage it.' };
+    const PARTNERS = [{ id: 'harvest', name: 'Harvest Table SG', line: 'Food rescue and community pantries', g: ['#8A5A1E', '#D9A24A'] }, { id: 'corridor', name: 'Green Corridor Collective', line: 'Tree planting and trail care', g: ['#3E5A1E', '#8CB83E'] }];
+    const initials = (s) => String(s).replace(/@.*/, '').split(/[.\s_]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || 'H';
+    const av = (g, size) => 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,' + g[0] + ',' + g[1] + ')';
+    const keep = (hosts) => { try { localStorage.setItem('vn.hosts', JSON.stringify(hosts)); } catch (e) {} this.setState({ hosts: hosts, draft: '' }); };
+    const rowS = (i) => 'display:flex;align-items:center;gap:12px;padding:11px 0;' + (i ? 'border-top:1px solid rgba(30,26,23,.07)' : '');
+    const hosts = [{ name: 'Silver Companions', line: 'Your organisation · hosts this event', role: 'Organiser', fixed: true, editable: false, ini: 'SC', av: av(['#7A3E2A', '#D08A5E'], 40), row: rowS(0) }]
+      .concat(st.hosts.map((h, i) => ({ name: h.name, line: HELP[h.role], role: h.role, fixed: false, editable: true, ini: initials(h.name), av: av(h.g || ['#1F4E6E', '#5B9BC2'], 40), row: rowS(1),
+        roleAria: 'Change role for ' + h.name + ', currently ' + h.role, removeAria: 'Remove ' + h.name,
+        cycle: () => { const n = st.hosts.slice(); n[i] = Object.assign({}, h, { role: ROLES[(ROLES.indexOf(h.role) + 1) % ROLES.length] }); keep(n); },
+        remove: () => keep(st.hosts.filter((x, j) => j !== i)) })));
+    const can = st.draft.trim().length > 1;
+    const GR = [['#1F4E6E', '#5B9BC2'], ['#2E5C44', '#5FA37B'], ['#B04A6A', '#E58AA8'], ['#8A4A12', '#E8945A']];
+    const partners = PARTNERS.map((p, i) => { const on = st.partners.indexOf(p.id) >= 0; return { name: p.name, line: on ? 'Co-hosting · shown on the event page' : p.line, ini: initials(p.name), av: av(p.g, 40), row: rowS(i), on: String(on), btnText: on ? 'Co-hosting' : 'Invite',
+      btn: 'height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;border:1px solid ' + (on ? 'rgba(30,26,23,.15)' : '#24412F') + ';background:' + (on ? 'rgba(255,255,255,.7)' : '#24412F') + ';color:' + (on ? '#1E1A17' : '#FFFFFF'),
+      toggle: () => { const n = on ? st.partners.filter((x) => x !== p.id) : st.partners.concat([p.id]); try { localStorage.setItem('vn.partners', JSON.stringify(n)); } catch (e) {} this.setState({ partners: n }); } }; });
+    return {
+      hosts: hosts, draft: st.draft, setDraft: (e) => this.setState({ draft: e.target.value }),
+      roleChips: ROLES.map((r) => { const on = r === st.role; return { label: r, on: String(on), pick: () => this.setState({ role: r }), style: 'height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.12)') + ';background:' + (on ? '#24412F' : 'rgba(255,255,255,.8)') + ';color:' + (on ? '#FFFFFF' : '#1E1A17') }; }),
+      roleHelp: HELP[st.role], cantAdd: !can,
+      addBtn: 'height:48px;border-radius:24px;border:0;font-size:15px;font-weight:700;cursor:' + (can ? 'pointer' : 'default') + ';background:' + (can ? '#24412F' : 'rgba(30,26,23,.15)') + ';color:' + (can ? '#FFFFFF' : 'rgba(30,26,23,.45)'),
+      add: () => { if (can) keep(st.hosts.concat([{ name: st.draft.trim(), role: st.role, g: GR[st.hosts.length % GR.length] }])); },
+      partners: partners,
+      vDown: this.dragDown('hs', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Registration questions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+.lbl{font-size:13px;font-weight:700;color:#6B5E55;padding:4px 4px 0}
+.r{display:flex;align-items:center;gap:12px;padding:0 16px;min-height:56px;width:100%;box-sizing:border-box;border:0;background:none;cursor:pointer;text-align:left;font-family:inherit;color:#1E1A17}
+.r+.r{border-top:1px solid rgba(30,26,23,.07)}
+.t{font-size:15px;font-weight:600;flex:1;min-width:0}
+.v{font-size:14px;font-weight:600;color:#4A3F38;white-space:nowrap}
+.in{height:48px;border-radius:14px;border:0;background:rgba(30,26,23,.06);padding:0 14px;font-family:inherit;font-size:15px;font-weight:600;color:#1E1A17;outline:none;width:100%;box-sizing:border-box}
+.ty{display:flex;align-items:center;gap:12px;padding:0 14px;min-height:50px;width:100%;box-sizing:border-box;border:0;background:none;cursor:pointer;text-align:left;font-family:inherit;color:#1E1A17;font-size:15px;font-weight:600}
+.ty+.ty{border-top:1px solid rgba(30,26,23,.07)}
+.ty .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;flex-shrink:0}
+.ty .ic svg{width:16px;height:16px}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="qs" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 12px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Registration questions</span></div>
+<div class="lbl">Personal information</div>
+<div class="card"><div class="r" style="cursor: default"><span class="t">Name</span><span class="v">Full name</span></div><div class="r" style="cursor: default"><span class="t">Email</span><span class="v">Required</span></div><sc-for list="{{personal}}" as="p" hint-placeholder-count="3"><button onClick="{{p.cycle}}" aria-label="{{p.aria}}" class="r"><span class="t">{{p.label}}</span><span class="v">{{p.value}}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg></button></sc-for></div>
+<span style="font-size: 12px; color: #6B5E55; line-height: 1.5; padding: 0 4px">Name and email come from the volunteer's profile. Tap a row to make it off, optional or required.</span>
+<div class="lbl">Custom questions</div>
+<sc-if value="{{hasCustom}}" hint-placeholder-val="{{ true }}"><div class="card"><sc-for list="{{custom}}" as="q" hint-placeholder-count="2"><div class="r" style="cursor: default; min-height: 60px"><span class="ic" style="{{q.ic}}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 15px; font-weight: 700">{{q.text}}</span><span style="font-size: 12px; color: #6B5E55">{{q.line}}</span></span><button onClick="{{q.remove}}" aria-label="{{q.removeAria}}" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(30,26,23,.12); background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; color: #6B5E55; flex-shrink: 0"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></sc-for></div></sc-if>
+<button onClick="{{openTypes}}" class="card" style="height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Add question</button>
+</div>
+
+<sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; z-index: 50; background: rgba(30,26,23,0.35); display: flex; align-items: flex-end"><div role="dialog" aria-modal="true" aria-label="{{sheetTitle}}" style="width: 100%; max-height: 90%; overflow-y: auto; box-sizing: border-box; border-radius: 28px 28px 0 0; background: rgba(255,255,255,0.97); padding: 18px 20px 28px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -12px 40px rgba(90,50,30,0.25)"><div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 20px; font-weight: 700">{{sheetTitle}}</span><button onClick="{{closeSheet}}" aria-label="Close" style="width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(30,26,23,0.06); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E1A17" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+<sc-if value="{{isTypes}}" hint-placeholder-val="{{ true }}"><div class="lbl" style="padding-top: 0">Basic</div><div style="border-radius: 18px; background: rgba(30,26,23,.04)"><sc-for list="{{basic}}" as="b" hint-placeholder-count="5"><button onClick="{{b.pick}}" class="ty"><span class="ic" style="{{b.ic}}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span>{{b.label}}<span style="flex: 1"></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></sc-for></div><div class="lbl" style="padding-top: 0">Social profile</div><div style="border-radius: 18px; background: rgba(30,26,23,.04)"><sc-for list="{{social}}" as="b" hint-placeholder-count="3"><button onClick="{{b.pick}}" class="ty"><span class="ic" style="{{b.ic}}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>{{b.label}}<span style="flex: 1"></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></sc-for></div><div class="lbl" style="padding-top: 0">Other</div><div style="border-radius: 18px; background: rgba(30,26,23,.04)"><sc-for list="{{other}}" as="b" hint-placeholder-count="2"><button onClick="{{b.pick}}" class="ty"><span class="ic" style="{{b.ic}}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 9h6M9 13h6"/></svg></span>{{b.label}}<span style="flex: 1"></span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></sc-for></div></sc-if>
+<sc-if value="{{isForm}}" hint-placeholder-val="{{ false }}"><span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B5E55"><span class="ic" style="{{formIc}}; width: 24px; height: 24px; border-radius: 7px; display: inline-flex"></span>{{formType}}</span><input aria-label="Question" placeholder="{{formPh}}" value="{{qText}}" onChange="{{setQText}}" class="in" style="font-weight: 700"><sc-if value="{{hasOptions}}" hint-placeholder-val="{{ false }}"><input aria-label="Options, separated by commas" placeholder="Options, separated by commas" value="{{qOpts}}" onChange="{{setQOpts}}" class="in"></sc-if><div style="display: flex; align-items: center; gap: 12px; padding: 4px 4px 0"><span style="font-size: 15px; font-weight: 600; flex: 1">Required</span><button role="switch" aria-checked="{{reqOn}}" aria-label="Required" onClick="{{toggleReq}}" style="{{reqTrack}}"><span style="{{reqKnob}}"></span></button></div><div style="display: flex; gap: 8px; padding-top: 4px"><button onClick="{{openTypes}}" style="height: 50px; padding: 0 18px; border-radius: 25px; border: 1px solid rgba(30,26,23,.12); background: rgba(255,255,255,.9); font-size: 14.5px; font-weight: 700; cursor: pointer">Back</button><button onClick="{{saveQ}}" disabled="{{cantSave}}" style="{{saveStyle}}">Save question</button></div></sc-if>
+</div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let s = null; try { s = JSON.parse(localStorage.getItem('vn.questions') || 'null'); } catch (e) {} this.state = Object.assign({ personal: { mobile: 'required', emergency: 'optional', age: 'off' }, custom: [{ type: 'options', text: 'Have you volunteered with seniors before?', opts: 'Yes, No', req: true }], sheet: '', type: '', qText: '', qOpts: '', req: false }, s || {}); }
+  keep(patch) { const n = Object.assign({}, this.state, patch); try { localStorage.setItem('vn.questions', JSON.stringify({ personal: n.personal, custom: n.custom })); } catch (e) {} this.setState(patch); }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const LEVELS = ['off', 'optional', 'required'], LV = { off: 'Off', optional: 'Optional', required: 'Required' };
+    const PERSONAL = [['mobile', 'Mobile number'], ['emergency', 'Emergency contact'], ['age', 'Age group']];
+    const TYPES = { text: ['Text', '#1F4E6E', 'Type your question'], options: ['Options', '#5A3E7A', 'Question with choices'], checkbox: ['Checkbox', '#8A5A1E', 'Statement to tick'], link: ['Link', '#2E5C44', 'Ask for a link'], mobile: ['Mobile number', '#C2704F', 'Ask for a number'], instagram: ['Instagram', '#B04A6A', 'Instagram handle'], telegram: ['Telegram', '#1F4E6E', 'Telegram username'], linkedin: ['LinkedIn', '#1F4E6E', 'LinkedIn profile'], company: ['Company or school', '#4A3F38', 'Ask where they are from'], terms: ['Terms to agree', '#A32D2D', 'Paste the terms or a link'] };
+    const mk = (id) => ({ label: TYPES[id][0], ic: 'background:' + TYPES[id][1], pick: () => this.setState({ sheet: 'form', type: id, qText: ['instagram', 'telegram', 'linkedin', 'company', 'mobile'].indexOf(id) >= 0 ? 'What is your ' + TYPES[id][0].toLowerCase() + '?' : '', qOpts: '', req: false }) });
+    const track = (on) => 'position:relative;width:52px;height:30px;border-radius:15px;border:0;padding:0;cursor:pointer;flex-shrink:0;transition:background .25s ease;background:' + (on ? '#24412F' : 'rgba(30,26,23,.18)');
+    const knob = (on) => 'position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s ease;transform:translateX(' + (on ? 22 : 0) + 'px)';
+    const can = st.qText.trim().length > 2 && (st.type !== 'options' || st.qOpts.trim().length > 0);
+    return {
+      personal: PERSONAL.map(([id, label]) => ({ label: label, value: LV[st.personal[id]], aria: label + ': ' + LV[st.personal[id]] + ', tap to change', cycle: () => { const p = Object.assign({}, st.personal); p[id] = LEVELS[(LEVELS.indexOf(p[id]) + 1) % 3]; this.keep({ personal: p }); } })),
+      custom: st.custom.map((q, i) => ({ text: q.text, line: (TYPES[q.type] ? TYPES[q.type][0] : 'Text') + (q.opts ? ' · ' + q.opts : '') + (q.req ? ' · Required' : ' · Optional'), ic: 'width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#FFFFFF;flex-shrink:0;background:' + (TYPES[q.type] ? TYPES[q.type][1] : '#1F4E6E'), removeAria: 'Remove question: ' + q.text, remove: () => this.keep({ custom: st.custom.filter((x, j) => j !== i) }) })),
+      hasCustom: st.custom.length > 0,
+      sheet: !!st.sheet, isTypes: st.sheet === 'types', isForm: st.sheet === 'form', sheetTitle: st.sheet === 'types' ? 'Choose question type' : 'Add question', openTypes: () => this.setState({ sheet: 'types' }), closeSheet: () => this.setState({ sheet: '' }),
+      basic: ['text', 'options', 'checkbox', 'link', 'mobile'].map(mk), social: ['instagram', 'telegram', 'linkedin'].map(mk), other: ['company', 'terms'].map(mk),
+      formType: TYPES[st.type] ? TYPES[st.type][0] : '', formIc: 'background:' + (TYPES[st.type] ? TYPES[st.type][1] : '#1F4E6E'), formPh: TYPES[st.type] ? TYPES[st.type][2] : 'Question', qText: st.qText, setQText: (e) => this.setState({ qText: e.target.value }), hasOptions: st.type === 'options', qOpts: st.qOpts, setQOpts: (e) => this.setState({ qOpts: e.target.value }),
+      reqOn: String(st.req), reqTrack: track(st.req), reqKnob: knob(st.req), toggleReq: () => this.setState({ req: !st.req }),
+      cantSave: !can, saveStyle: 'flex:1;height:50px;border-radius:25px;border:0;font-size:15px;font-weight:700;cursor:' + (can ? 'pointer' : 'default') + ';background:' + (can ? '#24412F' : 'rgba(30,26,23,.15)') + ';color:' + (can ? '#FFFFFF' : 'rgba(30,26,23,.45)'),
+      saveQ: () => { if (can) this.keep({ custom: st.custom.concat([{ type: st.type, text: st.qText.trim(), opts: st.type === 'options' ? st.qOpts.trim() : '', req: st.req }]), sheet: '' }); },
+      vDown: this.dragDown('qs', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

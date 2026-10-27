@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Insights</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+.lbl{font-size:13px;font-weight:700;color:#6B5E55;padding:4px 4px 0}
+.stat{display:flex;flex-direction:column;gap:2px;padding:14px 16px;flex:1;min-width:0}
+.stat b{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.stat span{font-size:12px;color:#6B5E55}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="ins" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><div style="display: flex; flex-direction: column; flex: 1"><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; line-height: 1.1">Insights</span><span style="font-size: 12px; color: rgba(255,255,255,.85)">Sample data</span></div></div>
+<div role="tablist" aria-label="Range" style="display: flex; gap: 4px; padding: 4px; border-radius: 22px; background: rgba(255,255,255,0.62); border: 1px solid rgba(255,255,255,0.9); flex-shrink: 0"><sc-for list="{{ranges}}" as="r" hint-placeholder-count="4"><button role="tab" aria-selected="{{r.on}}" onClick="{{r.pick}}" style="{{r.style}}">{{r.label}}</button></sc-for></div>
+<div class="card" style="display: flex; flex-direction: column"><div style="display: flex; align-items: baseline; justify-content: space-between; padding: 14px 16px 0"><span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 700; color: #6B5E55">Page views</span><span style="font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1">{{views}}</span></span><span style="font-size: 12.5px; color: #6B5E55">{{rangeLine}}</span></div><div style="display: flex; align-items: flex-end; gap: 4px; height: 110px; padding: 12px 16px 6px"><sc-for list="{{bars}}" as="b" hint-placeholder-count="7"><span style="{{b.style}}" role="img" aria-label="{{b.aria}}"></span></sc-for></div><div style="display: flex; justify-content: space-between; padding: 0 16px 12px; font-size: 11px; font-weight: 600; color: #6B5E55"><span>{{firstLabel}}</span><span>{{lastLabel}}</span></div></div>
+<div style="display: flex; gap: 12px; flex-shrink: 0"><div class="card stat"><b>{{regs}}</b><span>Registered</span></div><div class="card stat"><b>{{pending}}</b><span>Waiting for approval</span></div><div class="card stat"><b>{{dropped}}</b><span>Cancelled</span></div></div>
+<div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px"><div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 15px; font-weight: 700">Spots filled</span><span style="font-size: 13px; font-weight: 700; color: #1E6B42">{{filledPct}}%</span></div><div style="height: 10px; border-radius: 5px; background: rgba(30,26,23,.08); overflow: hidden"><span style="{{filledBar}}"></span></div><span style="font-size: 12.5px; color: #6B5E55">{{filledLine}}</span></div>
+<div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 10px"><div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 15px; font-weight: 700">Attendance</span><span style="font-size: 13px; font-weight: 700; color: #6B5E55">{{attLine}}</span></div><div style="height: 10px; border-radius: 5px; background: rgba(30,26,23,.08); overflow: hidden"><span style="{{attBar}}"></span></div><span style="font-size: 12.5px; color: #6B5E55">Updates as you mark volunteers attended. Hours added so far: {{hours}}.</span></div>
+<div class="lbl">Where registrations came from</div>
+<div class="card" style="padding: 4px 16px"><sc-for list="{{sources}}" as="s" hint-placeholder-count="4"><div style="{{s.row}}"><span style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span style="display: flex; justify-content: space-between; font-size: 14px"><span style="font-weight: 600">{{s.label}}</span><span style="font-weight: 700; color: #4A3F38">{{s.pct}}%</span></span><span style="height: 6px; border-radius: 3px; background: rgba(30,26,23,.08); overflow: hidden"><span style="{{s.bar}}"></span></span></span></div></sc-for></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let att = {}; try { att = JSON.parse(localStorage.getItem('vn.att') || '{}') || {}; } catch (e) {} this.state = { range: '7d', att: att }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const R = { '24h': { label: '24H', line: 'Last 24 hours', data: [0, 1, 0, 2, 3, 1, 4, 2, 6, 3, 1, 2], first: '00:00', last: '22:00' }, '7d': { label: '7D', line: '21 to 27 Oct', data: [4, 9, 6, 14, 11, 18, 22], first: '21 Oct', last: '27 Oct' }, '30d': { label: '30D', line: '28 Sep to 27 Oct', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 5, 4, 9, 6, 14, 11, 18, 22, 7], first: '28 Sep', last: '27 Oct' }, '3m': { label: '3M', line: 'Aug to Oct', data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 98], first: 'Aug', last: 'Oct' } };
+    const cur = R[st.range] || R['7d'];
+    const max = Math.max.apply(null, cur.data.concat([1]));
+    const views = cur.data.reduce((a, b) => a + b, 0);
+    const attended = Object.keys(st.att).length, going = 7, cap = 10;
+    const SRC = [['Event link shared by you', 46], ['Events tab', 31], ['Organisation page', 15], ['Invitation', 8]];
+    return {
+      ranges: Object.keys(R).map((k) => { const on = k === st.range; return { label: R[k].label, on: String(on), pick: () => this.setState({ range: k }), style: 'flex:1;height:36px;border:0;border-radius:18px;font-size:13px;font-weight:700;cursor:pointer;background:' + (on ? '#1E1A17' : 'transparent') + ';color:' + (on ? '#FFFFFF' : '#1E1A17') }; }),
+      views: views, rangeLine: cur.line, firstLabel: cur.first, lastLabel: cur.last,
+      bars: cur.data.map((v, i) => ({ aria: v + ' views', style: 'flex:1;min-width:2px;border-radius:4px 4px 2px 2px;background:' + (i === cur.data.length - 1 ? '#C2704F' : '#24412F') + ';opacity:' + (v ? '1' : '.18') + ';height:' + Math.max(4, Math.round(v / max * 100)) + '%' })),
+      regs: going, pending: 2, dropped: 1,
+      filledPct: Math.round(going / cap * 100), filledBar: 'display:block;height:100%;width:' + Math.round(going / cap * 100) + '%;border-radius:5px;background:#2E7D5B', filledLine: going + ' of ' + cap + ' spots · ' + (cap - going) + ' left',
+      attLine: attended + ' of ' + going + ' marked', attBar: 'display:block;height:100%;width:' + Math.round(attended / going * 100) + '%;border-radius:5px;background:#C2704F', hours: attended * 2,
+      sources: SRC.map((s, i) => ({ label: s[0], pct: s[1], bar: 'display:block;height:100%;width:' + s[1] + '%;border-radius:3px;background:#24412F', row: 'display:flex;padding:10px 0;' + (i ? 'border-top:1px solid rgba(30,26,23,.07)' : '') })),
+      vDown: this.dragDown('ins', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

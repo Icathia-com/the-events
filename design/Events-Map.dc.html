@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Events on the map</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+input::placeholder{color:rgba(255,255,255,.6)}
+.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.9);background:rgba(255,255,255,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;color:#1E1A17;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 8px 20px rgba(90,50,30,.14);text-decoration:none}
+.pin{position:absolute;width:36px;height:44px;border:0;background:none;padding:0;cursor:pointer;transform:translate(-50%,-100%);transition:transform .2s ease}
+.pin:hover{transform:translate(-50%,-100%) scale(1.08)}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #D7E6EA; font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<svg aria-hidden="true" viewBox="0 0 390 844" width="390" height="844" style="position: absolute; inset: 0; display: block"><defs><pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse"><path d="M26 0H0v26" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1"/></pattern></defs><rect width="390" height="844" fill="url(#grid)"/><path d="M28 430 L45 398 L95 370 L150 348 L205 342 L245 352 L280 360 L325 376 L362 396 L372 420 L355 446 L335 463 L290 481 L235 493 L205 489 L160 479 L110 471 L55 456 Z" fill="#EDE6D8" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round"/><path d="M300 343 L345 338 L352 351 L306 358 Z" fill="#EDE6D8" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/><ellipse cx="212" cy="506" rx="22" ry="8" fill="#EDE6D8" stroke="#FFFFFF" stroke-width="2"/><ellipse cx="160" cy="430" rx="34" ry="22" fill="#CFE0C2" opacity=".9"/><ellipse cx="150" cy="400" rx="26" ry="14" fill="#CFE0C2" opacity=".8"/><ellipse cx="240" cy="395" rx="18" ry="11" fill="#CFE0C2" opacity=".8"/><ellipse cx="300" cy="470" rx="30" ry="7" fill="#E7D9B0" opacity=".9"/><path d="M60 452 C120 440, 170 445, 230 455 C270 462, 320 450, 360 430" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity=".9"/><path d="M110 468 C140 420, 170 380, 200 350" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity=".9"/><path d="M200 488 C215 450, 225 410, 215 360" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity=".9"/><path d="M235 492 C270 470, 300 430, 335 380" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity=".9"/><path d="M48 400 C90 395, 140 392, 205 350" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity=".8"/><text x="214" y="520" font-family="Manrope, sans-serif" font-size="9" font-weight="700" fill="#6B5E55" text-anchor="middle">Sentosa</text><text x="326" y="334" font-family="Manrope, sans-serif" font-size="9" font-weight="700" fill="#6B5E55" text-anchor="middle">Pulau Ubin</text><text x="18" y="560" font-family="Manrope, sans-serif" font-size="10" font-weight="700" fill="#6B5E55">[Map of Singapore]</text></svg>
+
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="8"><button onClick="{{p.pick}}" aria-label="{{p.aria}}" aria-pressed="{{p.on}}" class="pin" style="{{p.pos}}"><svg aria-hidden="true" width="36" height="44" viewBox="0 0 36 44"><path d="M18 43 C18 43 3 26 3 16 A15 15 0 0 1 33 16 C33 26 18 43 18 43z" fill="{{p.fill}}" stroke="#FFFFFF" stroke-width="2.5"/><circle cx="18" cy="16" r="6" fill="#FFFFFF"/></svg></button></sc-for>
+
+<div style="position: absolute; left: 20px; right: 20px; top: 60px; display: flex; align-items: center; gap: 10px; z-index: 20"><a href="Home.dc.html" draggable="false" aria-label="Back to Home" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="height: 44px; padding: 0 16px; border-radius: 22px; background: rgba(255,255,255,.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.9); box-shadow: 0 8px 20px rgba(90,50,30,.14); display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 700">{{title}}<span style="padding: 2px 8px; border-radius: 10px; background: rgba(36,65,47,.10); color: #24412F; font-size: 12px; font-weight: 800">{{count}}</span></span><sc-if value="{{areaOn}}" hint-placeholder-val="{{ false }}"><button onClick="{{clearArea}}" aria-label="Show all areas" class="ib" style="width: auto; padding: 0 12px; border-radius: 22px; font-size: 13px; font-weight: 700; gap: 6px">{{areaName}} <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></sc-if></div>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}"><div style="position: absolute; left: 20px; right: 20px; bottom: 110px; z-index: 20; border-radius: 24px; background: rgba(255,255,255,.95); border: 1px solid rgba(255,255,255,.9); box-shadow: 0 16px 40px rgba(90,50,30,.22); padding: 12px; display: flex; flex-direction: column; gap: 10px"><a href="Event-Detail.dc.html" draggable="false" onClick="{{selGo}}" style="display: flex; gap: 12px; align-items: center"><span style="{{selCover}}">{{selCoverText}}</span><span style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0"><span style="font-size: 12px; font-weight: 600; color: #6B5E55">{{selOrg}}</span><span class="clamp2" style="font-size: 15.5px; font-weight: 700; line-height: 1.25">{{selTitle}}</span><span style="font-size: 12.5px; color: #4A3F38">{{selWhen}} · {{selPlace}}</span><span style="{{selSpotsStyle}}">{{selSpots}}</span></span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></a></div></sc-if>
+
+<sc-if value="{{isAdmin}}" hint-placeholder-val="{{ true }}"><a href="Event-Create.dc.html" draggable="false" style="position: absolute; right: 20px; top: 116px; z-index: 20; height: 44px; padding: 0 16px 0 12px; border-radius: 22px; background: #24412F; color: #FFFFFF; display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; box-shadow: 0 12px 28px rgba(36,65,47,0.35)"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Event</a></sc-if>
+
+<div style="position: absolute; left: 20px; right: 20px; bottom: 28px; z-index: 30; height: 60px; border-radius: 30px; background: rgba(30,26,23,.92); box-shadow: 0 16px 36px rgba(30,26,23,.35); display: flex; align-items: center; padding: 6px; gap: 6px; box-sizing: border-box"><a href="Home.dc.html" draggable="false" aria-label="List view" style="width: 48px; height: 48px; border-radius: 24px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.75)"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></a><span aria-current="true" aria-label="Map view" style="width: 48px; height: 48px; border-radius: 24px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; color: #1E1A17"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span><label style="flex: 1; min-width: 0; height: 48px; border-radius: 24px; background: rgba(255,255,255,.12); display: flex; align-items: center; gap: 8px; padding: 0 14px; box-sizing: border-box; color: #FFFFFF"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Search events on the map" placeholder="Search" value="{{query}}" onChange="{{setQuery}}" style="flex: 1; min-width: 0; border: 0; background: transparent; font-family: inherit; font-size: 15px; font-weight: 600; color: #FFFFFF; outline: none"></label></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"asAdmin":{"editor":"boolean","default":true,"section":"Role"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let a = ''; try { a = localStorage.getItem('vn.mapArea') || ''; localStorage.removeItem('vn.mapArea'); } catch (e) {} this.state = { sel: 'yishun', area: a, query: '' }; }
+  renderVals() {
+    const AREAS = { north: 'North', northeast: 'North-East', east: 'East', central: 'Central', west: 'West' };
+    const ORGS = { harvest: { name: 'Harvest Table SG', g: ['#8A5A1E', '#D9A24A'] }, silver: { name: 'Silver Companions', g: ['#7A3E2A', '#D08A5E'] }, shore: { name: 'Shoreline Keepers', g: ['#1F4E6E', '#5B9BC2'] }, readers: { name: 'Little Readers', g: ['#5A3E7A', '#9C7BC4'] }, paws: { name: 'Paws and Hearts Shelter', g: ['#2E5C44', '#5FA37B'] }, corridor: { name: 'Green Corridor Collective', g: ['#3E5A1E', '#8CB83E'] } };
+    const EV = [
+      { id: 'pantry', x: 222, y: 418, day: 'Today', time: '5:00 PM', title: 'Evening pantry restock', org: 'harvest', area: 'central', place: 'Toa Payoh', left: 5, cover: ['#8A5A1E', '#D9A24A', 'PANTRY\nRESTOCK'] },
+      { id: 'sort', x: 192, y: 446, day: 'Tomorrow', time: '9:00 AM', title: 'Food pack sorting morning', org: 'harvest', area: 'central', place: 'Bukit Merah', left: 8, cover: ['#8A5A1E', '#D9A24A', 'FOOD\nPACKS'] },
+      { id: 'yishun', x: 206, y: 372, day: 'Tomorrow', time: '2:00 PM', title: 'Befriending visit: Yishun seniors', org: 'silver', area: 'north', place: 'Yishun', left: 3, cover: ['#7A3E2A', '#D08A5E', 'YISHUN\nVISIT'] },
+      { id: 'beach', x: 302, y: 468, day: 'Sat 31 Oct', time: '7:30 AM', title: 'East Coast beach clean-up', org: 'shore', area: 'east', place: 'East Coast Park', left: 25, cover: ['#1F4E6E', '#5B9BC2', 'BEACH\nCLEAN-UP'] },
+      { id: 'read', x: 92, y: 436, day: 'Sat 31 Oct', time: '10:00 AM', title: 'Saturday reading club', org: 'readers', area: 'west', place: 'Jurong West', left: 4, cover: ['#5A3E7A', '#9C7BC4', 'READING\nCLUB'] },
+      { id: 'dogs', x: 322, y: 388, day: 'Sun 1 Nov', time: '9:00 AM', title: 'Shelter dog walking', org: 'paws', area: 'northeast', place: 'Pasir Ris', left: 6, cover: ['#2E5C44', '#5FA37B', 'DOG\nWALKING'] },
+      { id: 'trees', x: 160, y: 412, day: 'Wed 4 Nov', time: '6:00 PM', title: 'Tree planting on the green corridor', org: 'corridor', area: 'central', place: 'Bukit Timah', left: 15, cover: ['#3E5A1E', '#8CB83E', 'TREE\nPLANTING'] },
+      { id: 'kids', x: 116, y: 458, day: 'Sat 7 Nov', time: '3:00 PM', title: 'Children’s craft afternoon', org: 'readers', area: 'west', place: 'Jurong West', left: 10, cover: ['#B04A6A', '#E58AA8', 'CRAFT\nAFTERNOON'] }
+    ];
+    const st = this.state, q = st.query.trim().toLowerCase();
+    const show = EV.filter((e) => (!st.area || e.area === st.area) && (!q || (e.title + ' ' + ORGS[e.org].name + ' ' + e.place).toLowerCase().indexOf(q) >= 0));
+    const selE = show.find((e) => e.id === st.sel) || null;
+    const pins = show.map((e) => { const on = selE && e.id === st.sel; return { aria: e.title + ', ' + e.day + ' ' + e.time, on: String(!!on), fill: on ? '#1E1A17' : ORGS[e.org].g[0], pos: 'left:' + e.x + 'px;top:' + e.y + 'px;z-index:' + (on ? 15 : 10) + (on ? ';transform:translate(-50%,-100%) scale(1.18)' : ''), pick: () => this.setState({ sel: on ? '' : e.id }) }; });
+    const low = selE && selE.left <= 3;
+    return {
+      title: st.area ? AREAS[st.area] : 'Events near you', count: show.length, areaOn: !!st.area, areaName: AREAS[st.area] || '', clearArea: () => this.setState({ area: '' }),
+      pins: pins, hasSel: !!selE,
+      selTitle: selE ? selE.title : '', selOrg: selE ? ORGS[selE.org].name : '', selWhen: selE ? selE.day + ', ' + selE.time : '', selPlace: selE ? selE.place : '', selGo: () => { try { localStorage.setItem('vn.ev', selE ? selE.id : 'sort'); } catch (e) {} },
+      selCover: selE ? 'width:64px;height:64px;border-radius:14px;flex-shrink:0;box-sizing:border-box;padding:7px;display:flex;align-items:flex-end;background:linear-gradient(135deg,' + selE.cover[0] + ',' + selE.cover[1] + ');color:#fff;font-size:9px;font-weight:800;line-height:1.05;white-space:pre-line' : '', selCoverText: selE ? selE.cover[2] : '',
+      selSpots: selE ? (low ? 'Almost full · ' + selE.left + ' left' : selE.left + ' spots left') : '', selSpotsStyle: 'align-self:flex-start;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;' + (low ? 'background:rgba(201,112,45,.16);color:#8A4A12' : 'background:rgba(46,125,91,.14);color:#1E6B42'),
+      isAdmin: this.props.asAdmin ?? true, query: st.query, setQuery: (e) => this.setState({ query: e.target.value })
+    };
+  }
+}
+</script>
+</body>
+</html>

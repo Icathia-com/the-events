@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Claim your hours</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0;text-decoration:none}
+@keyframes scanline{0%{top:12%}50%{top:88%}100%{top:12%}}
+.scan{animation:scanline 2.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.scan{animation:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div style="position: absolute; inset: 0; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Home.dc.html" draggable="false" aria-label="Back to Home" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Claim your hours</span></div>
+<div class="card" style="padding: 14px; display: flex; gap: 12px; align-items: center"><span style="width: 64px; height: 64px; border-radius: 14px; flex-shrink: 0; box-sizing: border-box; padding: 7px; display: flex; align-items: flex-end; background: linear-gradient(135deg, #1F4E6E, #5B9BC2); color: #fff; font-size: 9px; font-weight: 800; line-height: 1.05; white-space: pre-line">CHANGI
+CLEAN-UP</span><span style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0"><span style="font-size: 12px; font-weight: 600; color: #6B5E55">Shoreline Keepers</span><span style="font-size: 16px; font-weight: 700; line-height: 1.25">Changi beach clean-up</span><span style="font-size: 12.5px; color: #4A3F38">Sat 10 Oct · 8:00 – 11:00 AM · 3 hours</span></span></div>
+
+<sc-if value="{{isOpen}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 18px; display: flex; flex-direction: column; gap: 12px"><span style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 12px; background: rgba(201,112,45,.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A4A12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span style="display: flex; flex-direction: column; gap: 1px"><span style="font-size: 15px; font-weight: 700">{{statusTitle}}</span><span style="font-size: 12.5px; color: #6B5E55">{{statusLine}}</span></span></span>
+<button onClick="{{openScan}}" style="height: 54px; border-radius: 27px; border: 0; background: #24412F; color: #FFFFFF; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v2M17 20h4M14 20h1"/></svg>Scan the organiser's check-out code</button>
+<button onClick="{{claim}}" style="height: 54px; border-radius: 27px; border: 1px solid rgba(30,26,23,.15); background: rgba(255,255,255,.9); font-size: 15px; font-weight: 700; cursor: pointer">Claim 3 hours without a code</button>
+<span style="font-size: 12.5px; color: #6B5E55; line-height: 1.5; text-align: center">{{claimHelp}}</span></div></sc-if>
+
+<sc-if value="{{isPending}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 22px 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center"><span style="width: 60px; height: 60px; border-radius: 50%; background: rgba(201,112,45,.16); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8A4A12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span style="font-size: 20px; font-weight: 700">Claim sent to Shoreline Keepers</span><span style="font-size: 14px; color: #4A3F38; line-height: 1.5">{{pendingLine}}</span><a href="Hours-Record.dc.html" draggable="false" style="margin-top: 4px; height: 48px; padding: 0 22px; border-radius: 24px; background: #24412F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14.5px; font-weight: 700">See my hours record</a></div></sc-if>
+
+<sc-if value="{{isDone}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 22px 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center"><span style="width: 60px; height: 60px; border-radius: 50%; background: #2E7D5B; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span style="font-size: 20px; font-weight: 700">3 hours confirmed</span><span style="font-size: 14px; color: #4A3F38; line-height: 1.5">Added to your record. Thank you for coming.</span><a href="Hours-Record.dc.html" draggable="false" style="margin-top: 4px; height: 48px; padding: 0 22px; border-radius: 24px; background: #24412F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 14.5px; font-weight: 700">See my hours record</a></div></sc-if>
+</div>
+<sc-if value="{{scanning}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; z-index: 50; background: #0F0D0C; display: flex; flex-direction: column; color: #FFFFFF"><div style="display: flex; align-items: center; gap: 12px; padding: 60px 20px 0"><button onClick="{{closeScan}}" aria-label="Close scanner" class="ib" style="border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.12)"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><span style="font-size: 20px; font-weight: 600">Scan the check-out code</span></div><div style="flex: 1; display: flex; align-items: center; justify-content: center"><div style="position: relative; width: 280px; height: 280px; border-radius: 28px; background: radial-gradient(circle at 50% 40%, #2A2522 0%, #15120F 70%); overflow: hidden"><span aria-hidden="true" style="position: absolute; left: 18px; top: 18px; width: 40px; height: 40px; border-left: 4px solid #FFFFFF; border-top: 4px solid #FFFFFF; border-radius: 10px 0 0 0"></span><span aria-hidden="true" style="position: absolute; right: 18px; top: 18px; width: 40px; height: 40px; border-right: 4px solid #FFFFFF; border-top: 4px solid #FFFFFF; border-radius: 0 10px 0 0"></span><span aria-hidden="true" style="position: absolute; left: 18px; bottom: 18px; width: 40px; height: 40px; border-left: 4px solid #FFFFFF; border-bottom: 4px solid #FFFFFF; border-radius: 0 0 0 10px"></span><span aria-hidden="true" style="position: absolute; right: 18px; bottom: 18px; width: 40px; height: 40px; border-right: 4px solid #FFFFFF; border-bottom: 4px solid #FFFFFF; border-radius: 0 0 10px 0"></span><span class="scan" aria-hidden="true" style="position: absolute; left: 30px; right: 30px; height: 2px; background: #8CB83E; box-shadow: 0 0 12px #8CB83E"></span><span style="position: absolute; left: 0; right: 0; bottom: 36px; text-align: center; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.55)">[Camera view]</span></div></div><div style="display: flex; justify-content: center; padding: 0 20px 40px"><button onClick="{{simulate}}" style="height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.12); color: #FFFFFF; font-size: 13px; font-weight: 700; cursor: pointer">Sample scan</button></div></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"checkedIn":{"editor":"boolean","default":true,"section":"Scenario"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { step: 'open', scanning: false }; }
+  renderVals() {
+    const st = this.state, inn = this.props.checkedIn ?? true;
+    return {
+      isOpen: st.step === 'open', isPending: st.step === 'pending', isDone: st.step === 'done', scanning: st.scanning,
+      statusTitle: inn ? 'You checked in at 7:42 AM' : 'No check-in recorded', statusLine: inn ? 'But there is no check-out, so the hours are not confirmed yet.' : 'The organiser will need to confirm you were there.',
+      claimHelp: inn ? 'A claim is sent to the organiser. Because you checked in, it confirms itself after 7 days if they do not respond.' : 'A claim is sent to the organiser. Without a check-in it stays pending until they confirm it.',
+      pendingLine: inn ? 'The organiser can confirm it any time. If they do not respond, it confirms itself on Sat 17 Oct.' : 'The organiser needs to confirm you were there. You will get a notification either way.',
+      claim: () => this.setState({ step: 'pending' }), openScan: () => this.setState({ scanning: true }), closeScan: () => this.setState({ scanning: false }), simulate: () => this.setState({ scanning: false, step: 'done' })
+    };
+  }
+}
+</script>
+</body>
+</html>

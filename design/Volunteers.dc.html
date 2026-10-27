@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Volunteers list</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="vl" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 110px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Volunteers</span><button onClick="{{toggleSort}}" aria-label="Sort" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button><button onClick="{{toggleSearch}}" aria-label="Search volunteers" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button></div>
+<sc-if value="{{searchOpen}}" hint-placeholder-val="{{ false }}"><input aria-label="Search by name" placeholder="Search by name" value="{{query}}" onChange="{{setQuery}}" style="height: 48px; border-radius: 24px; background: rgba(255,255,255,0.62); border: 1px solid rgba(255,255,255,0.9); padding: 0 18px; font-family: inherit; font-size: 15px; font-weight: 600; color: #1E1A17; outline: none; box-sizing: border-box; width: 100%; flex-shrink: 0"></sc-if>
+<div id="tabs" class="hide-sb" role="tablist" aria-label="Volunteer status" style="display: flex; gap: 6px; overflow-x: auto; margin: 0 -20px; padding: 0 20px; flex-shrink: 0" onMouseDown="{{tDown}}"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}} <span style="{{t.badge}}">{{t.count}}</span></button></sc-for></div>
+<sc-if value="{{hasRows}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 2px 14px"><sc-for list="{{rows}}" as="v" hint-placeholder-count="5"><div style="{{v.row}}"><span style="{{v.av}}">{{v.ini}}</span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{v.name}}</span><span style="font-size: 12.5px; color: #6B5E55">{{v.line}}</span></span>
+<sc-if value="{{v.canMark}}" hint-placeholder-val="{{ true }}"><button onClick="{{v.toggleAtt}}" aria-pressed="{{v.attOn}}" aria-label="{{v.attAria}}" style="{{v.attBtn}}"><sc-if value="{{v.attended}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if>{{v.attText}}</button></sc-if>
+<sc-if value="{{v.isPending}}" hint-placeholder-val="{{ false }}"><span style="display: flex; gap: 6px"><button onClick="{{v.decline}}" aria-label="{{v.declineAria}}" style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(30,26,23,.15); background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; color: #A32D2D"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><button onClick="{{v.approve}}" style="height: 38px; padding: 0 14px; border-radius: 19px; border: 0; background: #24412F; color: #FFFFFF; font-size: 13px; font-weight: 700; cursor: pointer">Approve</button></span></sc-if>
+<sc-if value="{{v.isInvited}}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; font-weight: 700; color: #6B5E55">Invited</span></sc-if>
+</div></sc-for></div></sc-if>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 36px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center"><span style="width: 56px; height: 56px; border-radius: 18px; background: rgba(30,26,23,.06); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2a5 5 0 0 1 6 4.8"/></svg></span><span style="font-size: 16px; font-weight: 700">{{emptyTitle}}</span><span style="font-size: 13.5px; color: #6B5E55; line-height: 1.5">{{emptyLine}}</span></div></sc-if>
+<sc-if value="{{showSummary}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 12px"><span style="width: 40px; height: 40px; border-radius: 12px; background: rgba(46,125,91,.14); display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E6B42" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14.5px; font-weight: 700">{{attCount}} attended · {{hoursTotal}} volunteer hours</span><span style="font-size: 12.5px; color: #6B5E55">Hours are added to each volunteer's profile when you mark them attended</span></span></div></sc-if>
+</div>
+<div role="group" aria-label="View" style="position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 40; display: flex; gap: 4px; padding: 4px; border-radius: 24px; background: rgba(30,26,23,0.9); box-shadow: 0 12px 28px rgba(30,26,23,0.3)"><span aria-current="true" style="height: 40px; padding: 0 20px; border-radius: 20px; background: #FFFFFF; color: #1E1A17; font-size: 14px; font-weight: 700; display: flex; align-items: center">List</span><a href="Check-In.dc.html" draggable="false" style="height: 40px; padding: 0 20px; border-radius: 20px; color: #FFFFFF; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v2M17 20h4M14 20h1"/></svg>Scan</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let att = {}, pend = {}; try { att = JSON.parse(localStorage.getItem('vn.att') || '{}') || {}; pend = JSON.parse(localStorage.getItem('vn.pend') || '{}') || {}; } catch (e) {} this.state = { tab: 'going', att: att, pend: pend, searchOpen: false, query: '', sortNew: true }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const HOURS = 2;
+    const PEOPLE = [
+      { id: 'p1', name: 'Aisha Rahman', st: 'going', when: 'Registered 20 Oct', g: ['#1F4E6E', '#5B9BC2'], past: 6 },
+      { id: 'p2', name: 'Ben Tan', st: 'going', when: 'Registered 21 Oct', g: ['#5A3E7A', '#9C7BC4'], past: 1 },
+      { id: 'p3', name: 'Chloe Lim', st: 'going', when: 'Registered 22 Oct', g: ['#8A5A1E', '#D9A24A'], past: 12 },
+      { id: 'p4', name: 'Darren Koh', st: 'going', when: 'Registered 23 Oct', g: ['#2E5C44', '#5FA37B'], past: 0 },
+      { id: 'p5', name: 'Esther Ng', st: 'going', when: 'Registered 24 Oct', g: ['#B04A6A', '#E58AA8'], past: 3 },
+      { id: 'p6', name: 'Farid Aziz', st: 'going', when: 'Registered 25 Oct', g: ['#3E5A1E', '#8CB83E'], past: 2 },
+      { id: 'p7', name: 'Grace Ong', st: 'going', when: 'Registered 26 Oct', g: ['#7A3E2A', '#D08A5E'], past: 9 },
+      { id: 'p8', name: 'Hari Subramaniam', st: 'pending', when: 'Requested today, 10:14', g: ['#1F3A2C', '#3F7A5A'], past: 0 },
+      { id: 'p9', name: 'Ivy Chen', st: 'pending', when: 'Requested today, 12:40', g: ['#8A4A12', '#E8945A'], past: 4 },
+      { id: 'p10', name: 'Jun Wei', st: 'invited', when: 'Invited 25 Oct · not yet registered', g: ['#5A3E7A', '#9C7BC4'], past: 1 }
+    ];
+    const st = this.state;
+    const initials = (s) => s.split(/\s+/).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+    const status = (p) => st.pend[p.id] || p.st;
+    const people = PEOPLE.map((p) => Object.assign({}, p, { cur: status(p), attended: !!st.att[p.id] }));
+    const going = people.filter((p) => p.cur === 'going');
+    const counts = { going: going.length, attended: going.filter((p) => p.attended).length, unmarked: going.filter((p) => !p.attended).length, pending: people.filter((p) => p.cur === 'pending').length, invited: people.filter((p) => p.cur === 'invited').length };
+    const TABS = [['going', 'Going'], ['attended', 'Attended'], ['unmarked', 'Not yet marked'], ['pending', 'Waiting for approval'], ['invited', 'Invited']];
+    const tabs = TABS.map(([id, label]) => { const on = st.tab === id; return { label: label, count: counts[id], on: String(on), pick: () => this.setState({ tab: id }),
+      style: 'height:38px;padding:0 6px 0 14px;border-radius:19px;border:1px solid ' + (on ? '#1E1A17' : 'rgba(255,255,255,.9)') + ';background:' + (on ? '#1E1A17' : 'rgba(255,255,255,.62)') + ';color:' + (on ? '#FFFFFF' : '#1E1A17') + ';font-size:13px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0',
+      badge: 'min-width:22px;height:22px;padding:0 6px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-sizing:border-box;background:' + (on ? 'rgba(255,255,255,.2)' : 'rgba(30,26,23,.08)') }; });
+    let rows = people.filter((p) => st.tab === 'going' ? p.cur === 'going' : st.tab === 'attended' ? p.cur === 'going' && p.attended : st.tab === 'unmarked' ? p.cur === 'going' && !p.attended : p.cur === st.tab);
+    const q = st.query.trim().toLowerCase(); if (q) rows = rows.filter((p) => p.name.toLowerCase().indexOf(q) >= 0);
+    if (!st.sortNew) rows = rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const keep = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+    const out = rows.map((p, i) => ({ name: p.name, ini: initials(p.name), line: p.cur === 'going' ? (p.attended ? 'Attended · ' + HOURS + ' hours added' : p.when + (p.past ? ' · ' + p.past + ' past events' : ' · first event')) : p.when,
+      av: 'width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,' + p.g[0] + ',' + p.g[1] + ')',
+      row: 'display:flex;align-items:center;gap:12px;padding:11px 0;' + (i ? 'border-top:1px solid rgba(30,26,23,.07)' : ''),
+      canMark: p.cur === 'going', isPending: p.cur === 'pending', isInvited: p.cur === 'invited', attended: p.attended, attOn: String(p.attended), attText: p.attended ? 'Attended' : 'Mark attended', attAria: (p.attended ? 'Unmark attendance for ' : 'Mark attended: ') + p.name,
+      attBtn: 'height:36px;padding:0 12px;border-radius:18px;font-size:12.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid ' + (p.attended ? '#2E7D5B' : 'rgba(30,26,23,.15)') + ';background:' + (p.attended ? '#2E7D5B' : 'rgba(255,255,255,.8)') + ';color:' + (p.attended ? '#FFFFFF' : '#1E1A17'),
+      toggleAtt: () => { const a = Object.assign({}, st.att); if (a[p.id]) delete a[p.id]; else a[p.id] = true; keep('vn.att', a); this.setState({ att: a }); },
+      approve: () => { const d = Object.assign({}, st.pend); d[p.id] = 'going'; keep('vn.pend', d); this.setState({ pend: d }); },
+      decline: () => { const d = Object.assign({}, st.pend); d[p.id] = 'declined'; keep('vn.pend', d); this.setState({ pend: d }); }, declineAria: 'Decline ' + p.name }));
+    const EMPTY = { going: ['No one has registered yet', 'Share the event link or invite past volunteers.'], attended: ['No one marked attended yet', 'Tick volunteers as they arrive, or scan their QR code.'], unmarked: ['Everyone is marked', 'All registered volunteers have been marked attended.'], pending: ['No requests waiting', 'New requests to join appear here for you to approve.'], invited: ['No invitations sent', 'Invite volunteers from your past events.'] };
+    return {
+      tabs: tabs, rows: out, hasRows: out.length > 0, noRows: out.length === 0, emptyTitle: EMPTY[st.tab][0], emptyLine: q ? 'No names match your search.' : EMPTY[st.tab][1],
+      showSummary: st.tab === 'going' || st.tab === 'attended', attCount: counts.attended, hoursTotal: counts.attended * HOURS,
+      searchOpen: st.searchOpen, toggleSearch: () => this.setState({ searchOpen: !st.searchOpen, query: '' }), query: st.query, setQuery: (e) => this.setState({ query: e.target.value }), toggleSort: () => this.setState({ sortNew: !st.sortNew }),
+      vDown: this.dragDown('vl', 'y'), tDown: this.dragDown('tabs', 'x'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

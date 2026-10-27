@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Invite volunteers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+input::placeholder{color:#6B5E55}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+.lbl{font-size:13px;font-weight:700;color:#6B5E55;padding:4px 4px 0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="inv" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 110px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Invite volunteers</span></div>
+<sc-if value="{{picking}}" hint-placeholder-val="{{ true }}"><div style="display: flex; flex-direction: column; gap: 14px">
+<input aria-label="Search people or past events" placeholder="Search people, or type an email or number" value="{{query}}" onChange="{{setQuery}}" style="height: 48px; border-radius: 24px; background: rgba(255,255,255,0.62); border: 1px solid rgba(255,255,255,0.9); padding: 0 18px; font-family: inherit; font-size: 15px; font-weight: 600; color: #1E1A17; outline: none; box-sizing: border-box; width: 100%">
+<div role="tablist" aria-label="Invite from" style="display: flex; gap: 4px; padding: 4px; border-radius: 22px; background: rgba(255,255,255,0.62); border: 1px solid rgba(255,255,255,0.9)"><button role="tab" aria-selected="{{peopleSel}}" onClick="{{showPeople}}" style="{{segPeople}}">People</button><button role="tab" aria-selected="{{eventsSel}}" onClick="{{showEvents}}" style="{{segEvents}}">Past events</button></div>
+<sc-if value="{{isPeople}}" hint-placeholder-val="{{ true }}"><sc-if value="{{showContacts}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 12px 14px; display: flex; align-items: center; gap: 12px"><span style="width: 38px; height: 38px; border-radius: 12px; background: rgba(36,65,47,.10); display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#24412F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M5 18c1-2 3-3 4-3s3 1 4 3M14 9h4M14 13h4"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1"><span style="font-size: 14.5px; font-weight: 700">Allow contacts access</span><span style="font-size: 12px; color: #6B5E55">Invite people from your phone's contacts</span></span><button onClick="{{hideContacts}}" aria-label="Dismiss" style="width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(30,26,23,.06); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E1A17" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></sc-if>
+<div class="lbl">Past volunteers with your organisation</div>
+<div class="card" style="padding: 2px 14px"><sc-for list="{{people}}" as="p" hint-placeholder-count="6"><button onClick="{{p.toggle}}" aria-pressed="{{p.on}}" style="{{p.row}}"><span style="{{p.av}}">{{p.ini}}</span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; text-align: left"><span style="font-size: 15px; font-weight: 700">{{p.name}}</span><span style="font-size: 12.5px; color: #6B5E55">{{p.line}}</span></span><span style="{{p.box}}"><sc-if value="{{p.sel}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if></span></button></sc-for></div>
+<sc-if value="{{noMatch}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 20px; text-align: center; font-size: 13.5px; color: #6B5E55">No one matches. An email or mobile number is invited as a new contact.</div></sc-if></sc-if>
+<sc-if value="{{isEvents}}" hint-placeholder-val="{{ false }}"><div class="lbl">Invite everyone who attended</div><div class="card" style="padding: 2px 14px"><sc-for list="{{events}}" as="e" hint-placeholder-count="3"><button onClick="{{e.toggle}}" aria-pressed="{{e.on}}" style="{{e.row}}"><span style="{{e.cover}}">{{e.coverText}}</span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; text-align: left"><span style="font-size: 15px; font-weight: 700">{{e.title}}</span><span style="font-size: 12.5px; color: #6B5E55">{{e.line}}</span></span><span style="{{e.box}}"><sc-if value="{{e.sel}}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if></span></button></sc-for></div></sc-if>
+</div></sc-if>
+<sc-if value="{{done}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 26px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; margin-top: 30px"><span style="width: 64px; height: 64px; border-radius: 50%; background: #2E7D5B; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span style="font-size: 22px; font-weight: 700">{{doneTitle}}</span><span style="font-size: 14px; color: #4A3F38; line-height: 1.5">They get a push notification and an email with a one-tap Register link. You can see who accepted under Volunteers, Invited.</span><a href="Volunteers.dc.html" draggable="false" style="margin-top: 6px; width: 100%; height: 50px; border-radius: 25px; background: #24412F; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700">See invited list</a><button onClick="{{again}}" style="border: 0; background: none; font-size: 14px; font-weight: 700; color: #24412F; cursor: pointer; padding: 6px">Invite more</button></div></sc-if>
+</div>
+<sc-if value="{{picking}}" hint-placeholder-val="{{ true }}"><div style="position: absolute; left: 20px; right: 20px; bottom: 24px; z-index: 40"><button onClick="{{sendInvites}}" disabled="{{cantSend}}" style="{{sendStyle}}">{{sendLabel}}</button></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'people', query: '', sel: [], selEv: [], contacts: true, done: false, count: 0 }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const PEOPLE = [{ id: 'k', name: 'Kavitha Pillai', line: '9 past events · last in September', g: ['#8A5A1E', '#D9A24A'] }, { id: 'l', name: 'Lena Müller', line: '4 past events · last in October', g: ['#1F4E6E', '#5B9BC2'] }, { id: 'm', name: 'Marcus Lee', line: '2 past events', g: ['#2E5C44', '#5FA37B'] }, { id: 'n', name: 'Nadia Hassan', line: '12 past events · regular', g: ['#5A3E7A', '#9C7BC4'] }, { id: 'o', name: 'Owen Goh', line: '1 past event', g: ['#B04A6A', '#E58AA8'] }, { id: 'p', name: 'Priya Nair', line: '6 past events', g: ['#3E5A1E', '#8CB83E'] }];
+    const EVENTS = [{ id: 'e1', title: 'Befriending visit: Yishun seniors', line: '14 Oct · 9 attended', n: 9, cover: ['#7A3E2A', '#D08A5E', 'YISHUN\nVISIT'] }, { id: 'e2', title: 'Mid-Autumn visit: Ang Mo Kio', line: '27 Sep · 14 attended', n: 14, cover: ['#C9702D', '#F2B705', 'MID-\nAUTUMN'] }, { id: 'e3', title: 'Grocery run for homebound seniors', line: '6 Sep · 6 attended', n: 6, cover: ['#2E5C44', '#5FA37B', 'GROCERY\nRUN'] }];
+    const q = st.query.trim().toLowerCase();
+    const people = PEOPLE.filter((p) => !q || p.name.toLowerCase().indexOf(q) >= 0);
+    const seg = (on) => 'flex:1;height:38px;border:0;border-radius:18px;font-size:14px;font-weight:700;cursor:pointer;background:' + (on ? '#1E1A17' : 'transparent') + ';color:' + (on ? '#FFFFFF' : '#1E1A17');
+    const box = (on) => 'width:26px;height:26px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box;border:2px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.3)') + ';background:' + (on ? '#24412F' : 'transparent');
+    const row = (i) => 'display:flex;align-items:center;gap:12px;padding:11px 0;width:100%;border:0;background:none;cursor:pointer;font-family:inherit;color:#1E1A17;' + (i ? 'border-top:1px solid rgba(30,26,23,.07)' : '');
+    const toggle = (key, id) => () => { const cur = st[key]; this.setState({ [key]: cur.indexOf(id) >= 0 ? cur.filter((x) => x !== id) : cur.concat([id]) }); };
+    const evCount = EVENTS.filter((e) => st.selEv.indexOf(e.id) >= 0).reduce((a, e) => a + e.n, 0);
+    const total = st.sel.length + evCount + (q && /@|\d{6,}/.test(q) ? 1 : 0);
+    const isPeople = st.tab === 'people';
+    return {
+      picking: !st.done, done: st.done, doneTitle: st.count + (st.count === 1 ? ' invitation sent' : ' invitations sent'),
+      query: st.query, setQuery: (e) => this.setState({ query: e.target.value }),
+      isPeople: isPeople, isEvents: !isPeople, peopleSel: String(isPeople), eventsSel: String(!isPeople), segPeople: seg(isPeople), segEvents: seg(!isPeople), showPeople: () => this.setState({ tab: 'people' }), showEvents: () => this.setState({ tab: 'events' }),
+      showContacts: st.contacts && !q, hideContacts: () => this.setState({ contacts: false }),
+      people: people.map((p, i) => { const on = st.sel.indexOf(p.id) >= 0; return { name: p.name, line: p.line, ini: p.name.split(' ').map((w) => w[0]).join(''), on: String(on), sel: on, box: box(on), row: row(i), toggle: toggle('sel', p.id), av: 'width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:linear-gradient(135deg,' + p.g[0] + ',' + p.g[1] + ')' }; }),
+      noMatch: people.length === 0,
+      events: EVENTS.map((e, i) => { const on = st.selEv.indexOf(e.id) >= 0; return { title: e.title, line: e.line, on: String(on), sel: on, box: box(on), row: row(i), toggle: toggle('selEv', e.id), coverText: e.cover[2], cover: 'width:52px;height:52px;border-radius:12px;flex-shrink:0;box-sizing:border-box;padding:5px;display:flex;align-items:flex-end;background:linear-gradient(135deg,' + e.cover[0] + ',' + e.cover[1] + ');color:#fff;font-size:8px;font-weight:800;line-height:1.05;white-space:pre-line' }; }),
+      cantSend: total === 0, sendLabel: total ? 'Send ' + total + (total === 1 ? ' invitation' : ' invitations') : 'Choose who to invite',
+      sendStyle: 'width:100%;height:56px;border-radius:28px;border:0;font-size:16px;font-weight:700;cursor:' + (total ? 'pointer' : 'default') + ';box-shadow:0 12px 28px rgba(36,65,47,.25);background:' + (total ? '#24412F' : 'rgba(255,255,255,.7)') + ';color:' + (total ? '#FFFFFF' : '#6B5E55'),
+      sendInvites: () => { if (total) this.setState({ done: true, count: total }); }, again: () => this.setState({ done: false, sel: [], selEv: [], query: '' }),
+      vDown: this.dragDown('inv', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>

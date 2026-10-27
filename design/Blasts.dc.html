@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Volunteer Network · Announcements</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;color:inherit}
+.hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
+textarea::placeholder{color:#6B5E55}
+.card{border-radius:24px;background:rgba(255,255,255,.62);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(255,255,255,.9);box-shadow:0 12px 32px rgba(90,50,30,.10);flex-shrink:0}
+.ib{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;color:#FFFFFF;cursor:pointer;padding:0;flex-shrink:0}
+.lbl{font-size:13px;font-weight:700;color:#6B5E55;padding:4px 4px 0}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%); font-family: Manrope, 'Segoe UI', system-ui, sans-serif; color: #1E1A17; overflow: hidden">
+<div id="bl" class="hide-sb" style="position: absolute; inset: 0; overflow-y: auto; box-sizing: border-box; padding: 52px 20px 40px; display: flex; flex-direction: column; gap: 14px; cursor: grab; user-select: none; -webkit-user-select: none" onMouseDown="{{vDown}}" onMouseMove="{{dMove}}" onMouseUp="{{dUp}}" onMouseLeave="{{dUp}}" onClickCapture="{{guard}}">
+<div style="display: flex; align-items: center; gap: 12px; padding-top: 8px; flex-shrink: 0"><a href="Manage-Event.dc.html" draggable="false" aria-label="Back to Manage event" class="ib"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></a><span style="font-size: 24px; font-weight: 600; color: #FFFFFF; flex: 1">Announcements</span><sc-if value="{{composing}}" hint-placeholder-val="{{ true }}"><button onClick="{{send}}" disabled="{{cantSend}}" style="{{sendStyle}}">Send</button></sc-if></div>
+<sc-if value="{{composing}}" hint-placeholder-val="{{ true }}"><div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px"><textarea aria-label="Message to volunteers" placeholder="Write to your volunteers, for example a reminder about what to bring or a change of meeting point" value="{{text}}" onChange="{{setText}}" style="width: 100%; min-height: 130px; border-radius: 16px; border: 0; background: rgba(30,26,23,.05); padding: 12px; font-family: inherit; font-size: 15px; line-height: 1.5; color: #1E1A17; resize: vertical; outline: none; box-sizing: border-box"></textarea>
+<div class="lbl" style="padding-top: 0">Send to</div><div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{audiences}}" as="a" hint-placeholder-count="3"><button onClick="{{a.pick}}" aria-pressed="{{a.on}}" style="{{a.style}}">{{a.label}}</button></sc-for></div>
+<div class="lbl" style="padding-top: 0">Deliver by</div><div style="display: flex; flex-direction: column; gap: 6px"><sc-for list="{{channels}}" as="c" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 12px; min-height: 40px"><span style="display: flex; flex-direction: column; gap: 1px; flex: 1"><span style="font-size: 14.5px; font-weight: 600">{{c.label}}</span><span style="font-size: 12px; color: #6B5E55">{{c.help}}</span></span><button role="switch" aria-checked="{{c.on}}" aria-label="{{c.label}}" onClick="{{c.toggle}}" style="{{c.track}}"><span style="{{c.knob}}"></span></button></div></sc-for></div>
+<span style="font-size: 12px; color: #6B5E55; line-height: 1.5">{{summary}}</span></div></sc-if>
+<sc-if value="{{sentNow}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 16px; display: flex; align-items: center; gap: 12px; border-color: rgba(46,125,91,.4)"><span style="width: 40px; height: 40px; border-radius: 50%; background: #2E7D5B; display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px; flex: 1"><span style="font-size: 15px; font-weight: 700">Sent to {{lastCount}} volunteers</span><span style="font-size: 12.5px; color: #6B5E55">Replies come to your organisation's inbox.</span></span><button onClick="{{compose}}" style="height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid rgba(30,26,23,.15); background: rgba(255,255,255,.8); font-size: 13px; font-weight: 700; cursor: pointer">New</button></div></sc-if>
+<sc-if value="{{hasSent}}" hint-placeholder-val="{{ false }}"><div class="lbl">Sent</div><div class="card" style="padding: 2px 16px"><sc-for list="{{sent}}" as="s" hint-placeholder-count="2"><div style="{{s.row}}"><span style="display: flex; align-items: center; justify-content: space-between; gap: 8px"><span style="font-size: 12.5px; font-weight: 700; color: #4A3F38">{{s.to}}</span><span style="font-size: 12px; color: #6B5E55">{{s.when}}</span></span><span style="font-size: 14.5px; line-height: 1.5; white-space: pre-line">{{s.text}}</span><span style="font-size: 12px; color: #6B5E55">{{s.by}}</span></div></sc-for></div></sc-if>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 36px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center"><span style="width: 60px; height: 60px; border-radius: 20px; background: rgba(30,26,23,.06); display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B5E55" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></span><span style="font-size: 17px; font-weight: 700">No announcements yet</span><span style="font-size: 13.5px; color: #6B5E55; line-height: 1.5">Reminders, changes and thank-yous go to everyone registered, by push notification and email.</span><button onClick="{{compose}}" style="margin-top: 6px; height: 46px; padding: 0 22px; border-radius: 23px; border: 0; background: #24412F; color: #FFFFFF; font-size: 14.5px; font-weight: 700; cursor: pointer">New announcement</button></div></sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); let s = null; try { s = JSON.parse(localStorage.getItem('vn.blasts') || 'null'); } catch (e) {} this.state = { sent: Array.isArray(s) ? s : [], view: 'compose', text: '', to: 'going', push: true, email: true, sms: false, lastCount: 0 }; }
+  dragDown(id, axis) { return (e) => { if (e.button !== 0) return; if (this._dragId) return; const t = e.target; if (t && t.closest && t.closest('input,textarea,select,label')) return; const el = document.getElementById(id); if (!el) return; this._dragId = id; this._ax = axis; this._p0 = axis === 'x' ? e.clientX : e.clientY; this._s0 = axis === 'x' ? el.scrollLeft : el.scrollTop; this._moved = false; }; }
+  dragMove() { return (e) => { if (!this._dragId) return; const el = document.getElementById(this._dragId); if (!el) return; const p = this._ax === 'x' ? e.clientX : e.clientY, d = p - this._p0; if (Math.abs(d) > 5) this._moved = true; if (!this._moved) return; if (this._ax === 'x') el.scrollLeft = this._s0 - d; else el.scrollTop = this._s0 - d; }; }
+  dragUp() { return () => { if (!this._dragId) return; this._dragId = null; setTimeout(() => { this._moved = false; }, 0); }; }
+  clickGuard() { return (e) => { if (this._moved) { e.preventDefault(); e.stopPropagation(); } }; }
+  renderVals() {
+    const st = this.state;
+    const AUD = [['going', 'Going', 7], ['going_pending', 'Going and waiting for approval', 9], ['all', 'Everyone invited', 10], ['attended', 'Attended', 0]];
+    const aud = AUD.find((a) => a[0] === st.to) || AUD[0];
+    const chip = (on) => 'height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (on ? '#24412F' : 'rgba(30,26,23,.12)') + ';background:' + (on ? '#24412F' : 'rgba(255,255,255,.8)') + ';color:' + (on ? '#FFFFFF' : '#1E1A17');
+    const track = (on) => 'position:relative;width:52px;height:30px;border-radius:15px;border:0;padding:0;cursor:pointer;flex-shrink:0;transition:background .25s ease;background:' + (on ? '#24412F' : 'rgba(30,26,23,.18)');
+    const knob = (on) => 'position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#FFFFFF;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s ease;transform:translateX(' + (on ? 22 : 0) + 'px)';
+    const CH = [['push', 'Push notification', 'Instant, in the app'], ['email', 'Email', 'Full message with the event details'], ['sms', 'SMS', 'For volunteers without the app; costs the organisation per message']];
+    const anyCh = st.push || st.email || st.sms;
+    const can = st.text.trim().length > 0 && anyCh && aud[2] > 0;
+    const composing = st.view === 'compose';
+    const sent = st.sent.slice().reverse().map((s, i) => ({ to: 'To ' + s.to.toLowerCase() + ' · ' + s.count, when: s.when, text: s.text, by: 'Sent by Mei Lin Tan · ' + s.via, row: 'display:flex;flex-direction:column;gap:6px;padding:12px 0;' + (i ? 'border-top:1px solid rgba(30,26,23,.07)' : '') }));
+    return {
+      composing: composing, sentNow: st.view === 'sent', lastCount: st.lastCount, hasSent: st.sent.length > 0 && st.view !== 'empty', empty: st.view === 'empty',
+      text: st.text, setText: (e) => this.setState({ text: e.target.value }),
+      audiences: AUD.map((a) => ({ label: a[1] + ' (' + a[2] + ')', on: String(a[0] === st.to), pick: () => this.setState({ to: a[0] }), style: chip(a[0] === st.to) })),
+      channels: CH.map((c) => ({ label: c[1], help: c[2], on: String(!!st[c[0]]), track: track(!!st[c[0]]), knob: knob(!!st[c[0]]), toggle: () => this.setState({ [c[0]]: !st[c[0]] }) })),
+      summary: aud[2] ? 'Goes to ' + aud[2] + ' volunteers' + (anyCh ? ' by ' + CH.filter((c) => st[c[0]]).map((c) => c[1].toLowerCase()).join(', ') + '.' : '. Choose at least one way to deliver it.') : 'No one in this group yet.',
+      cantSend: !can, sendStyle: 'height:40px;padding:0 18px;border-radius:20px;border:0;font-size:14px;font-weight:700;cursor:' + (can ? 'pointer' : 'default') + ';background:' + (can ? '#FFFFFF' : 'rgba(255,255,255,.35)') + ';color:' + (can ? '#1E1A17' : 'rgba(255,255,255,.7)'),
+      send: () => { if (!can) return; const rec = { text: st.text.trim(), to: aud[1], count: aud[2] + ' volunteers', when: 'Today, 15:02', via: CH.filter((c) => st[c[0]]).map((c) => c[1]).join(' + ') }; const list = st.sent.concat([rec]); try { localStorage.setItem('vn.blasts', JSON.stringify(list)); } catch (e) {} this.setState({ sent: list, view: 'sent', text: '', lastCount: aud[2] }); },
+      compose: () => this.setState({ view: 'compose' }),
+      vDown: this.dragDown('bl', 'y'), dMove: this.dragMove(), dUp: this.dragUp(), guard: this.clickGuard()
+    };
+  }
+}
+</script>
+</body>
+</html>
