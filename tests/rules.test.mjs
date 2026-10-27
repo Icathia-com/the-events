@@ -5,7 +5,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
   collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, setLogLevel,
-  updateDoc, where,
+  updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 let testEnv;
@@ -273,5 +273,137 @@ describe('registrations and the hours ledger: reading', () => {
 
   it('nobody can write the hours ledger yet', async () => {
     await assertFails(setDoc(doc(dbAs('alice'), 'users/alice/hours/e3'), { orgId: 'open', hours: 5 }));
+  });
+});
+
+describe('registrations: joining and cancelling', () => {
+  const later = new Date(Date.now() + 7 * 86400e3), earlier = new Date(Date.now() - 86400e3);
+  const settings = (over = {}) => ({ open: true, approval: false, capacity: 10, waitlist: true, group: false, ...over });
+  const counts = (over = {}) => ({ going: 0, pending: 0, waitlist: 0, attended: 0, ...over });
+  const ev = (over = {}) => ({ orgId: 'open', visibility: 'public', status: 'scheduled', endAt: later, registration: settings(), counts: counts(), ...over });
+  const regDoc = (uid, status) => ({
+    uid, name: 'Alice A.', status, ticketTypeId: null, answers: {},
+    registeredAt: serverTimestamp(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'events/e-open': ev(),
+      'events/e-appr': ev({ registration: settings({ approval: true }) }),
+      'events/e-full': ev({ registration: settings({ capacity: 1 }), counts: counts({ going: 1 }) }),
+      'events/e-nowait': ev({ registration: settings({ capacity: 1, waitlist: false }), counts: counts({ going: 1 }) }),
+      'events/e-cancelled': ev({ status: 'cancelled' }),
+      'events/e-draft': ev({ visibility: 'draft' }),
+      'events/e-closed': ev({ registration: settings({ open: false }) }),
+      'events/e-past': ev({ endAt: earlier }),
+      'events/e-open/private/location': { venue: 'Block 1' },
+      'events/e-open/private/codes': { checkIn: 'in', checkOut: 'out' },
+    });
+  });
+
+  // Joins the way the app does: the registration, the counts and the who's-going entry in one write.
+  function join(uid, eventId, { status, counts: next, going = status === 'going', who = uid, moveCounts = true }) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    if (moveCounts) batch.update(doc(db, 'events', eventId), { counts: next });
+    batch.set(doc(db, `events/${eventId}/registrations/${who}`), regDoc(who, status));
+    if (going) batch.set(doc(db, `events/${eventId}/going/${who}`), { name: 'Alice A.', since: serverTimestamp() });
+    return batch.commit();
+  }
+
+  // Changes an existing registration's status, moving the counts and the who's-going entry with it.
+  function change(uid, eventId, { status, counts: next, who = uid, goingEntry }) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'events', eventId), { counts: next });
+    batch.update(doc(db, `events/${eventId}/registrations/${who}`), { status, updatedAt: serverTimestamp(), ...(status === 'cancelled' ? {} : { registeredAt: serverTimestamp() }) });
+    if (goingEntry === 'add') batch.set(doc(db, `events/${eventId}/going/${who}`), { name: 'Alice A.', since: serverTimestamp() });
+    if (goingEntry === 'remove') batch.delete(doc(db, `events/${eventId}/going/${who}`));
+    return batch.commit();
+  }
+
+  it('joins as going when approval is off and spots remain', async () => {
+    await assertSucceeds(join('alice', 'e-open', { status: 'going', counts: counts({ going: 1 }) }));
+  });
+
+  it('cannot skip approval: going is refused, a request (pending) works', async () => {
+    await assertFails(join('alice', 'e-appr', { status: 'going', counts: counts({ going: 1 }) }));
+    await assertSucceeds(join('alice', 'e-appr', { status: 'pending', counts: counts({ pending: 1 }) }));
+  });
+
+  it('a full event only takes people on its waiting list', async () => {
+    await assertFails(join('alice', 'e-full', { status: 'going', counts: counts({ going: 2 }) }));
+    await assertSucceeds(join('alice', 'e-full', { status: 'waitlist', counts: counts({ going: 1, waitlist: 1 }) }));
+  });
+
+  it('a full event without a waiting list takes nobody', async () => {
+    await assertFails(join('alice', 'e-nowait', { status: 'waitlist', counts: counts({ going: 1, waitlist: 1 }) }));
+  });
+
+  it('cannot register for a cancelled event, a draft, a closed registration or an event that has ended', async () => {
+    for (const id of ['e-cancelled', 'e-draft', 'e-closed', 'e-past']) {
+      await assertFails(join('alice', id, { status: 'going', counts: counts({ going: 1 }) }));
+    }
+  });
+
+  it('the counts must move with the registration, by exactly one', async () => {
+    await assertFails(join('alice', 'e-open', { status: 'going', counts: counts({ going: 1 }), moveCounts: false }));
+    await assertFails(join('alice', 'e-open', { status: 'going', counts: counts({ going: 2 }) }));
+    await assertFails(updateDoc(doc(dbAs('alice'), 'events/e-open'), { counts: counts({ going: 1 }) }));
+  });
+
+  it('cannot register someone else', async () => {
+    await assertFails(join('alice', 'e-open', { status: 'going', counts: counts({ going: 1 }), who: 'bob' }));
+  });
+
+  it('can cancel their own registration, and the spot comes back', async () => {
+    await seedDocs({
+      'events/e-open': ev({ counts: counts({ going: 1 }) }),
+      'events/e-open/registrations/alice': regDoc('alice', 'going'),
+      'events/e-open/going/alice': { name: 'Alice A.' },
+    });
+    await assertSucceeds(change('alice', 'e-open', { status: 'cancelled', counts: counts(), goingEntry: 'remove' }));
+  });
+
+  it('cannot cancel someone else\'s registration', async () => {
+    await seedDocs({
+      'events/e-open': ev({ counts: counts({ going: 1 }) }),
+      'events/e-open/registrations/bob': regDoc('bob', 'going'),
+      'events/e-open/going/bob': { name: 'Bob B.' },
+    });
+    await assertFails(change('alice', 'e-open', { status: 'cancelled', counts: counts(), who: 'bob', goingEntry: 'remove' }));
+  });
+
+  it('cannot approve their own request', async () => {
+    await seedDocs({
+      'events/e-appr': ev({ registration: settings({ approval: true }), counts: counts({ pending: 1 }) }),
+      'events/e-appr/registrations/alice': regDoc('alice', 'pending'),
+    });
+    await assertFails(change('alice', 'e-appr', { status: 'going', counts: counts({ going: 1 }), goingEntry: 'add' }));
+  });
+
+  it('can join again after cancelling', async () => {
+    await seedDocs({ 'events/e-open/registrations/alice': regDoc('alice', 'cancelled') });
+    await assertSucceeds(change('alice', 'e-open', { status: 'going', counts: counts({ going: 1 }), goingEntry: 'add' }));
+  });
+
+  it('who\'s going is readable with the event, and needs a going registration behind it', async () => {
+    await seedDocs({ 'events/e-open/going/bob': { name: 'Bob B.' } });
+    await assertSucceeds(getDocs(collection(dbAs('alice'), 'events/e-open/going')));
+    await assertFails(getDocs(collection(dbAs('bob'), 'events/e-draft/going')));
+    await assertFails(setDoc(doc(dbAs('alice'), 'events/e-open/going/alice'), { name: 'Alice A.', since: serverTimestamp() }));
+  });
+
+  it('the exact venue is for approved volunteers and members; the codes only for members', async () => {
+    await seedDocs({
+      'events/e-open/registrations/alice': regDoc('alice', 'going'),
+      'events/e-open/registrations/bob': regDoc('bob', 'pending'),
+    });
+    await assertSucceeds(getDoc(doc(dbAs('alice'), 'events/e-open/private/location')));
+    await assertFails(getDoc(doc(dbAs('bob'), 'events/e-open/private/location')));
+    await assertFails(getDoc(doc(dbAs('carol'), 'events/e-open/private/location')));
+    await assertFails(getDoc(doc(dbAs('alice'), 'events/e-open/private/codes')));
+    await assertSucceeds(getDoc(doc(dbAs('mei'), 'events/e-open/private/codes')));
   });
 });

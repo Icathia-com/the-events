@@ -20,6 +20,7 @@
   --pending-bg: rgba(201,112,45,.16);
   --pending-text: #8A4A12;
   --danger: #A32D2D;
+  --danger-bg: rgba(163,45,45,.12);
 
   /* Glass: cards, the bar and sheets only */
   --glass-bg: rgba(255,255,255,.62);
@@ -64,6 +65,13 @@
   --menu-shadow: 0 16px 40px rgba(90,50,30,.20);
   --sheet-shadow: 0 -12px 40px rgba(90,50,30,.25);
   --dialog-shadow: 0 24px 60px rgba(30,26,23,.35);
+  --ib-border: rgba(255,255,255,.5);
+  --cover-chip-bg: rgba(30,26,23,.55);
+  --cover-shadow: 0 16px 36px rgba(90,50,30,.22);
+  --join-shadow: 0 12px 28px rgba(36,65,47,.28);
+  --pending-solid: rgba(201,112,45,.9);
+  --follow-on-bg: rgba(255,255,255,.7);
+  --follow-on-border: rgba(30,26,23,.15);
 
   /* Avatar gradients for people (canvas palette) */
   --avatar-1: linear-gradient(135deg, #5A3E7A, #9C7BC4);

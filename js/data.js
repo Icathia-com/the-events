@@ -1,7 +1,7 @@
 // All Firestore reads and writes.
 import {
-  arrayRemove, arrayUnion, collection, collectionGroup, db, doc, getDoc, getDocs, orderBy, query, serverTimestamp,
-  setDoc, Timestamp, updateDoc, where,
+  arrayRemove, arrayUnion, collection, collectionGroup, db, doc, getDoc, getDocs, limit, orderBy, query, runTransaction,
+  serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from './firebase.js';
 
 // Fixed lists (brief section 6). Keys are stored in Firestore; values are what people see.
@@ -58,6 +58,81 @@ export async function hoursBetween(uid, from, to) {
 
 // Registrations
 
+// "Aisha Rahman" shows as "Aisha R." in who's going; "Mei Lin Tan" as "Mei Lin T.".
+export function shortName(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return words[0] || '';
+  const first = words.length >= 3 ? words.slice(0, -1).join(' ') : words[0];
+  return `${first} ${words.at(-1)[0].toUpperCase()}.`.slice(0, 40);
+}
+
+// What joining gives right now; the rules apply the same test.
+export function joinStatus(event) {
+  const { capacity, waitlist, approval } = event.registration || {};
+  if (capacity != null && (event.counts?.going || 0) >= capacity) return waitlist ? 'waitlist' : 'full';
+  return approval ? 'pending' : 'going';
+}
+
+const COUNTED = ['going', 'pending', 'waitlist'];
+function stepCounts(counts, before, after) {
+  const next = { going: 0, pending: 0, waitlist: 0, attended: 0, ...counts };
+  if (COUNTED.includes(before)) next[before] -= 1;
+  if (COUNTED.includes(after)) next[after] += 1;
+  return next;
+}
+
+export async function getMyRegistration(eventId, uid) {
+  return withId(await getDoc(doc(db, 'events', eventId, 'registrations', uid)));
+}
+
+// Joins an event, or joins again after cancelling. Returns the new status.
+export function joinEvent(eventId, uid, name) {
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const regRef = doc(db, 'events', eventId, 'registrations', uid);
+    const event = (await tx.get(eventRef)).data();
+    const regSnap = await tx.get(regRef);
+    const before = regSnap.exists() ? regSnap.data().status : 'none';
+    if (before !== 'none' && before !== 'cancelled') return before;
+
+    const status = joinStatus(event);
+    if (status === 'full') return 'full';
+    tx.update(eventRef, { counts: stepCounts(event.counts, before, status) });
+    const fields = { status, name, registeredAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    if (regSnap.exists()) tx.update(regRef, fields);
+    else tx.set(regRef, { uid, ticketTypeId: null, answers: {}, createdAt: serverTimestamp(), ...fields });
+    if (status === 'going') tx.set(doc(db, 'events', eventId, 'going', uid), { name: shortName(name), since: serverTimestamp() });
+    return status;
+  });
+}
+
+export function cancelRegistration(eventId, uid) {
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const regRef = doc(db, 'events', eventId, 'registrations', uid);
+    const event = (await tx.get(eventRef)).data();
+    const regSnap = await tx.get(regRef);
+    const before = regSnap.exists() ? regSnap.data().status : 'none';
+    if (!COUNTED.includes(before)) return before;
+
+    tx.update(eventRef, { counts: stepCounts(event.counts, before, 'cancelled') });
+    tx.update(regRef, { status: 'cancelled', updatedAt: serverTimestamp() });
+    if (before === 'going') tx.delete(doc(db, 'events', eventId, 'going', uid));
+    return 'cancelled';
+  });
+}
+
+// The first few people going (short names), oldest first.
+export async function listGoing(eventId, max = 5) {
+  const snaps = await getDocs(query(collection(db, 'events', eventId, 'going'), orderBy('since'), limit(max)));
+  return snaps.docs.map((d) => d.data().name);
+}
+
+// The exact venue of a hidden-location event: for approved volunteers and the organisation.
+export async function getExactVenue(eventId) {
+  return (await getDoc(doc(db, 'events', eventId, 'private', 'location'))).data()?.venue || '';
+}
+
 // The user's own going and pending registrations, across all events: [{ eventId, status, ... }].
 export async function myRegistrations(uid) {
   const snaps = await getDocs(query(collectionGroup(db, 'registrations'),
@@ -72,6 +147,11 @@ export const getOrganisation = async (orgId) => withId(await getDoc(doc(db, 'org
 export async function listOrganisations() {
   const snaps = await getDocs(query(collection(db, 'organisations'), where('status', '==', 'approved')));
   return allWithIds(snaps).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The user's role in an organisation ('admin' or 'staff'), or null.
+export async function getMyRole(orgId, uid) {
+  return (await getDoc(doc(db, 'organisations', orgId, 'members', uid))).data()?.role || null;
 }
 
 // The organisations the user belongs to: [{ orgId, role, name }].

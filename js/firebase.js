@@ -8,8 +8,8 @@ export {
   signInWithEmailLink, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 export {
-  arrayRemove, arrayUnion, collection, collectionGroup, doc, getDoc, getDocs, orderBy, query, serverTimestamp,
-  setDoc, Timestamp, updateDoc, where,
+  arrayRemove, arrayUnion, collection, collectionGroup, doc, getDoc, getDocs, limit, orderBy, query, runTransaction,
+  serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 
 export const firebaseConfig = {

@@ -28,6 +28,13 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 3: The impact line is hidden for someone with no hours this year; the canvas only shows the case with hours. Waiting-list registrations don't appear in "Your events"; the canvas shows only going and pending.
 - Slice 3: Home's "Claim 3 hours" card comes with claims in slice 9. The sign-out button from slice 1 moves to Profile (slice 5), where the canvas has it.
 - Slice 3 (production): Beyond section 6, Firestore will need an index on events by orgId, status, visibility and startAt (followers-only events on Home). It will also need a collection group index on `members.uid` ("which organisations am I in"). Both are in `firestore.indexes.json`. The emulator doesn't check indexes, and nothing has been deployed.
+- Slice 4: "Who's going" reads a public list of first names, `events/{id}/going/{uid}`, because registrations stay private to the volunteer and the organisation. The rules allow an entry only alongside a going registration.
+- Slice 4: The canvas location box is a drawn placeholder map. The live map is Phase 3, so for now the location card shows only the address lines.
+- Slice 4: The canvas More menu also has "Share event poster" and "Report event". Neither is in the Phase 1 queue, so they're left out.
+- Slice 4: States the canvas doesn't draw use short labels on the main button: "On the waiting list", "Not approved", "Full", "Cancelled", "Ended", "Registration closed".
+- Slice 4: When an event is full, a volunteer can join its waiting list themselves (the canvas's "Join waiting list"); section 7 only lists going and pending for volunteers. Moving people up from the waiting list is an admin action (slice 7), since doing it automatically needs a Cloud Function.
+- Slice 4: Someone who cancelled can register again. Someone the organisation declined can't request the same event again.
+- Slice 4: Organisation staff get the volunteer view plus the "Check in volunteers" bar; the admin view is for admins. The top-right share button opens the More menu, as on the canvas.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -170,3 +177,39 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 4: event page and registration.
+
+## 28 Oct 2026: Phase 1, slice 4: Event page and registration
+
+**Done**
+- `event.html` (`js/pages/event.js`), from `design/Event-Detail.dc.html`:
+  - Volunteer view:
+    - The cover with its cause and area, the host chip, the date and time, and the spots chip.
+    - The main button: Register, Request to join, Join waiting list, Registered, Pending approval.
+    - Contact goes to the organisation's contact details.
+    - More: Add to calendar (an `.ics` download), Share event link (the phone's share sheet, or copy where there isn't one), Event QR code (drawn locally), Cancel my registration.
+    - The location card hides the exact venue until the volunteer is approved.
+    - Meeting point, what to bring, the hours line, the description, who's going (first names and the count), and the host with Follow.
+  - Admin view, on your own organisation's events: Invite and Message (marked Soon until Phase 2), Manage, More (with Edit event), and "Check in volunteers" with the going count.
+- `data.js`: `joinEvent` and `cancelRegistration` run as transactions. Each writes the registration, the event's counts and the who's-going entry together. Also `getMyRegistration`, `getMyRole`, `listGoing`, `getExactVenue` and `shortName`.
+- Rules (section 7):
+  - The event decides a new registration's status: going, pending when approval is on, or the waiting list when full.
+  - Nobody can register for a cancelled, draft, closed or finished event.
+  - A volunteer can cancel only their own registration, and can't approve themselves.
+  - The event's counts must move by exactly the registration's change, in the same write, and can't move any other way.
+  - Who's-going entries need a going registration behind them.
+  - The exact venue is readable by approved volunteers and the organisation; the check-in and check-out codes only by the organisation.
+- Seed: a who's-going entry for each of the 32 going registrations.
+
+**Tested**
+- `npm test`: 76 of 76 pass. The 13 new registration tests cover each case above, including counts moved by two, counts moved without a registration, registering someone else, and joining again after cancelling.
+- Browser at 390 px, signed in by email link:
+  - Aisha opens the sorting morning: "14 spots left", Register. After Register: "Registered", "13 spots left", and the who's-going line counts her. After cancelling from More: "Register" and "14 spots left" again.
+  - Follow and unfollow work.
+  - The calendar file holds the right title, start and place. Share hands over the event link. The QR dialog opens.
+  - The reading club shows "Approval required" and Request to join, then "Pending approval".
+  - On the Yishun visit, Aisha (going) sees the exact venue; Hari (pending) sees only "North, Singapore". A missing event shows "This event isn’t available."
+  - Mei Lin gets the admin view: Invite and Message marked Soon, Manage, More with Edit event, and "7 going".
+  - No sideways scrolling, no console errors.
+
+**Next**
+- Slice 5: Discover, Organisations, the organisation page and Profile.

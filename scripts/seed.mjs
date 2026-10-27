@@ -135,6 +135,11 @@ const PEOPLE = [
   ['meilin', 'Mei Lin Tan', ['silver', 'shore', 'readers']],
 ];
 const uidOf = (key) => `sample-${key}`;
+// Same as shortName in js/data.js: "Aisha Rahman" shows as "Aisha R." in who's going.
+const shortName = (name) => {
+  const words = name.split(/\s+/);
+  return `${(words.length >= 3 ? words.slice(0, -1) : words.slice(0, 1)).join(' ')} ${words.at(-1)[0]}.`;
+};
 const emailOf = (name) => `${name.toLowerCase().replace(/\s+/g, '.')}@example.com`;
 const nameOf = Object.fromEntries(PEOPLE.map(([key, name]) => [key, name]));
 
@@ -211,6 +216,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
         put(`events/${id}/registrations/${uidOf(key)}`, {
           uid: uidOf(key), name: nameOf[key], status, ticketTypeId: null, answers: {}, registeredAt: daysAgo(n + 1), ...decided, ...stamps,
         });
+        if (status === 'going') put(`events/${id}/going/${uidOf(key)}`, { name: shortName(nameOf[key]), since: daysAgo(n + 1) });
       }
     }
   }

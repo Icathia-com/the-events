@@ -70,6 +70,7 @@ organisations/{orgId}/members/{uid}
 
 events/{eventId}/registrations/{uid}
   uid                                   lets people find their own registrations with a collection group query
+events/{eventId}/going/{uid}            name ("Aisha R."), since: who's going, readable with the event; one per going registration
 
 users/{uid}/hours/{eventId}             the entry id is the event id: one entry per confirmed attendance
 

@@ -1,7 +1,8 @@
 rules_version = '2';
 
 // Brief section 7. Covered so far: users and their hours ledger (reading), organisations and events (reading),
-// and people's own registrations (reading). Everything else is denied.
+// volunteers joining and cancelling (with the event's counts moving in the same write), who's going, and the
+// event's private details. Everything else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -88,13 +89,130 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
-    match /events/{eventId} {
-      allow read: if signedIn() && (
-        resource.data.visibility == 'public'
-        || (resource.data.visibility == 'followers' && followsOrg(resource.data.orgId))
-        || isMember(resource.data.orgId)
+    function eventPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId);
+    }
+
+    function regPath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/registrations/$(uid);
+    }
+
+    function goingPath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/going/$(uid);
+    }
+
+    function canSee(e) {
+      return signedIn() && (
+        e.visibility == 'public'
+        || (e.visibility == 'followers' && followsOrg(e.orgId))
+        || isMember(e.orgId)
         || isNetworkAdmin()
       );
+    }
+
+    // A registration's status before and after this write ('none' when there is no registration).
+    function statusBefore(eventId, uid) {
+      return exists(regPath(eventId, uid)) ? get(regPath(eventId, uid)).data.status : 'none';
+    }
+
+    function statusAfter(eventId, uid) {
+      return existsAfter(regPath(eventId, uid)) ? getAfter(regPath(eventId, uid)).data.status : 'none';
+    }
+
+    function step(key, before, after) {
+      return (after == key ? 1 : 0) - (before == key ? 1 : 0);
+    }
+
+    // The counts moved by exactly one registration going from `before` to `after`.
+    function countsStep(old, next, before, after) {
+      return next.keys().hasOnly(['going', 'pending', 'waitlist', 'attended'])
+        && next.going == old.going + step('going', before, after)
+        && next.pending == old.pending + step('pending', before, after)
+        && next.waitlist == old.waitlist + step('waitlist', before, after)
+        && next.attended == old.attended;
+    }
+
+    // What joining gives: the waiting list when full (if it has one), pending when approval is on, otherwise going.
+    function joinStatus(e) {
+      return e.registration.capacity != null && e.counts.going >= e.registration.capacity
+        ? (e.registration.waitlist == true ? 'waitlist' : 'full')
+        : (e.registration.approval == true ? 'pending' : 'going');
+    }
+
+    function openForJoining(e) {
+      return e.status == 'scheduled' && e.visibility != 'draft' && e.registration.open == true && e.endAt > request.time
+        && (!('opensAt' in e.registration) || e.registration.opensAt <= request.time)
+        && (!('closesAt' in e.registration) || e.registration.closesAt > request.time);
+    }
+
+    match /events/{eventId} {
+      allow read: if canSee(resource.data);
+
+      // A volunteer's own join or cancel moves the counts, and nothing else on the event.
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['counts'])
+        && statusBefore(eventId, request.auth.uid) != statusAfter(eventId, request.auth.uid)
+        && countsStep(resource.data.counts, request.resource.data.counts,
+             statusBefore(eventId, request.auth.uid), statusAfter(eventId, request.auth.uid));
+
+      match /registrations/{uid} {
+        allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId) || isNetworkAdmin();
+
+        // Joining, or joining again after cancelling. The event decides the status, and the counts and the
+        // who's-going entry change in the same write.
+        function joinAllowed(before) {
+          let e = get(eventPath(eventId)).data;
+          let r = request.resource.data;
+          let status = joinStatus(e);
+          return canSee(e) && openForJoining(e) && status != 'full'
+            && r.status == status && r.uid == uid
+            && r.name is string && r.name.size() > 0 && r.name.size() <= 100
+            && r.ticketTypeId == null && r.answers.size() == 0
+            && r.registeredAt == request.time && r.updatedAt == request.time
+            && countsStep(e.counts, getAfter(eventPath(eventId)).data.counts, before, status)
+            && existsAfter(goingPath(eventId, uid)) == (status == 'going');
+        }
+
+        function cancelAllowed() {
+          let e = get(eventPath(eventId)).data;
+          let r = request.resource.data;
+          return resource.data.status in ['going', 'pending', 'waitlist']
+            && e.endAt > request.time
+            && r.status == 'cancelled'
+            && r.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && r.updatedAt == request.time
+            && countsStep(e.counts, getAfter(eventPath(eventId)).data.counts, resource.data.status, 'cancelled')
+            && !existsAfter(goingPath(eventId, uid));
+        }
+
+        allow create: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'status', 'ticketTypeId', 'answers', 'registeredAt', 'createdAt', 'updatedAt'])
+          && request.resource.data.createdAt == request.time
+          && joinAllowed('none');
+
+        allow update: if isSelf(uid) && (
+          (resource.data.status == 'cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'registeredAt', 'updatedAt'])
+            && joinAllowed('cancelled'))
+          || cancelAllowed()
+        );
+      }
+
+      // Who's going: a first name per approved volunteer, readable by anyone who can see the event.
+      match /going/{uid} {
+        allow read: if canSee(get(eventPath(eventId)).data);
+        allow create: if isSelf(uid) && statusAfter(eventId, uid) == 'going'
+          && request.resource.data.keys().hasOnly(['name', 'since'])
+          && request.resource.data.name is string && request.resource.data.name.size() <= 40
+          && request.resource.data.since == request.time;
+        allow delete: if isSelf(uid) && statusAfter(eventId, uid) != 'going';
+      }
+
+      // Check-in and check-out codes for the organisation; the exact venue also for approved volunteers.
+      match /private/{docId} {
+        allow read: if isMember(get(eventPath(eventId)).data.orgId)
+          || (docId == 'location' && statusBefore(eventId, request.auth.uid) == 'going');
+      }
     }
   }
 }
