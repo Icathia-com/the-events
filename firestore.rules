@@ -1,11 +1,32 @@
 rules_version = '2';
 
-// Brief section 7. This slice covers users/{uid} only; everything else is denied.
+// Brief section 7. Covered so far: users, organisations and events (reading). Everything else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function signedIn() {
+      return request.auth != null;
+    }
+
     function isSelf(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function myUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    // networkAdmin is set by hand in the console, never by the app.
+    function isNetworkAdmin() {
+      return signedIn() && exists(myUserPath()) && get(myUserPath()).data.get('networkAdmin', false) == true;
+    }
+
+    function isMember(orgId) {
+      return signedIn() && exists(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    function followsOrg(orgId) {
+      return signedIn() && exists(myUserPath()) && orgId in get(myUserPath()).data.get('follows', []);
     }
 
     // Fields a volunteer may set on their own profile.
@@ -33,6 +54,28 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'bio', 'photoUrl', 'follows', 'updatedAt'])
         && request.resource.data.updatedAt == request.time
         && validProfile(request.resource.data);
+    }
+
+    match /organisations/{orgId} {
+      allow read: if signedIn() && (resource.data.status == 'approved' || isMember(orgId) || isNetworkAdmin());
+
+      match /members/{uid} {
+        allow read: if isSelf(uid) || isMember(orgId) || isNetworkAdmin();
+      }
+    }
+
+    // Lets someone find the organisations they belong to (a collection group query on their own uid).
+    match /{path=**}/members/{memberId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /events/{eventId} {
+      allow read: if signedIn() && (
+        resource.data.visibility == 'public'
+        || (resource.data.visibility == 'followers' && followsOrg(resource.data.orgId))
+        || isMember(resource.data.orgId)
+        || isNetworkAdmin()
+      );
     }
   }
 }

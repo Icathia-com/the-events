@@ -12,6 +12,14 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 1: `.firebaserc` defaults to `demo-the-events`, and the live project appears only as the alias `live`. A stray `firebase` command therefore hits the emulator-only demo project.
 - Slice 1: People who sign in by email link have no name until they set one on Profile (slice 5). Until then the app shows their email address.
 - Slice 1: `hoursTotal` isn't written at first sign-in. A missing value counts as 0, and the hours slices add it.
+- Slice 2 (security): The check-out code and the exact venue of hidden-location events don't live in the event document, as section 6 has it. They're in `events/{id}/private/codes` and `events/{id}/private/location` instead. Firestore can't hide one field of a document someone may read, so any volunteer could otherwise read the check-out code and confirm their own hours.
+- Slice 2: The Organisations canvas shows a seventh organisation, Bright Steps. The brief lists six, so it isn't seeded.
+- Slice 2: Seeded spot counts come from real seeded registrations among the ten sample volunteers. Some differ from the canvas: the beach clean-up shows 6 going, not 35.
+- Slice 2: Organisation stats (events, volunteers, hours) are seeded with the canvas numbers. Section 6 calls them display only.
+- Slice 2: `npm run seed` clears the emulator's Firestore data before loading, so every run starts from the same sample state. Emulator sign-in accounts are kept.
+- Slice 2: Sample sign-in emails use example.com, a domain reserved for examples: `mei.lin.tan@example.com`, `aisha.rahman@example.com` and so on.
+- Slice 2: Mei Lin's past hours (14 hours over five entries, from the canvas hours record) carry references VN-2026-00482 to 00486. The canvas shows one reference for the whole record; the brief gives each entry its own, and the brief wins.
+- Slice 2: Organisations get two fields the canvas needs but section 6 lacks: `approvedAt` ("member since") and `impact` (Past impact). Members and registrations also store `uid`, so people can find their own with a query. All of this is noted in `docs/DATA-MODEL.md`.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -82,3 +90,38 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 2 from `QUEUE_1.md`: data layer and sample data.
+
+## 28 Oct 2026: Phase 1, slice 2: Data layer and sample data
+
+**Done**
+- `js/data.js`:
+  - The fixed area and cause lists.
+  - Profile reads and edits (name, bio, photo), follow and unfollow.
+  - Organisation reads, including "which organisations am I a member of".
+  - Event reads: one event, upcoming public events, and all of one organisation's events for its members.
+  - Reads and writes for registrations, attendance and the hours ledger come with the slices that add their rules (4, 7, 8 and 9), so each lands tested.
+- `scripts/seed.mjs` (`npm run seed`):
+  - Six organisations and the eight canvas events. The evening pantry restock is today at 5 pm Singapore time, and the rest start tomorrow.
+  - The ten sample volunteers plus Mei Lin Tan, admin of Silver Companions. Each has an emulator sign-in account.
+  - 35 registrations. The Yishun visit has 7 going and 2 waiting for approval, as on the canvas Volunteers screen. Mei Lin is going to the pantry restock and the beach clean-up, and waiting for approval at the reading club.
+  - Each event's private check-in and check-out codes. Mei Lin's five past hours entries.
+  - Every document has `sample: true`. The script refuses to run against anything but the local emulators under a `demo-` project.
+- Rules: approved organisations are readable by anyone signed in. Members and the network admin also see pending ones, and members can see their own membership. Events:
+  - Public events are readable by anyone signed in.
+  - Followers-only events are readable by followers.
+  - Drafts are readable only by organisation members and the network admin.
+  - Nobody can write organisations or events yet.
+- `firestore.indexes.json`: the three indexes from section 6.
+
+**Tested**
+- `npm test`: 32 of 32 pass. The new cases:
+  - Signed-out visitors are refused.
+  - Pending organisations are hidden from non-members.
+  - Unfiltered lists of organisations or events are refused.
+  - Non-followers can't read followers-only events, and volunteers can't read drafts, even from organisations they follow.
+  - Members can list their organisation's drafts. Volunteers can't see other people's memberships, and can't write.
+- `npm run seed` twice in a row: same result both times (6 organisations, 1 member, 8 events, 9 private docs, 35 registrations, 11 users, 5 hours entries, 11 sign-in accounts). Spot-checked times, counts and Mei Lin's 14 hours in the emulator.
+- Browser at 390 px, signed in by email link as Mei Lin and as Aisha, calling every new `data.js` function. Mei Lin sees her Silver Companions membership and its events. Aisha is refused that list. Follow, unfollow and profile edits save. No console errors.
+
+**Next**
+- Slice 3: shared UI and Home.

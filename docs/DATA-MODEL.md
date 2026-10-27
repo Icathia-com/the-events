@@ -51,3 +51,27 @@ users/{uid}/notifications/{id}            (phase 3; phase 1 shows nothing here)
 ```
 
 Indexes needed in phase 1: `events` by `status, visibility, startAt`; `events` by `orgId, startAt`; collection group `registrations` by `uid, status` (for "Your events" on Home). Put them in `firestore.indexes.json`.
+
+## Additions to section 6
+
+Made while building Phase 1; the reasons are under "Decisions to confirm" in `docs/PROGRESS.md`.
+
+```
+events/{eventId}/private/codes          checkIn, checkOut, rotatedAt
+                                        (in place of events.codes; only the organisation's members can read it)
+events/{eventId}/private/location       venue: the exact address when hideExactLocation is true
+                                        (the event's own venue then holds only the general area)
+
+organisations/{orgId}
+  approvedAt                            shown as "Approved member of the network since"
+  impact: [{ title, line }]             Past impact on the organisation page
+organisations/{orgId}/members/{uid}
+  uid                                   lets people find their own memberships with a collection group query
+
+events/{eventId}/registrations/{uid}
+  uid                                   lets people find their own registrations with a collection group query
+
+users/{uid}/hours/{eventId}             the entry id is the event id: one entry per confirmed attendance
+
+sample: true                            on every document the seed script writes
+```

@@ -7,7 +7,10 @@ export {
   GoogleAuthProvider, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail,
   signInWithEmailLink, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
-export { doc, getDoc, serverTimestamp, setDoc } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
+export {
+  arrayRemove, arrayUnion, collection, collectionGroup, doc, getDoc, getDocs, orderBy, query, serverTimestamp,
+  setDoc, Timestamp, updateDoc, where,
+} from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCK4VXqnTpDkUGHS9ENrIyy3miaZU23GVo",

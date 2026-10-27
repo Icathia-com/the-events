@@ -5,6 +5,7 @@
   "scripts": {
     "serve": "http-server . -p 8000 -a 127.0.0.1 -c-1",
     "emulators": "firebase emulators:start --project demo-the-events",
+    "seed": "node scripts/seed.mjs",
     "test": "firebase emulators:exec --only firestore --project demo-the-events \"node --test tests/rules.test.mjs\""
   },
   "devDependencies": {
