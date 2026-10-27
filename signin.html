@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sign in · The Events</title>
+  <meta name="theme-color" content="#9A4F33">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/pages/signin.js"></script>
+</head>
+<body class="is-loading">
+  <main class="page">
+    <h1 class="page-title">The Events</h1>
+
+    <section class="glass card" id="signin-choices">
+      <form id="email-form" class="stack">
+        <div>
+          <label class="field-label" for="email">Email</label>
+          <input class="field" id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
+        </div>
+        <button class="btn btn-primary" id="email-submit" type="submit">Email me a sign-in link</button>
+      </form>
+      <div class="divider" id="or">or</div>
+      <button class="btn btn-secondary" id="google" type="button">Continue with Google</button>
+      <p class="status" id="status" role="alert" hidden></p>
+    </section>
+
+    <section class="glass card" id="sent" hidden>
+      <h2 class="card-title">Sign-in link sent</h2>
+      <p class="meta" id="sent-to"></p>
+    </section>
+  </main>
+</body>
+</html>

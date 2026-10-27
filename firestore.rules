@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// Brief section 7. This slice covers users/{uid} only; everything else is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSelf(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Fields a volunteer may set on their own profile.
+    function validProfile(d) {
+      return d.name is string && d.name.size() <= 100
+        && d.bio is string && d.bio.size() <= 500
+        && d.photoUrl is string && d.photoUrl.size() <= 2048
+        && d.follows is list && d.follows.size() <= 200;
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+
+      // First sign-in. networkAdmin and hoursTotal are never set by the client.
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['name', 'email', 'photoUrl', 'bio', 'follows', 'joinedAt', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['name', 'email', 'photoUrl', 'bio', 'follows', 'joinedAt', 'createdAt', 'updatedAt'])
+        && validProfile(request.resource.data)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.joinedAt == request.time
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'bio', 'photoUrl', 'follows', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && validProfile(request.resource.data);
+    }
+  }
+}

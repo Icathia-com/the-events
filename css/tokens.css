@@ -1,0 +1,67 @@
+/* Design tokens from the canvas (brief section 5). Components use these and nothing else. */
+:root {
+  /* Background */
+  --bg-gradient: linear-gradient(180deg, #9A4F33 0px, #C2704F 120px, #E5A98B 280px, #F2D3C1 480px, #F8EEE8 760px, #FAF5F1 100%);
+  --bg-base: #FAF5F1;
+
+  /* Text and brand */
+  --ink: #1E1A17;
+  --body: #4A3F38;
+  --muted: #6B5E55;
+  --white: #FFFFFF;
+  --forest: #24412F;
+  --forest-shadow: 0 12px 28px rgba(36,65,47,.35);
+
+  /* Status */
+  --confirmed: #2E7D5B;
+  --confirmed-bg: rgba(46,125,91,.14);
+  --confirmed-text: #1E6B42;
+  --pending: #C9702D;
+  --pending-bg: rgba(201,112,45,.16);
+  --pending-text: #8A4A12;
+  --danger: #A32D2D;
+
+  /* Glass: cards, the bar and sheets only */
+  --glass-bg: rgba(255,255,255,.62);
+  --glass-blur: blur(22px);
+  --glass-border: 1px solid rgba(255,255,255,.9);
+  --glass-shadow: 0 12px 32px rgba(90,50,30,.10);
+
+  /* Radii */
+  --radius-card: 24px;
+  --radius-hero: 28px;
+  --radius-tile: 18px;
+  --radius-pill: 18px;
+  --radius-button: 24px;
+
+  /* Bottom bar and its active-tab lens (canvas Home) */
+  --bar-height: 68px;
+  --bar-radius: 34px;
+  --bar-bg: rgba(255,255,255,.72);
+  --lens-blur: blur(10px) saturate(1.5);
+  --lens-bg: rgba(255,255,255,.82);
+  --lens-bg-hover: rgba(255,255,255,.5);
+  --lens-shadow: inset 0 1px 0 #FFFFFF, 0 8px 20px rgba(90,50,30,.2);
+  --lens-shadow-hover: inset 0 1px 0 rgba(255,255,255,.95), 0 6px 16px rgba(90,50,30,.14);
+
+  /* Type: Manrope */
+  --font: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-page-title: 33px;
+  --fw-page-title: 500;
+  --fs-section: 20px;
+  --fw-section: 600;
+  --ls-section: -0.02em;
+  --fs-card-title: 16px;
+  --fw-card-title: 700;
+  --fs-body: 14.5px;
+  --fs-button: 14px;
+  --fs-meta: 12.5px;
+  --fs-chip: 13px;
+  --fw-chip: 700;
+
+  /* Touch and motion */
+  --touch: 44px;
+  --press-scale: .97;
+  --sheet-duration: 220ms;
+  --sheet-ease: ease-out;
+}
