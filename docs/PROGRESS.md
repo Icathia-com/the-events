@@ -46,6 +46,11 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 5: "Events hosted" counts events the person created for an organisation they admin.
 - Slice 5: Hours entries keep the event's cover (`cover` on `users/{uid}/hours`), like they keep its title. Past events show the real cover even if the event is gone.
 - Slice 5: Discover marks sample data as "Singapore · Sample events". The canvas Discover has no sample label, but the brief asks for one.
+- Slice 6: Photo covers need Cloud Storage (Phase 2), so the cover is one of the canvas's six colour gradients, with a label made from the title. The canvas's photo button is hidden until then.
+- Slice 6: "Paid on site" is stored as a single "Standard" ticket type with `amountOnSite`; free events have no ticket types. Proper ticket types are Phase 2.
+- Slice 6: "Notify followers" is saved on the event (`notifyFollowers`), but nothing is sent until Phase 3. So the done screen leaves out the canvas's "Your followers are notified."
+- Slice 6: Someone who admins more than one organisation creates events for the first; a chooser can come later. An event with no area chosen counts as Islandwide, as on the canvas. An event can last up to 24 hours.
+- Slice 6: Form placeholders drop the canvas's "for example…" wording ("Meeting point", "Description", "What to bring"). Restore draft keeps the draft only on this device, as the brief says.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -264,3 +269,38 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 6: create and edit event.
+
+## 28 Oct 2026: Phase 1, slice 6: Create and edit event
+
+**Done**
+- `create.html` (`js/pages/create.js`), from `design/Event-Create.dc.html`:
+  - The cover preview and its colour button; the event name.
+  - Start and end with the timeline dots.
+  - Location: area chips, venue and meeting point. Description: the text and what to bring.
+  - Require approval; Price, Free or Paid on site with an amount.
+  - Cause, visibility (Public, Followers only, Draft), volunteer spots, and Notify followers.
+  - Restore draft: the form is kept in `localStorage` while being filled in.
+  - The done screen: View event, Back to Home, Create another.
+- `create.html?id=` edits an event: the same form, prefilled, with Save, going back to the event page.
+- Only the organisation's admins can use the page. Everyone else sees one plain line.
+- `data.js`: `createEvent` writes the event and its private check-in and check-out codes in one batch. `updateEvent` changes only the fields edited, so registration counts are never overwritten. `ui.js`: `zonedDate` and `zonedParts` convert the form's Singapore date and time to and from timestamps.
+- Rules:
+  - Only the organisation's admins create its events. A new event must be scheduled, with zero counts, the organisation's real name and its creator.
+  - The end must be after the start.
+  - Edits can't change the organisation or the counts, and a cancelled event can't be brought back.
+  - The codes are created with the event, by its admin.
+
+**Tested**
+- `npm test`: 89 of 89 pass. The 9 new create and edit cases include a staff member, a volunteer and another organisation's admin each trying, and a faked name, creator or count.
+- Browser at 390 px, as Mei Lin:
+  - "+ Event" opens the form for Silver Companions.
+  - She fills in a grocery run (North, a venue and meeting point, a description, approval on, S$5 on site, Elderly).
+  - After a reload, "Restore draft?" brings the whole form back.
+  - An end before the start is refused.
+  - Create shows the done screen. The event page shows the right day, "10 spots left" and the venue. The event appears in Home's list and under Elderly on Discover.
+  - Edit event opens the form prefilled. A new title and 20 spots save and show on the event page.
+- Browser at 390 px, as Aisha: both create and edit refuse her.
+- No sideways scrolling, no console errors. The date and time fields fit 12-hour times ("09:00 AM") at 390 px.
+
+**Next**
+- Slice 7: the Manage menu and the volunteers list.

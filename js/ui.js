@@ -36,6 +36,14 @@ const ICONS = {
   cancel: '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
   bag: '<path d="M6 7h12l1 14H5z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.6-1 1.2-1.9-.5-1 .2-2.1 1.3-2.1H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
+  doc: '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 9h6M9 13h6M9 17h3"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  dollar: '<path d="M12 3v18M16.5 7.5c0-1.9-2-3-4.5-3S7.5 5.6 7.5 7.5s2 2.6 4.5 3.2 4.5 1.4 4.5 3.3-2 3.5-4.5 3.5-4.5-1.2-4.5-3.2"/>',
+  tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8" r="1.4"/>',
+  spots: '<path d="M5 4h14M12 20V8M8 12l4-4 4 4"/>',
+  updown: '<path d="M8 9l4-4 4 4M8 15l4 4 4-4"/>',
+  restore: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
   heart: '<path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10z"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   signOut: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M13 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>',
@@ -105,6 +113,7 @@ export const coverHtml = (event, size, radius, font) =>
   `<span class="cover" style="--w:${size}px;--r:${radius}px;--fs:${font}px;background:${gradient(event.cover?.colors)}" aria-hidden="true">${esc(event.cover?.label || '')}</span>`;
 
 // A cover's short label from a title: up to two upper-case lines of up to ten letters, so it fits small covers.
+// A line doesn't end on a small word ("RUN FOR" becomes "RUN").
 export function coverLabel(title, perLine = 10) {
   let a = '', b = '';
   for (const word of String(title || '').toUpperCase().split(/\s+/).filter(Boolean)) {
@@ -112,6 +121,8 @@ export function coverLabel(title, perLine = 10) {
     else if (a && `${b} ${word}`.trim().length <= perLine) b = `${b} ${word}`.trim();
     else if (a) break;
   }
+  const trim = (line) => line.replace(/(\s+(FOR|THE|OF|AND|A|AN|TO|AT|ON|IN|WITH|&))+$/, '');
+  [a, b] = [trim(a), trim(b)];
   return b ? `${a}\n${b}` : a || String(title || '').toUpperCase().slice(0, perLine);
 }
 
@@ -260,14 +271,24 @@ export function dayKey(date, tz = TZ) {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
-// Midnight at the start of the date's day, in that timezone.
-export function dayStart(date = new Date(), tz = TZ) {
-  const [y, m, d] = dayKey(date, tz).split('-').map(Number);
-  const guess = new Date(Date.UTC(y, m - 1, d));
+// The moment a wall-clock date ("2026-11-07") and time ("09:00") happen in that timezone.
+export function zonedDate(dateText, timeText, tz = TZ) {
+  const [y, m, d] = dateText.split('-').map(Number);
+  const [hh, mm] = timeText.split(':').map(Number);
+  const guess = new Date(Date.UTC(y, m - 1, d, hh, mm));
   const p = parts(guess, { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }, tz);
   const offset = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - guess.getTime();
   return new Date(guess.getTime() - offset);
 }
+
+// A moment as the wall-clock date and time in that timezone: { date: '2026-11-07', time: '09:00' }.
+export function zonedParts(date, tz = TZ) {
+  const p = parts(date, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, tz);
+  return { date: dayKey(date, tz), time: `${p.hour}:${p.minute}` };
+}
+
+// Midnight at the start of the date's day, in that timezone.
+export const dayStart = (date = new Date(), tz = TZ) => zonedDate(dayKey(date, tz), '00:00', tz);
 
 export const addDays = (date, n) => new Date(date.getTime() + n * DAY);
 export const daysFromToday = (date, now = new Date(), tz = TZ) => Math.round((dayStart(date, tz) - dayStart(now, tz)) / DAY);

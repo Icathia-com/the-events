@@ -264,8 +264,85 @@ describe('events: who can read', () => {
     await assertFails(getDocs(query(collection(dbAs('alice'), 'events'), where('orgId', '==', 'open'))));
   });
 
-  it('nobody can write an event yet', async () => {
+  it('an incomplete event is refused, even from an admin', async () => {
     await assertFails(setDoc(doc(dbAs('mei'), 'events/new'), { orgId: 'open', visibility: 'public', status: 'scheduled' }));
+  });
+});
+
+describe('events: creating and editing', () => {
+  const start = new Date(Date.now() + 3 * 86400e3), end = new Date(start.getTime() + 2 * 3600e3);
+  const newEvent = (over = {}) => ({
+    orgId: 'open', orgName: 'Open Org', title: 'Park clean-up', description: 'Pick up litter.', cause: 'environment', area: 'east',
+    venue: 'East Coast Park', meetingPoint: 'Carpark C1', bring: 'Water', startAt: start, endAt: end, hours: 2,
+    cover: { colors: ['#1F4E6E', '#5B9BC2'], label: 'PARK\nCLEAN-UP' }, visibility: 'public', status: 'scheduled',
+    registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false }, ticketTypes: [],
+    counts: { going: 0, pending: 0, waitlist: 0, attended: 0 }, hideExactLocation: false, checkInMode: 'standard',
+    checkInLocked: false, notifyFollowers: true, createdBy: 'mei', createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    ...over,
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({ 'organisations/open/members/sam': { uid: 'sam', role: 'staff' } });
+  });
+
+  // Creates an event the way the app does: the event and its check-in codes in one write.
+  function create(uid, id, data, withCodes = true) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'events', id), data);
+    if (withCodes) batch.set(doc(db, `events/${id}/private/codes`), { checkIn: 'in-1234567', checkOut: 'out-1234567', rotatedAt: serverTimestamp() });
+    return batch.commit();
+  }
+
+  it('an organisation admin creates an event, with its check-in codes', async () => {
+    await assertSucceeds(create('mei', 'new1', newEvent()));
+  });
+
+  it('staff, volunteers and other organisations\' admins cannot create one', async () => {
+    await assertFails(create('sam', 'new2', newEvent({ createdBy: 'sam' })));
+    await assertFails(create('alice', 'new3', newEvent({ createdBy: 'alice' })));
+    await assertFails(create('carol', 'new4', newEvent({ createdBy: 'carol' })));
+  });
+
+  it('a new event starts scheduled and empty, under its organisation\'s real name and its creator', async () => {
+    await assertFails(create('mei', 'new5', newEvent({ counts: { going: 3, pending: 0, waitlist: 0, attended: 0 } })));
+    await assertFails(create('mei', 'new6', newEvent({ status: 'cancelled' })));
+    await assertFails(create('mei', 'new7', newEvent({ orgName: 'Somebody Else' })));
+    await assertFails(create('mei', 'new8', newEvent({ createdBy: 'someone' })));
+  });
+
+  it('the end must come after the start', async () => {
+    await assertFails(create('mei', 'new9', newEvent({ endAt: start })));
+  });
+
+  it('a volunteer cannot add check-in codes to an event', async () => {
+    await assertFails(setDoc(doc(dbAs('alice'), 'events/pub/private/codes'), { checkIn: 'in-1234567', checkOut: 'out-1234567', rotatedAt: serverTimestamp() }));
+  });
+
+  describe('editing', () => {
+    beforeEach(() => seedDocs({ 'events/ed': newEvent() }));
+    const editAs = (uid, fields) => updateDoc(doc(dbAs(uid), 'events/ed'), { ...fields, updatedAt: serverTimestamp() });
+
+    it('an admin edits the title, the time and the visibility', async () => {
+      const later = new Date(end.getTime() + 3600e3);
+      await assertSucceeds(editAs('mei', { title: 'Beach clean-up', endAt: later, hours: 3, visibility: 'followers' }));
+    });
+
+    it('the organisation and the counts cannot change', async () => {
+      await assertFails(editAs('mei', { orgId: 'waiting' }));
+      await assertFails(editAs('mei', { counts: { going: 5, pending: 0, waitlist: 0, attended: 0 } }));
+    });
+
+    it('staff and volunteers cannot edit', async () => {
+      await assertFails(editAs('sam', { title: 'Changed' }));
+      await assertFails(editAs('alice', { title: 'Changed' }));
+    });
+
+    it('an admin can cancel an event, and it stays cancelled', async () => {
+      await assertSucceeds(editAs('mei', { status: 'cancelled' }));
+      await assertFails(editAs('mei', { status: 'scheduled' }));
+    });
   });
 });
 

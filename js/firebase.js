@@ -9,7 +9,7 @@ export {
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 export {
   arrayRemove, arrayUnion, collection, collectionGroup, doc, getDoc, getDocs, limit, orderBy, query, runTransaction,
-  serverTimestamp, setDoc, Timestamp, updateDoc, where,
+  serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 
 export const firebaseConfig = {

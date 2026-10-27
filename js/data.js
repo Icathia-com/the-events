@@ -1,7 +1,7 @@
 // All Firestore reads and writes.
 import {
   arrayRemove, arrayUnion, collection, collectionGroup, db, doc, getDoc, getDocs, limit, orderBy, query, runTransaction,
-  serverTimestamp, setDoc, Timestamp, updateDoc, where,
+  serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from './firebase.js';
 
 // Fixed lists (brief section 6). Keys are stored in Firestore; values are what people see.
@@ -193,6 +193,27 @@ export async function listFollowerEvents(orgIds, from = new Date()) {
     where('startAt', '>=', Timestamp.fromDate(from)), orderBy('startAt')))));
   return results.flatMap(allWithIds).sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
 }
+
+const randomCode = () => [...crypto.getRandomValues(new Uint8Array(9))].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+// Creates an event for an organisation, with its check-in and check-out codes in the same write. Returns its id.
+// fields: title, description, cause, area, venue, meetingPoint, bring, startAt, endAt, hours, cover, visibility,
+// registration, ticketTypes, notifyFollowers.
+export async function createEvent(org, uid, fields) {
+  const ref = doc(collection(db, 'events'));
+  const batch = writeBatch(db);
+  batch.set(ref, {
+    ...fields, orgId: org.id, orgName: org.name, status: 'scheduled',
+    counts: { going: 0, pending: 0, waitlist: 0, attended: 0 },
+    hideExactLocation: false, checkInMode: 'standard', checkInLocked: false,
+    createdBy: uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  batch.set(doc(db, 'events', ref.id, 'private', 'codes'), { checkIn: randomCode(), checkOut: randomCode(), rotatedAt: serverTimestamp() });
+  await batch.commit();
+  return ref.id;
+}
+
+export const updateEvent = (eventId, fields) => updateDoc(doc(db, 'events', eventId), { ...fields, updatedAt: serverTimestamp() });
 
 // One organisation's scheduled public events from a date onwards, for anyone signed in.
 export async function listOrgPublicEvents(orgId, from = new Date()) {

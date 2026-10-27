@@ -161,8 +161,53 @@ service cloud.firestore {
         && (!('closesAt' in e.registration) || e.registration.closesAt > request.time);
     }
 
+    // An event's own fields, as the create and edit form writes them.
+    function validEvent(e) {
+      return e.title is string && e.title.size() > 0 && e.title.size() <= 120
+        && e.description is string && e.description.size() <= 5000
+        && e.cause in ['food', 'elderly', 'children', 'environment', 'animals', 'education']
+        && e.area in ['north', 'northeast', 'east', 'central', 'west', 'islandwide']
+        && e.venue is string && e.venue.size() <= 200
+        && e.meetingPoint is string && e.meetingPoint.size() <= 200
+        && e.bring is string && e.bring.size() <= 300
+        && e.startAt is timestamp && e.endAt is timestamp && e.endAt > e.startAt
+        && e.hours is number && e.hours >= 0 && e.hours <= 24
+        && e.visibility in ['public', 'followers', 'draft']
+        && e.registration.open is bool && e.registration.approval is bool
+        && e.registration.waitlist is bool && e.registration.group is bool
+        && (e.registration.capacity == null
+            || (e.registration.capacity is int && e.registration.capacity > 0 && e.registration.capacity <= 10000))
+        && e.cover.colors is list && e.cover.colors.size() == 2 && e.cover.label is string && e.cover.label.size() <= 40
+        && e.ticketTypes is list && e.ticketTypes.size() <= 10
+        && (!('notifyFollowers' in e) || e.notifyFollowers is bool);
+    }
+
     match /events/{eventId} {
       allow read: if canSee(resource.data);
+
+      // The organisation's admins create its events: scheduled, nobody registered yet, under its real name.
+      allow create: if isOrgAdmin(request.resource.data.orgId)
+        && request.resource.data.keys().hasOnly(['orgId', 'orgName', 'title', 'description', 'cause', 'area', 'venue',
+             'meetingPoint', 'bring', 'startAt', 'endAt', 'hours', 'cover', 'visibility', 'status', 'registration',
+             'ticketTypes', 'counts', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers',
+             'createdBy', 'createdAt', 'updatedAt'])
+        && validEvent(request.resource.data)
+        && request.resource.data.status == 'scheduled'
+        && request.resource.data.counts == { 'going': 0, 'pending': 0, 'waitlist': 0, 'attended': 0 }
+        && request.resource.data.orgName == get(/databases/$(database)/documents/organisations/$(request.resource.data.orgId)).data.name
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      // ...and edit them. The organisation and the counts can't change, and a cancelled event stays cancelled.
+      allow update: if isOrgAdmin(resource.data.orgId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'cause', 'area',
+             'venue', 'meetingPoint', 'bring', 'startAt', 'endAt', 'hours', 'cover', 'visibility', 'status',
+             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'updatedAt'])
+        && (request.resource.data.status == resource.data.status
+            || (resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled'))
+        && validEvent(request.resource.data)
+        && request.resource.data.updatedAt == request.time;
 
       // A volunteer's own join or cancel moves the counts, and nothing else on the event.
       allow update: if signedIn()
@@ -228,6 +273,14 @@ service cloud.firestore {
       match /private/{docId} {
         allow read: if isMember(get(eventPath(eventId)).data.orgId)
           || (docId == 'location' && statusBefore(eventId, request.auth.uid) == 'going');
+
+        // The codes are made with the event, by the admin creating it.
+        allow create: if docId == 'codes'
+          && isOrgAdmin(getAfter(eventPath(eventId)).data.orgId)
+          && request.resource.data.keys().hasOnly(['checkIn', 'checkOut', 'rotatedAt'])
+          && request.resource.data.checkIn is string && request.resource.data.checkIn.size() >= 8
+          && request.resource.data.checkOut is string && request.resource.data.checkOut.size() >= 8
+          && request.resource.data.rotatedAt == request.time;
       }
     }
   }

@@ -57,6 +57,9 @@ Indexes needed in phase 1: `events` by `status, visibility, startAt`; `events` b
 Made while building Phase 1; the reasons are under "Decisions to confirm" in `docs/PROGRESS.md`.
 
 ```
+events/{eventId}
+  notifyFollowers: boolean              the form's "Notify followers"; nothing is sent until Phase 3
+  ticketTypes                           a paid event has one "Standard" ticket with amountOnSite; free events have none
 events/{eventId}/private/codes          checkIn, checkOut, rotatedAt
                                         (in place of events.codes; only the organisation's members can read it)
 events/{eventId}/private/location       venue: the exact address when hideExactLocation is true

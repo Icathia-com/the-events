@@ -82,6 +82,13 @@
   --deco-circle: rgba(255,255,255,.18);
   --area-shadow: 0 12px 32px rgba(90,50,30,.14);
   --profile-band: linear-gradient(135deg, #5A3E7A 0%, #9C7BC4 60%, #D08A5E 100%);
+  --cover-preview-shadow: 0 16px 36px rgba(90,50,30,.25);
+  --muted-soft: rgba(107,94,85,.5);
+  --switch-off: rgba(30,26,23,.18);
+  --knob-shadow: 0 1px 3px rgba(0,0,0,.25);
+  --disabled-bg: rgba(30,26,23,.15);
+  --disabled-text: rgba(30,26,23,.45);
+  --chip-off-bg: rgba(255,255,255,.8);
 
   /* Area cards on Discover (canvas) */
   --area-north: linear-gradient(135deg, #2E5C44, #5FA37B);
