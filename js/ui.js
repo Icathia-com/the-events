@@ -1,5 +1,7 @@
 // Shared components: bottom bar, avatar, "+ Event" button, dialogs and sheets, toast, drag-to-scroll,
-// covers and organisation marks, and dates shown in the organisation's timezone.
+// covers and organisation marks, event and organisation rows, follow buttons, and dates shown in the
+// organisation's timezone.
+import { AREAS, followOrg, unfollowOrg } from './data.js';
 
 export const TZ = 'Asia/Singapore';
 
@@ -33,6 +35,16 @@ const ICONS = {
   edit: '<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12.5 7.5l4 4"/>',
   cancel: '<circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/>',
   bag: '<path d="M6 7h12l1 14H5z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  heart: '<path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10z"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  signOut: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M13 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/>',
+  food: '<path d="M4 13h16l-1.5 7h-13z"/><path d="M12 13V8M8 10c0-3 2-5 4-5s4 2 4 5"/>',
+  elderly: '<path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10z"/>',
+  children: '<circle cx="12" cy="7" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+  environment: '<path d="M5 20c0-8 4-14 14-15-1 10-7 14-14 15z"/><path d="M5 20c3-5 6-8 10-10"/>',
+  animals: '<circle cx="6" cy="9" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="9.5" cy="5" r="2"/><circle cx="14.5" cy="5" r="2"/><path d="M12 11c3 0 6 3 6 6a3 3 0 0 1-3 3c-1.5 0-2-1-3-1s-1.5 1-3 1a3 3 0 0 1-3-3c0-3 3-6 6-6z"/>',
+  education: '<path d="M3 6a2 2 0 0 1 2-2h5a3 3 0 0 1 2 1 3 3 0 0 1 2-1h5a2 2 0 0 1 2 2v13h-7a2 2 0 0 0-2 1 2 2 0 0 0-2-1H3z"/><path d="M12 5v15"/>',
 };
 
 export const icon = (name, size = 16, stroke = 2.2) =>
@@ -81,7 +93,9 @@ export function avatarHtml(person, { size = 44, href = 'profile.html', label = '
   const n = ([...String(person.uid || '')].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 9) + 1;
   const photo = /^https:\/\//.test(person.photoUrl || '') ? person.photoUrl : '';
   const inner = photo ? `<img src="${esc(photo)}" alt="" referrerpolicy="no-referrer">` : esc(initials(person.name || person.email, '?'));
-  return `<a href="${href}" class="avatar" style="--size:${size}px;background:var(--avatar-${n})" aria-label="${esc(label)}">${inner}</a>`;
+  const style = `--size:${size}px;background:var(--avatar-${n})`;
+  if (!href) return `<span class="avatar" style="${style}" aria-hidden="true">${inner}</span>`;
+  return `<a href="${href}" class="avatar" style="${style}" aria-label="${esc(label)}">${inner}</a>`;
 }
 
 export const orgDotHtml = (org) =>
@@ -89,6 +103,63 @@ export const orgDotHtml = (org) =>
 
 export const coverHtml = (event, size, radius, font) =>
   `<span class="cover" style="--w:${size}px;--r:${radius}px;--fs:${font}px;background:${gradient(event.cover?.colors)}" aria-hidden="true">${esc(event.cover?.label || '')}</span>`;
+
+// A cover's short label from a title: up to two upper-case lines of up to ten letters, so it fits small covers.
+export function coverLabel(title, perLine = 10) {
+  let a = '', b = '';
+  for (const word of String(title || '').toUpperCase().split(/\s+/).filter(Boolean)) {
+    if (!b && `${a} ${word}`.trim().length <= perLine) a = `${a} ${word}`.trim();
+    else if (a && `${b} ${word}`.trim().length <= perLine) b = `${b} ${word}`.trim();
+    else if (a) break;
+  }
+  return b ? `${a}\n${b}` : a || String(title || '').toUpperCase().slice(0, perLine);
+}
+
+// An organisation's mark at any size: rounded square by default, a circle with round: true.
+export const orgLogoHtml = (org, size = 42, round = false) =>
+  `<span class="org-logo" style="width:${size}px;height:${size}px;border-radius:${round ? '50%' : `${Math.round(size / 3)}px`};font-size:${Math.round(size * 0.31)}px;background:${gradient(org?.logoColors)}" aria-hidden="true">${esc(initials(org?.name))}</span>`;
+
+export function spotsChip(event) {
+  const capacity = event.registration?.capacity;
+  if (!capacity) return '';
+  const left = Math.max(0, capacity - (event.counts?.going || 0));
+  if (left === 0) return '<span class="chip chip-muted">Full</span>';
+  if (left <= 3) return `<span class="chip chip-wait">Almost full · ${left} left</span>`;
+  return `<span class="chip chip-ok">${left} spots left</span>`;
+}
+
+// A row in an event list: cover, host, title, then the given time text, the area and (optionally) the spots chip.
+export function eventRowHtml(event, org, timeText, { spots = true } = {}) {
+  const host = org || { name: event.orgName };
+  return `<a class="ev-row" href="event.html?id=${encodeURIComponent(event.id)}" draggable="false">${coverHtml(event, 72, 16, 11)}
+    <span class="ev-text">
+      <span class="ev-org">${orgDotHtml(host)}<span class="ev-org-name">${esc(event.orgName || host.name)}</span></span>
+      <span class="ev-title clamp2">${esc(event.title)}</span>
+      <span class="ev-meta"><span>${icon('clock', 14, 2)}${esc(timeText)}</span><span>${icon('pin', 14, 2)}${esc(AREAS[event.area] || 'Singapore')}</span>${spots ? spotsChip(event) : ''}</span>
+    </span></a>`;
+}
+
+export const followButtonHtml = (org, on) =>
+  `<button type="button" class="follow-btn hit" data-follow="${esc(org.id)}" aria-pressed="${on}" aria-label="${on ? 'Unfollow' : 'Follow'} ${esc(org.name)}">${on ? 'Following' : 'Follow'}</button>`;
+
+// Follow buttons inside root save straight away; follows (a Set of org ids) is kept in step, then onChange runs.
+export function wireFollow(root, uid, follows, onChange) {
+  root.addEventListener('click', async (e) => {
+    const button = e.target.closest('[data-follow]');
+    if (!button) return;
+    const id = button.dataset.follow, on = follows.has(id);
+    button.disabled = true;
+    try {
+      await (on ? unfollowOrg : followOrg)(uid, id);
+      if (on) follows.delete(id); else follows.add(id);
+      onChange?.();
+    } catch (err) {
+      console.warn(err);
+      toast('Couldn’t update that.');
+    }
+    button.disabled = false;
+  });
+}
 
 // Dialogs (centred) and sheets (slide up). body is HTML the caller has already escaped.
 
@@ -142,10 +213,11 @@ export function dragScroll(el, axis = 'x') {
   const page = el === document.scrollingElement;
   const host = page ? document : el;
   let start = null, origin = 0, moved = false;
+  if (!page) el.dataset.dragX = '';
 
   host.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || e.target.closest('input, textarea, select, label, [contenteditable]')) return;
-    if (page && e.target.closest('.hscroll, .cal-days')) return;
+    if (page && e.target.closest('[data-drag-x]')) return;
     start = axis === 'x' ? e.clientX : e.clientY;
     origin = axis === 'x' ? el.scrollLeft : el.scrollTop;
     moved = false;

@@ -35,6 +35,17 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 4: When an event is full, a volunteer can join its waiting list themselves (the canvas's "Join waiting list"); section 7 only lists going and pending for volunteers. Moving people up from the waiting list is an admin action (slice 7), since doing it automatically needs a Cloud Function.
 - Slice 4: Someone who cancelled can register again. Someone the organisation declined can't request the same event again.
 - Slice 4: Organisation staff get the volunteer view plus the "Check in volunteers" bar; the admin view is for admins. The top-right share button opens the More menu, as on the canvas.
+- Slice 5: "Popular this week" is the next seven days' events with the most registrations (going plus pending). Volunteers can't see when other people registered, so a strict "registered this week" count isn't possible.
+- Slice 5: Browse by location filters the list, and the Map buttons stay hidden until Phase 3.
+- Slice 5: Shown later, not now:
+  - "Run a non-profit? Apply to join" (Phase 2).
+  - Letter requests on the organisation page (Phase 3).
+  - Profile's notification settings and its gear button (Phase 3).
+  - The hours card's "Record, PDF and signed letters" line, since PDFs and letters are Phase 3.
+- Slice 5: More instruction-like text left out: "Follow to hear about the next one." (organisation page), "Email and mobile number are changed under Settings." and the "for example…" bio placeholder (Profile).
+- Slice 5: "Events hosted" counts events the person created for an organisation they admin.
+- Slice 5: Hours entries keep the event's cover (`cover` on `users/{uid}/hours`), like they keep its title. Past events show the real cover even if the event is gone.
+- Slice 5: Discover marks sample data as "Singapore · Sample events". The canvas Discover has no sample label, but the brief asks for one.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -213,3 +224,43 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 5: Discover, Organisations, the organisation page and Profile.
+
+## 28 Oct 2026: Phase 1, slice 5: Discover, Organisations, organisation page, Profile
+
+**Done**
+- `discover.html` (`design/Discover.dc.html`):
+  - Popular this week, with search.
+  - Browse by cause, with counts, filtering the list. Browse by location, with gradient area cards, filtering the list.
+  - Organisations to follow, with Follow buttons.
+- `organisations.html` (`design/Organisations.dc.html`):
+  - Search and cause chips.
+  - For admins, the "Your organisation" card: "2 requests waiting · 1 event tomorrow", worked out from the organisation's events.
+  - "You follow", then the other organisations, each with its cause, area and upcoming count.
+- `organisation.html` (`design/Organisation.dc.html`):
+  - The hero with its band, mark, causes, area and stats. Follow, Contact, and Give (opens the giving page in a new tab).
+  - Upcoming events, Past impact, Contact, and "member since".
+  - The organisation's admins get "Your organisation", New event, and an in-place edit of About and the giving link.
+- `profile.html` (`design/Profile.dc.html`):
+  - Name, role line, bio and joined date.
+  - Events hosted, events attended and organisations followed. The hours total links to `hours.html`.
+  - Past events from the hours ledger.
+  - Name and bio edited in place. "Your organisation", and Sign out.
+- Shared in `ui.js`: event rows, organisation marks, the spots chip, follow buttons that save at once, and cover labels. Every sideways strip marks itself, so dragging it doesn't drag the page.
+- Rules: organisation admins can edit their organisation's profile fields only. Status, stats and approval stay out of reach, and the giving link must be https. `data.js`: `updateOrganisation`, `listOrgPublicEvents`, `listHours`.
+
+**Tested**
+- `npm test`: 80 of 80 pass. New: admins edit About and the giving link; they can't change status, stats or approval; http and javascript links are refused; staff, volunteers and other organisations' admins can't edit.
+- Browser at 390 px, signed in by email link:
+  - As Aisha:
+    - Discover's Popular this week: the Yishun visit, sorting morning, beach clean-up and pantry restock. Environment, North and search ("dog") filter correctly, and Clear resets.
+    - Following Harvest Table on Discover shows on Home (3 organisations). Unfollowing it on Organisations takes Home back to 2. The Animals chip shows only Paws and Hearts.
+    - The Silver Companions page shows its stats, Following, Give to its https giving page, the Yishun visit, three impact lines, and no edit button.
+    - A new bio survives a reload.
+  - As Mei Lin:
+    - The "Your organisation" card reads "· 2 requests waiting · 1 event tomorrow".
+    - On Silver Companions she gets "Your organisation" and New event. An http giving link is refused, and the new About and https link survive a reload.
+    - Her Profile: 1 hosted, 5 attended, 3 followed, 14 hours, five past events with their covers, and "Your organisation". Sign out goes to sign-in.
+  - No sideways scrolling, no console errors.
+
+**Next**
+- Slice 6: create and edit event.

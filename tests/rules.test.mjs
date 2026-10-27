@@ -169,7 +169,7 @@ describe('organisations', () => {
     await assertFails(getDocs(collection(dbAs('bob'), 'organisations')));
   });
 
-  it('nobody can write an organisation yet', async () => {
+  it('nobody can create an organisation or replace one wholesale', async () => {
     await assertFails(setDoc(doc(dbAs('mei'), 'organisations/open'), { name: 'Changed', status: 'approved' }));
     await assertFails(setDoc(doc(dbAs('root'), 'organisations/new'), { name: 'New', status: 'approved' }));
   });
@@ -182,6 +182,42 @@ describe('organisations', () => {
   it('a volunteer cannot read other people\'s memberships', async () => {
     await assertFails(getDoc(doc(dbAs('alice'), 'organisations/open/members/mei')));
     await assertFails(getDocs(query(collectionGroup(dbAs('alice'), 'members'), where('uid', '==', 'mei'))));
+  });
+});
+
+describe('organisations: editing the profile', () => {
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/open': {
+        name: 'Open Org', tagline: 'Tag', about: 'About', causes: ['food'], area: 'central', logoColors: ['#111111', '#222222'],
+        givingUrl: '', email: 'hi@open.example', address: 'Somewhere', website: 'open.example', status: 'approved',
+        stats: { events: 1, volunteers: 2, hours: 3 },
+      },
+      'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
+    });
+  });
+  const edit = (uid, fields) => updateDoc(doc(dbAs(uid), 'organisations/open'), { ...fields, updatedAt: serverTimestamp() });
+
+  it('an organisation admin can edit About and the giving link', async () => {
+    await assertSucceeds(edit('mei', { about: 'We sort food.', givingUrl: 'https://open.example/give' }));
+  });
+
+  it('an admin cannot change the status, the stats or the approval', async () => {
+    await assertFails(edit('mei', { status: 'suspended' }));
+    await assertFails(edit('mei', { stats: { events: 99, volunteers: 2, hours: 3 } }));
+    await assertFails(edit('mei', { approvedAt: new Date() }));
+  });
+
+  it('the giving link must be an https address', async () => {
+    await assertFails(edit('mei', { givingUrl: 'http://open.example/give' }));
+    await assertFails(edit('mei', { givingUrl: 'javascript:alert(1)' }));
+  });
+
+  it('staff, volunteers and other organisations\' admins cannot edit', async () => {
+    await assertFails(edit('sam', { about: 'Changed' }));
+    await assertFails(edit('alice', { about: 'Changed' }));
+    await assertFails(edit('carol', { about: 'Changed' }));
   });
 });
 

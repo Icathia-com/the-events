@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Organisations · The Events</title>
+  <meta name="theme-color" content="#9A4F33">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/pages/organisations.js"></script>
+</head>
+<body class="is-loading">
+  <main class="page">
+    <header class="page-head">
+      <h1 class="page-title">Organisations</h1>
+      <span id="avatar"></span>
+    </header>
+    <input class="search" id="search" type="search" aria-label="Search organisations" placeholder="Search by name or cause">
+    <div class="chip-row" id="chips" role="group" aria-label="Filter by cause"></div>
+    <div id="mine"></div>
+    <div id="followed"></div>
+    <div class="sec">
+      <h2><span id="all-title">More organisations</span><span class="count" id="all-count"></span></h2>
+      <span class="sec-sub" id="sample-note" hidden>Sample</span>
+    </div>
+    <div id="all"></div>
+  </main>
+</body>
+</html>

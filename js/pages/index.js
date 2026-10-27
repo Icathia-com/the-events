@@ -7,7 +7,7 @@ import {
 import { qrSvg } from '../qr.js';
 import {
   addDays, avatarHtml, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
-  fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, orgDotHtml, renderBottomBar, renderEventFab, shortDay, toast,
+  eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, shortDay, toast,
 } from '../ui.js';
 
 const CAL_BEFORE = 14;   // days shown before today in the shifts tile
@@ -189,24 +189,7 @@ const allEvents = [...publicEvents, ...followerEvents]
   .sort(byStart);
 $('sample-note').hidden = !allEvents.some((e) => e.sample);
 
-function spotsChip(e) {
-  const capacity = e.registration?.capacity;
-  if (!capacity) return '';
-  const left = Math.max(0, capacity - (e.counts?.going || 0));
-  if (left === 0) return '<span class="chip chip-muted">Full</span>';
-  if (left <= 3) return `<span class="chip chip-wait">Almost full · ${left} left</span>`;
-  return `<span class="chip chip-ok">${left} spots left</span>`;
-}
-
-function eventRow(e) {
-  const org = orgs[e.orgId] || { name: e.orgName };
-  return `<a class="ev-row" href="${eventHref(e)}" draggable="false">${coverHtml(e, 72, 16, 11)}
-    <span class="ev-text">
-      <span class="ev-org">${orgDotHtml(org)}<span class="ev-org-name">${esc(e.orgName || org.name)}</span></span>
-      <span class="ev-title clamp2">${esc(e.title)}</span>
-      <span class="ev-meta"><span>${icon('clock', 14, 2)}${fmtTime(e.startAt.toDate())}</span><span>${icon('pin', 14, 2)}${esc(AREAS[e.area] || 'Singapore')}</span>${spotsChip(e)}</span>
-    </span></a>`;
-}
+const eventRow = (e) => eventRowHtml(e, orgs[e.orgId], fmtTime(e.startAt.toDate()));
 
 let area = 'all';
 function renderEvents() {

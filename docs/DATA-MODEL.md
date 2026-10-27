@@ -73,6 +73,7 @@ events/{eventId}/registrations/{uid}
 events/{eventId}/going/{uid}            name ("Aisha R."), since: who's going, readable with the event; one per going registration
 
 users/{uid}/hours/{eventId}             the entry id is the event id: one entry per confirmed attendance
+  cover: { colors, label }              the event's cover, kept with the entry like its title and organisation name
 
 sample: true                            on every document the seed script writes
 ```

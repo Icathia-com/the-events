@@ -49,6 +49,12 @@ export function updateProfile(uid, { name, bio, photoUrl }) {
 export const followOrg = (uid, orgId) => updateDoc(doc(db, 'users', uid), { follows: arrayUnion(orgId), updatedAt: serverTimestamp() });
 export const unfollowOrg = (uid, orgId) => updateDoc(doc(db, 'users', uid), { follows: arrayRemove(orgId), updatedAt: serverTimestamp() });
 
+// The whole hours ledger, newest first.
+export async function listHours(uid) {
+  const snaps = await getDocs(query(collection(db, 'users', uid, 'hours'), orderBy('date', 'desc')));
+  return allWithIds(snaps);
+}
+
 // Confirmed hours with a date in [from, to).
 export async function hoursBetween(uid, from, to) {
   const snaps = await getDocs(query(collection(db, 'users', uid, 'hours'),
@@ -149,6 +155,12 @@ export async function listOrganisations() {
   return allWithIds(snaps).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Admins edit their organisation's About and giving link (the rules allow only profile fields).
+export function updateOrganisation(orgId, { about, givingUrl }) {
+  const fields = Object.fromEntries(Object.entries({ about, givingUrl }).filter(([, v]) => v !== undefined));
+  return updateDoc(doc(db, 'organisations', orgId), { ...fields, updatedAt: serverTimestamp() });
+}
+
 // The user's role in an organisation ('admin' or 'staff'), or null.
 export async function getMyRole(orgId, uid) {
   return (await getDoc(doc(db, 'organisations', orgId, 'members', uid))).data()?.role || null;
@@ -180,6 +192,14 @@ export async function listFollowerEvents(orgIds, from = new Date()) {
     where('status', '==', 'scheduled'), where('visibility', '==', 'followers'), where('orgId', 'in', ids),
     where('startAt', '>=', Timestamp.fromDate(from)), orderBy('startAt')))));
   return results.flatMap(allWithIds).sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
+}
+
+// One organisation's scheduled public events from a date onwards, for anyone signed in.
+export async function listOrgPublicEvents(orgId, from = new Date()) {
+  const snaps = await getDocs(query(collection(db, 'events'),
+    where('orgId', '==', orgId), where('status', '==', 'scheduled'), where('visibility', '==', 'public'),
+    where('startAt', '>=', Timestamp.fromDate(from)), orderBy('startAt')));
+  return allWithIds(snaps);
 }
 
 // Every event of an organisation the user is a member of, drafts included.

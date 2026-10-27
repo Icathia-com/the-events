@@ -76,8 +76,24 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // An organisation's own profile fields. Status, stats and approval are not among them.
+    function validOrgProfile(o) {
+      return o.name is string && o.name.size() > 0 && o.name.size() <= 100
+        && o.tagline is string && o.tagline.size() <= 120
+        && o.about is string && o.about.size() <= 2000
+        && o.givingUrl is string && o.givingUrl.size() <= 500 && (o.givingUrl == '' || o.givingUrl.matches('https://\\S+'))
+        && o.causes is list && o.causes.size() <= 6
+        && o.logoColors is list && o.logoColors.size() == 2;
+    }
+
     match /organisations/{orgId} {
       allow read: if signedIn() && (resource.data.status == 'approved' || isMember(orgId) || isNetworkAdmin());
+
+      allow update: if isOrgAdmin(orgId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'tagline', 'about', 'causes', 'area', 'logoColors', 'givingUrl', 'email', 'address', 'website', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && validOrgProfile(request.resource.data);
 
       match /members/{uid} {
         allow read: if isSelf(uid) || isMember(orgId) || isNetworkAdmin();

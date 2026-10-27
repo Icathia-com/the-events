@@ -154,13 +154,14 @@ const REGISTRATIONS = {
   kids: {},
 };
 
-// Mei Lin's past hours, from the canvas hours record: [entry id, title, org, canvas day, hours, confirmed by, reference number].
+// Mei Lin's past hours, from the canvas hours record:
+// [entry id, title, org, canvas day, hours, confirmed by, reference number, cover label].
 const LEDGER = [
-  ['past-yishun', 'Befriending visit: Yishun seniors', 'silver', '2026-10-14', 2, uidOf('meilin'), 482],
-  ['past-midautumn', 'Mid-Autumn visit: Ang Mo Kio', 'silver', '2026-09-27', 3, uidOf('meilin'), 483],
-  ['past-sort', 'Food pack sorting morning', 'harvest', '2026-09-26', 3, 'code', 484],
-  ['past-grocery', 'Grocery run for homebound seniors', 'silver', '2026-09-06', 2, uidOf('meilin'), 485],
-  ['past-reading', 'Reading club, four Saturdays', 'readers', '2026-08-29', 4, 'code', 486],
+  ['past-yishun', 'Befriending visit: Yishun seniors', 'silver', '2026-10-14', 2, uidOf('meilin'), 482, 'YISHUN\nVISIT'],
+  ['past-midautumn', 'Mid-Autumn visit: Ang Mo Kio', 'silver', '2026-09-27', 3, uidOf('meilin'), 483, 'MID-\nAUTUMN'],
+  ['past-sort', 'Food pack sorting morning', 'harvest', '2026-09-26', 3, 'code', 484, 'FOOD\nPACKS'],
+  ['past-grocery', 'Grocery run for homebound seniors', 'silver', '2026-09-06', 2, uidOf('meilin'), 485, 'GROCERY\nRUN'],
+  ['past-reading', 'Reading club, four Saturdays', 'readers', '2026-08-29', 4, 'code', 486, 'READING\nCLUB'],
 ];
 
 setLogLevel('error');
@@ -231,10 +232,11 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     });
   });
 
-  for (const [id, title, org, day, hours, confirmedBy, ref] of LEDGER) {
+  for (const [id, title, org, day, hours, confirmedBy, ref, label] of LEDGER) {
     const date = at(day, '10:00');
     put(`users/${uidOf('meilin')}/hours/${id}`, {
-      eventId: id, eventTitle: title, orgId: org, orgName: ORGS[org].name, date, hours, confirmedBy, confirmedAt: date,
+      eventId: id, eventTitle: title, orgId: org, orgName: ORGS[org].name, cover: { colors: ORGS[org].logoColors.slice(), label },
+      date, hours, confirmedBy, confirmedAt: date,
       reference: `VN-${date.toDate().getUTCFullYear()}-${String(ref).padStart(5, '0')}`,
     });
   }

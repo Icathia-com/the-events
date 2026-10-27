@@ -72,6 +72,23 @@
   --pending-solid: rgba(201,112,45,.9);
   --follow-on-bg: rgba(255,255,255,.7);
   --follow-on-border: rgba(30,26,23,.15);
+  --follow-shadow: 0 12px 28px rgba(36,65,47,.18);
+  --mine-border: rgba(36,65,47,.35);
+  --logo-shadow: 0 8px 20px rgba(90,50,30,.18);
+  --chip-on-bg: rgba(255,255,255,.2);
+  --tag-bg: rgba(30,26,23,.07);
+  --field-bg: rgba(30,26,23,.06);
+  --soft-white: rgba(255,255,255,.9);
+  --deco-circle: rgba(255,255,255,.18);
+  --area-shadow: 0 12px 32px rgba(90,50,30,.14);
+  --profile-band: linear-gradient(135deg, #5A3E7A 0%, #9C7BC4 60%, #D08A5E 100%);
+
+  /* Area cards on Discover (canvas) */
+  --area-north: linear-gradient(135deg, #2E5C44, #5FA37B);
+  --area-northeast: linear-gradient(135deg, #7A3E2A, #D08A5E);
+  --area-east: linear-gradient(135deg, #1F4E6E, #5B9BC2);
+  --area-central: linear-gradient(135deg, #5A3E7A, #9C7BC4);
+  --area-west: linear-gradient(135deg, #8A5A1E, #D9A24A);
 
   /* Avatar gradients for people (canvas palette) */
   --avatar-1: linear-gradient(135deg, #5A3E7A, #9C7BC4);

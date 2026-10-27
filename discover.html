@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Discover · The Events</title>
+  <meta name="theme-color" content="#9A4F33">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/pages/discover.js"></script>
+</head>
+<body class="is-loading">
+  <main class="page">
+    <header class="page-head">
+      <h1 class="page-title">Discover</h1>
+      <button type="button" class="ib" id="search-toggle" aria-label="Search events" aria-expanded="false"></button>
+      <span id="avatar"></span>
+    </header>
+    <input class="search" id="search" type="search" aria-label="Search events and organisations" placeholder="Search events and organisations" hidden>
+
+    <div class="sec">
+      <h2 class="sec-stack"><span class="sec-sub" id="list-where">Singapore</span><span id="list-title">Popular this week</span></h2>
+      <span id="list-action"></span>
+    </div>
+    <div id="list"></div>
+
+    <div class="sec"><h2>Browse by cause</h2></div>
+    <div class="cause-grid" id="causes" role="group" aria-label="Causes"></div>
+
+    <div class="sec"><h2>Browse by location</h2></div>
+    <div class="hscroll area-row" id="areas" role="group" aria-label="Areas"></div>
+
+    <div class="sec"><h2>Organisations to follow</h2><a class="sec-link" href="organisations.html" id="see-all">See all</a></div>
+    <div class="glass list-card" id="orgs"></div>
+  </main>
+</body>
+</html>
