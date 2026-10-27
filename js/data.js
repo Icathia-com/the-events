@@ -49,6 +49,22 @@ export function updateProfile(uid, { name, bio, photoUrl }) {
 export const followOrg = (uid, orgId) => updateDoc(doc(db, 'users', uid), { follows: arrayUnion(orgId), updatedAt: serverTimestamp() });
 export const unfollowOrg = (uid, orgId) => updateDoc(doc(db, 'users', uid), { follows: arrayRemove(orgId), updatedAt: serverTimestamp() });
 
+// Confirmed hours with a date in [from, to).
+export async function hoursBetween(uid, from, to) {
+  const snaps = await getDocs(query(collection(db, 'users', uid, 'hours'),
+    where('date', '>=', Timestamp.fromDate(from)), where('date', '<', Timestamp.fromDate(to))));
+  return snaps.docs.reduce((sum, d) => sum + (Number(d.data().hours) || 0), 0);
+}
+
+// Registrations
+
+// The user's own going and pending registrations, across all events: [{ eventId, status, ... }].
+export async function myRegistrations(uid) {
+  const snaps = await getDocs(query(collectionGroup(db, 'registrations'),
+    where('uid', '==', uid), where('status', 'in', ['going', 'pending'])));
+  return snaps.docs.map((d) => ({ eventId: d.ref.parent.parent.id, ...d.data() }));
+}
+
 // Organisations
 
 export const getOrganisation = async (orgId) => withId(await getDoc(doc(db, 'organisations', orgId)));
@@ -74,6 +90,16 @@ export async function listPublicEvents(from = new Date()) {
     where('status', '==', 'scheduled'), where('visibility', '==', 'public'),
     where('startAt', '>=', Timestamp.fromDate(from)), orderBy('startAt')));
   return allWithIds(snaps);
+}
+
+// Scheduled followers-only events of the given organisations (the ones the user follows), soonest first.
+export async function listFollowerEvents(orgIds, from = new Date()) {
+  const chunks = [];
+  for (let i = 0; i < orgIds.length; i += 30) chunks.push(orgIds.slice(i, i + 30));
+  const results = await Promise.all(chunks.map((ids) => getDocs(query(collection(db, 'events'),
+    where('status', '==', 'scheduled'), where('visibility', '==', 'followers'), where('orgId', 'in', ids),
+    where('startAt', '>=', Timestamp.fromDate(from)), orderBy('startAt')))));
+  return results.flatMap(allWithIds).sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
 }
 
 // Every event of an organisation the user is a member of, drafts included.

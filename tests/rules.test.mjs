@@ -1,4 +1,5 @@
 // Rules tests for users/{uid}. `npm test` starts the Firestore emulator and runs this file.
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
@@ -229,5 +230,48 @@ describe('events: who can read', () => {
 
   it('nobody can write an event yet', async () => {
     await assertFails(setDoc(doc(dbAs('mei'), 'events/new'), { orgId: 'open', visibility: 'public', status: 'scheduled' }));
+  });
+});
+
+describe('registrations and the hours ledger: reading', () => {
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'events/pub/registrations/alice': { uid: 'alice', status: 'going' },
+      'events/fol/registrations/alice': { uid: 'alice', status: 'pending' },
+      'events/pub/registrations/bob': { uid: 'bob', status: 'going' },
+      'users/alice/hours/e1': { orgId: 'open', hours: 2 },
+      'users/alice/hours/e2': { orgId: 'waiting', hours: 3 },
+    });
+  });
+
+  const myRegs = (uid, who = uid) => query(collectionGroup(dbAs(uid), 'registrations'),
+    where('uid', '==', who), where('status', 'in', ['going', 'pending']));
+
+  it('a volunteer can list their own registrations across events', async () => {
+    const snaps = await assertSucceeds(getDocs(myRegs('alice')));
+    assert.equal(snaps.size, 2);
+  });
+
+  it('a volunteer cannot list or read someone else\'s registrations', async () => {
+    await assertFails(getDocs(myRegs('alice', 'bob')));
+    await assertFails(getDoc(doc(dbAs('alice'), 'events/pub/registrations/bob')));
+  });
+
+  it('a volunteer can read their own hours ledger, another volunteer cannot', async () => {
+    await assertSucceeds(getDocs(collection(dbAs('alice'), 'users/alice/hours')));
+    await assertFails(getDocs(collection(dbAs('bob'), 'users/alice/hours')));
+    await assertFails(getDoc(doc(dbAs('bob'), 'users/alice/hours/e1')));
+  });
+
+  it('an organisation admin can read entries naming their organisation, and no others', async () => {
+    await assertSucceeds(getDoc(doc(dbAs('mei'), 'users/alice/hours/e1')));
+    await assertSucceeds(getDocs(query(collection(dbAs('mei'), 'users/alice/hours'), where('orgId', '==', 'open'))));
+    await assertFails(getDoc(doc(dbAs('mei'), 'users/alice/hours/e2')));
+    await assertFails(getDocs(collection(dbAs('mei'), 'users/alice/hours')));
+  });
+
+  it('nobody can write the hours ledger yet', async () => {
+    await assertFails(setDoc(doc(dbAs('alice'), 'users/alice/hours/e3'), { orgId: 'open', hours: 5 }));
   });
 });

@@ -1,6 +1,7 @@
 rules_version = '2';
 
-// Brief section 7. Covered so far: users, organisations and events (reading). Everything else is denied.
+// Brief section 7. Covered so far: users and their hours ledger (reading), organisations and events (reading),
+// and people's own registrations (reading). Everything else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -21,8 +22,16 @@ service cloud.firestore {
       return signedIn() && exists(myUserPath()) && get(myUserPath()).data.get('networkAdmin', false) == true;
     }
 
+    function myMemberPath(orgId) {
+      return /databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid);
+    }
+
     function isMember(orgId) {
-      return signedIn() && exists(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid));
+      return signedIn() && exists(myMemberPath(orgId));
+    }
+
+    function isOrgAdmin(orgId) {
+      return isMember(orgId) && get(myMemberPath(orgId)).data.role == 'admin';
     }
 
     function followsOrg(orgId) {
@@ -54,6 +63,16 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'bio', 'photoUrl', 'follows', 'updatedAt'])
         && request.resource.data.updatedAt == request.time
         && validProfile(request.resource.data);
+
+      // The hours ledger: the volunteer, and admins of the organisation named on the entry.
+      match /hours/{entryId} {
+        allow read: if isSelf(uid) || isOrgAdmin(resource.data.orgId);
+      }
+    }
+
+    // Lets someone find their own registrations (a collection group query on their own uid).
+    match /{path=**}/registrations/{regId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     match /organisations/{orgId} {

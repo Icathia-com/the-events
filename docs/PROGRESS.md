@@ -20,6 +20,14 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 2: Sample sign-in emails use example.com, a domain reserved for examples: `mei.lin.tan@example.com`, `aisha.rahman@example.com` and so on.
 - Slice 2: Mei Lin's past hours (14 hours over five entries, from the canvas hours record) carry references VN-2026-00482 to 00486. The canvas shows one reference for the whole record; the brief gives each entry its own, and the brief wins.
 - Slice 2: Organisations get two fields the canvas needs but section 6 lacks: `approvedAt` ("member since") and `impact` (Past impact). Members and registrations also store `uid`, so people can find their own with a query. All of this is noted in `docs/DATA-MODEL.md`.
+- Slice 2: Seeded dates move by whole days. An event whose title names a weekday ("Saturday reading club") moves on to that weekday.
+- Slice 3: Instruction-like sentences on the canvas are left out, because the brief says no how-to hint text. On Home that's "Pick a shift from the list below." and the QR dialog's "The organisation scans this at the event…". Everything else on the screen follows the canvas.
+- Slice 3: QR codes come from the app's own generator (`js/qr.js`, tested against jsQR). The approved jsQR library only reads codes. A personal code holds `TE1:<uid>`; a code for one of today's events holds `TE1:<uid>:<eventId>`.
+- Slice 3: Small controls keep their canvas size but get a 44 px touch area, as the brief requires.
+- Slice 3: The greeting uses a first name: everything but the last word for three-word names ("Mei Lin"), otherwise the first word.
+- Slice 3: The impact line is hidden for someone with no hours this year; the canvas only shows the case with hours. Waiting-list registrations don't appear in "Your events"; the canvas shows only going and pending.
+- Slice 3: Home's "Claim 3 hours" card comes with claims in slice 9. The sign-out button from slice 1 moves to Profile (slice 5), where the canvas has it.
+- Slice 3 (production): Beyond section 6, Firestore will need an index on events by orgId, status, visibility and startAt (followers-only events on Home). It will also need a collection group index on `members.uid` ("which organisations am I in"). Both are in `firestore.indexes.json`. The emulator doesn't check indexes, and nothing has been deployed.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -125,3 +133,40 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 3: shared UI and Home.
+
+## 28 Oct 2026: Phase 1, slice 3: Shared UI and Home
+
+**Done**
+- `js/ui.js`:
+  - The four-tab bottom bar, the profile avatar, and "+ Event" for organisation admins.
+  - Centred dialogs and slide-up sheets, with Escape, focus kept inside, and focus returned on close. Toasts.
+  - Mouse drag-to-scroll for the page and every sideways strip; a drag doesn't count as a click.
+  - Event covers and organisation marks from their two colours.
+  - Dates and times shown in the organisation's timezone (Singapore).
+  - All user text is HTML-escaped.
+- `js/qr.js`: a QR code generator (byte mode, error correction level M, versions 1 to 10).
+- Home (`index.html`, `js/pages/index.js`), from `design/Home.dc.html`:
+  - The date, greeting and "hours volunteered this year" line, and the avatar.
+  - Quick actions: New event for admins, Discover for volunteers, and My QR code.
+  - "Your events": cards with a countdown, "Waiting for approval" in amber, and Check in on today's events, which opens the QR code for that event.
+  - The first three organisations followed, then "Find organisations".
+  - The shifts strip: it drags sideways, the today badge jumps back, and pending shifts are tinted amber.
+  - "All events" grouped by day, with spot chips and the area filter. Public events and the followers-only events of organisations followed are shown together. The Map button stays hidden until Phase 3.
+- Rules: people can list their own registrations across events (a collection group query on their uid). The hours ledger is readable by the volunteer, and by admins of the organisation named on each entry.
+- Data: `myRegistrations`, `hoursBetween` and `listFollowerEvents`.
+
+**Tested**
+- `npm test`: 63 of 63 pass (37 rules tests, 26 QR tests). The QR tests decode every version's largest text and one byte more, plus non-English text.
+- Browser, headless Edge at 390 × 844, signed in by email link:
+  - As Aisha: 3 of her events, with "In 15 hours" and Check in on today's pantry restock. 2 organisations followed. Today's shift is in the strip. All 8 events in 6 day groups, marked "Sample events".
+  - North leaves only the Yishun visit.
+  - A mouse drag moves the strip without opening a day. The today badge goes back to today.
+  - My QR code opens and closes with Escape.
+  - As Mei Lin: "14 hours volunteered this year", New event, "+ Event", and her pending reading club in amber.
+  - No sideways scrolling, no console errors.
+
+**Notes**
+- `npm test` starts its own emulators, so stop `npm run emulators` first.
+
+**Next**
+- Slice 4: event page and registration.

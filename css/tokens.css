@@ -44,9 +44,42 @@
   --lens-shadow: inset 0 1px 0 #FFFFFF, 0 8px 20px rgba(90,50,30,.2);
   --lens-shadow-hover: inset 0 1px 0 rgba(255,255,255,.95), 0 6px 16px rgba(90,50,30,.14);
 
+  /* Lines, tints and overlays (canvas) */
+  --line: rgba(30,26,23,.07);
+  --line-faint: rgba(30,26,23,.06);
+  --line-strong: rgba(30,26,23,.12);
+  --tint: rgba(30,26,23,.08);
+  --tint-soft: rgba(30,26,23,.06);
+  --forest-tint: rgba(36,65,47,.10);
+  --pending-bg-soft: rgba(201,112,45,.14);
+  --overlay: rgba(30,26,23,.45);
+  --on-gradient-bg: rgba(255,255,255,.22);
+  --on-gradient-border: rgba(255,255,255,.55);
+  --avatar-ring: rgba(255,255,255,.7);
+  --today-col: rgba(255,255,255,.35);
+  --block-bg: rgba(255,255,255,.85);
+  --menu-bg: rgba(255,255,255,.96);
+  --sheet-bg: rgba(255,255,255,.97);
+  --cover-stroke: inset 0 0 0 1px rgba(255,255,255,.18);
+  --menu-shadow: 0 16px 40px rgba(90,50,30,.20);
+  --sheet-shadow: 0 -12px 40px rgba(90,50,30,.25);
+  --dialog-shadow: 0 24px 60px rgba(30,26,23,.35);
+
+  /* Avatar gradients for people (canvas palette) */
+  --avatar-1: linear-gradient(135deg, #5A3E7A, #9C7BC4);
+  --avatar-2: linear-gradient(135deg, #1F4E6E, #5B9BC2);
+  --avatar-3: linear-gradient(135deg, #8A5A1E, #D9A24A);
+  --avatar-4: linear-gradient(135deg, #2E5C44, #5FA37B);
+  --avatar-5: linear-gradient(135deg, #B04A6A, #E58AA8);
+  --avatar-6: linear-gradient(135deg, #3E5A1E, #8CB83E);
+  --avatar-7: linear-gradient(135deg, #7A3E2A, #D08A5E);
+  --avatar-8: linear-gradient(135deg, #1F3A2C, #3F7A5A);
+  --avatar-9: linear-gradient(135deg, #8A4A12, #E8945A);
+
   /* Type: Manrope */
   --font: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   --fs-page-title: 33px;
+  --fs-greeting: 30px;
   --fw-page-title: 500;
   --fs-section: 20px;
   --fw-section: 600;

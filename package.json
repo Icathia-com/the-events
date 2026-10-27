@@ -6,11 +6,12 @@
     "serve": "http-server . -p 8000 -a 127.0.0.1 -c-1",
     "emulators": "firebase emulators:start --project demo-the-events",
     "seed": "node scripts/seed.mjs",
-    "test": "firebase emulators:exec --only firestore --project demo-the-events \"node --test tests/rules.test.mjs\""
+    "test": "firebase emulators:exec --only firestore --project demo-the-events \"node --test tests/rules.test.mjs tests/qr.test.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "6.0.0",
     "firebase": "13.0.0",
-    "http-server": "14.1.1"
+    "http-server": "14.1.1",
+    "jsqr": "1.4.0"
   }
 }

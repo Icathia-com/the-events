@@ -33,6 +33,15 @@ function at(canvasDay, hhmm = '12:00') {
   return Timestamp.fromMillis(Date.UTC(y, m - 1, d) - CANVAS_TODAY + SEED_TODAY + (hh - 8) * 3600e3 + mm * 60e3);
 }
 const daysAgo = (n) => Timestamp.fromMillis(Date.now() - n * DAY);
+
+// Shifting dates breaks titles that name a weekday ("Saturday reading club"), so those move on to that weekday.
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function toNamedWeekday(title, ts) {
+  const named = WEEKDAYS.findIndex((d) => title.includes(d));
+  if (named < 0) return 0;
+  const sgWeekday = new Date(ts.toMillis() + 8 * 3600e3).getUTCDay();
+  return ((named - sgWeekday + 7) % 7) * DAY;
+}
 const token = () => randomBytes(6).toString('hex');
 
 const ORGS = {
@@ -177,7 +186,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
 
   for (const [id, day, start, end, title, org, area, cause, capacity, approval, label, venue, meetingPoint, bring, description] of EVENTS) {
     const regs = REGISTRATIONS[id];
-    const startAt = at(day, start), endAt = at(day, end);
+    const nudge = toNamedWeekday(title, at(day, start));
+    const startAt = Timestamp.fromMillis(at(day, start).toMillis() + nudge);
+    const endAt = Timestamp.fromMillis(at(day, end).toMillis() + nudge);
     put(`events/${id}`, {
       orgId: org, orgName: ORGS[org].name, title, description, cause, area, venue, meetingPoint, bring,
       startAt, endAt, hours: (endAt.toMillis() - startAt.toMillis()) / 3600e3,
