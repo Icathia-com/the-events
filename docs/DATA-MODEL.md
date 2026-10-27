@@ -91,3 +91,12 @@ users/{uid}
   hoursBy                               the ledger entry the last hoursTotal change followed
 references/{ref}                        uid, entryId: each VN-<year>-<5 digits> number, registered once
 ```
+
+```
+organisations/{orgId}/staffInvites/{email}
+  email, role ("staff"), invitedBy, invitedAt
+                                        an admin's invite; when that email signs in, it becomes members/{uid}
+                                        with role "staff" and the invite is removed
+events/{eventId}/attendance/{uid}
+  code                                  the check-out code the volunteer scanned, when confirmedBy is "code"
+```

@@ -22,7 +22,7 @@ beforeEach(() => testEnv.clearFirestore());
 
 after(() => testEnv?.cleanup());
 
-const dbAs = (uid) => testEnv.authenticatedContext(uid, { email: `${uid}@example.com` }).firestore();
+const dbAs = (uid) => testEnv.authenticatedContext(uid, { email: `${uid}@example.com`, email_verified: true }).firestore();
 const userRef = (db, uid) => doc(db, 'users', uid);
 
 const firstSignIn = (uid) => ({
@@ -388,6 +388,91 @@ describe('the organisation\'s decisions, attendance and the hours ledger', () =>
     await seedDocs({ 'users/bob/hours/past': { orgId: 'open', hours: 3 } });
     await assertSucceeds(getDocs(query(collectionGroup(dbAs('mei'), 'hours'), where('orgId', '==', 'open'))));
     await assertFails(getDocs(query(collectionGroup(dbAs('carol'), 'hours'), where('orgId', '==', 'open'))));
+  });
+});
+
+describe('check-in, check-out and staff', () => {
+  const counts = (over = {}) => ({ going: 1, pending: 0, waitlist: 0, attended: 0, ...over });
+  const st = serverTimestamp;
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
+      'organisations/open/members/sue': { uid: 'sue', role: 'staff' },
+      'events/e8': {
+        orgId: 'open', orgName: 'Open Org', title: 'Pantry restock', visibility: 'public', status: 'scheduled',
+        startAt: new Date(), endAt: new Date(Date.now() + 2 * 3600e3), hours: 2, counts: counts(),
+        registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false },
+      },
+      'events/e8/registrations/alice': { uid: 'alice', name: 'Alice A.', status: 'going' },
+      'events/e8/private/codes': { checkIn: 'in-12345678', checkOut: 'out-12345678' },
+    });
+  });
+
+  // The volunteer's check-out: attendance confirmed with the code, and the attended count, in one write.
+  function checkOut(uid, { who = uid, code = 'out-12345678', hours = 2, update = false } = {}) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'events/e8'), { counts: counts({ attended: 1 }), countsBy: who });
+    const fields = { status: 'confirmed', hours, code, checkedOutAt: st(), checkedOutBy: who, confirmedAt: st(), confirmedBy: 'code', updatedAt: st() };
+    if (update) batch.update(doc(db, `events/e8/attendance/${who}`), fields);
+    else batch.set(doc(db, `events/e8/attendance/${who}`), { uid: who, name: 'Alice A.', ...fields });
+    return batch.commit();
+  }
+
+  it('staff check a going volunteer in', async () => {
+    await assertSucceeds(setDoc(doc(dbAs('sam'), 'events/e8/attendance/alice'), {
+      uid: 'alice', name: 'Alice A.', status: 'checked_in', hours: 2, checkedInAt: st(), checkedInBy: 'sam', updatedAt: st(),
+    }));
+  });
+
+  it('a volunteer confirms their own hours with the check-out code', async () => {
+    await assertSucceeds(checkOut('alice'));
+  });
+
+  it('the wrong code, different hours, or someone else\'s attendance is refused', async () => {
+    await assertFails(checkOut('alice', { code: 'guess-1234' }));
+    await assertFails(checkOut('alice', { hours: 5 }));
+    await assertFails(checkOut('bob', { who: 'alice' }));
+  });
+
+  it('after a check-in, the check-out keeps the organisation\'s check-in record', async () => {
+    await seedDocs({ 'events/e8/attendance/alice': { uid: 'alice', name: 'Alice A.', status: 'checked_in', hours: 2, checkedInAt: new Date(), checkedInBy: 'sam', updatedAt: new Date() } });
+    await assertSucceeds(checkOut('alice', { update: true }));
+  });
+
+  it('admins invite staff by email; staff and volunteers cannot', async () => {
+    const invite = (uid) => setDoc(doc(dbAs(uid), 'organisations/open/staffInvites/dan@example.com'), {
+      email: 'dan@example.com', role: 'staff', invitedBy: uid, invitedAt: st(),
+    });
+    await assertSucceeds(invite('mei'));
+    await assertFails(invite('sam'));
+    await assertFails(invite('alice'));
+  });
+
+  it('an invited person becomes staff when they sign in', async () => {
+    await seedDocs({ 'organisations/open/staffInvites/dan@example.com': { email: 'dan@example.com', role: 'staff', invitedBy: 'mei' } });
+    const db = dbAs('dan');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'organisations/open/members/dan'), { uid: 'dan', role: 'staff', name: 'Dan', addedAt: st() });
+    batch.delete(doc(db, 'organisations/open/staffInvites/dan@example.com'));
+    await assertSucceeds(batch.commit());
+  });
+
+  it('nobody becomes staff without an invite, or admin with one', async () => {
+    await assertFails(setDoc(doc(dbAs('eve'), 'organisations/open/members/eve'), { uid: 'eve', role: 'staff', name: 'Eve', addedAt: st() }));
+    await seedDocs({ 'organisations/open/staffInvites/dan@example.com': { email: 'dan@example.com', role: 'staff', invitedBy: 'mei' } });
+    const db = dbAs('dan');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'organisations/open/members/dan'), { uid: 'dan', role: 'admin', name: 'Dan', addedAt: st() });
+    batch.delete(doc(db, 'organisations/open/staffInvites/dan@example.com'));
+    await assertFails(batch.commit());
+  });
+
+  it('admins remove staff; staff cannot remove each other', async () => {
+    await assertFails(deleteDoc(doc(dbAs('sam'), 'organisations/open/members/sue')));
+    await assertSucceeds(deleteDoc(doc(dbAs('mei'), 'organisations/open/members/sue')));
   });
 });
 

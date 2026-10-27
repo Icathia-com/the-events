@@ -1,7 +1,7 @@
 // All Firestore reads and writes.
 import {
-  arrayRemove, arrayUnion, collection, collectionGroup, db, deleteField, doc, getDoc, getDocs, increment, limit, orderBy,
-  query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
+  arrayRemove, arrayUnion, collection, collectionGroup, db, deleteDoc, deleteField, doc, getDoc, getDocs, increment, limit,
+  orderBy, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from './firebase.js';
 
 // Fixed lists (brief section 6). Keys are stored in Firestore; values are what people see.
@@ -197,6 +197,97 @@ export function unmarkAttended(eventId, uid) {
 }
 
 export const cancelEvent = (eventId) => updateEvent(eventId, { status: 'cancelled' });
+
+// Check-in and check-out
+
+// The event's check-in and check-out codes (the organisation's members only).
+export async function getCodes(eventId) {
+  return (await getDoc(doc(db, 'events', eventId, 'private', 'codes'))).data() || null;
+}
+
+// The organisation checks a going volunteer in (scanned, or by hand). Returns { status, already }.
+export function checkIn(eventId, uid, byUid) {
+  return runTransaction(db, async (tx) => {
+    const attRef = doc(db, 'events', eventId, 'attendance', uid);
+    const event = (await tx.get(doc(db, 'events', eventId))).data();
+    const reg = (await tx.get(doc(db, 'events', eventId, 'registrations', uid))).data();
+    const att = (await tx.get(attRef)).data();
+    if (att?.checkedInAt || att?.status === 'confirmed') return { status: att.status, already: true };
+    tx.set(attRef, {
+      ...(att || {}), uid, name: reg.name, status: att?.status || 'checked_in', hours: att?.hours ?? event.hours,
+      checkedInAt: serverTimestamp(), checkedInBy: byUid, updatedAt: serverTimestamp(),
+    });
+    return { status: att?.status || 'checked_in', already: false };
+  });
+}
+
+export const getRegistration = getMyRegistration;
+
+// A volunteer confirms their own hours with the check-out code from the organiser's screen. Returns the hours.
+export function confirmWithCode(eventId, uid, code) {
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const attRef = doc(db, 'events', eventId, 'attendance', uid);
+    const event = (await tx.get(eventRef)).data();
+    const reg = (await tx.get(doc(db, 'events', eventId, 'registrations', uid))).data();
+    const att = (await tx.get(attRef)).data();
+    if (att?.status === 'confirmed') return att.hours;
+    tx.update(eventRef, { counts: { ...event.counts, attended: (event.counts?.attended || 0) + 1 }, countsBy: uid });
+    const fields = {
+      name: reg.name, status: 'confirmed', hours: event.hours, code, checkedOutAt: serverTimestamp(), checkedOutBy: uid,
+      confirmedAt: serverTimestamp(), confirmedBy: 'code', updatedAt: serverTimestamp(),
+    };
+    if (att) tx.update(attRef, fields);
+    else tx.set(attRef, { uid, ...fields });
+    return event.hours;
+  });
+}
+
+export const declineClaim = (eventId, uid) =>
+  updateDoc(doc(db, 'events', eventId, 'attendance', uid), { status: 'declined', updatedAt: serverTimestamp() });
+
+export const setCheckInMode = (eventId, fields) => updateEvent(eventId, fields);
+
+// The volunteer's own attendance on their events, by event id (checked in, confirmed or claimed).
+export async function myAttendance(uid) {
+  const snaps = await getDocs(query(collectionGroup(db, 'attendance'),
+    where('uid', '==', uid), where('status', 'in', ['checked_in', 'confirmed', 'claimed'])));
+  return Object.fromEntries(snaps.docs.map((d) => [d.ref.parent.parent.id, d.data()]));
+}
+
+// Staff
+
+export async function listStaff(orgId) {
+  return allWithIds(await getDocs(query(collection(db, 'organisations', orgId, 'members'), where('role', '==', 'staff'))));
+}
+
+export async function listStaffInvites(orgId) {
+  return allWithIds(await getDocs(collection(db, 'organisations', orgId, 'staffInvites')));
+}
+
+// Staff are invited by email; the person becomes staff the next time they sign in (claimInvites).
+export function inviteStaff(orgId, email, byUid) {
+  const id = email.trim().toLowerCase();
+  return setDoc(doc(db, 'organisations', orgId, 'staffInvites', id), { email: id, role: 'staff', invitedBy: byUid, invitedAt: serverTimestamp() });
+}
+
+export const withdrawInvite = (orgId, email) => deleteDoc(doc(db, 'organisations', orgId, 'staffInvites', email));
+export const removeStaff = (orgId, uid) => deleteDoc(doc(db, 'organisations', orgId, 'members', uid));
+
+// Accepts any staff invitations for the signed-in person's email. Returns how many.
+export async function claimInvites(user, name) {
+  if (!user.email || !user.emailVerified) return 0;
+  const email = user.email.toLowerCase();
+  const snaps = await getDocs(query(collectionGroup(db, 'staffInvites'), where('email', '==', email)));
+  for (const invite of snaps.docs) {
+    const orgId = invite.ref.parent.parent.id;
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'organisations', orgId, 'members', user.uid), { uid: user.uid, role: 'staff', name: (name || email).slice(0, 100), addedAt: serverTimestamp() });
+    batch.delete(invite.ref);
+    await batch.commit();
+  }
+  return snaps.size;
+}
 
 // For an organisation's admins: how many confirmed events each volunteer has had with the organisation.
 export async function pastEventCounts(orgId) {

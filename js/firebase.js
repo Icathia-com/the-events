@@ -8,7 +8,7 @@ export {
   signInWithEmailLink, signInWithPopup, signOut,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js';
 export {
-  arrayRemove, arrayUnion, collection, collectionGroup, deleteField, doc, getDoc, getDocs, increment, limit, orderBy, query,
+  arrayRemove, arrayUnion, collection, collectionGroup, deleteDoc, deleteField, doc, getDoc, getDocs, increment, limit, orderBy, query,
   runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 

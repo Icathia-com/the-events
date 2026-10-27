@@ -1,10 +1,11 @@
 // Home (design/Home.dc.html).
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations, listPublicEvents,
-  myMemberships, myRegistrations, syncHours,
+  AREAS, CAUSES, claimInvites, confirmWithCode, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations,
+  listPublicEvents, myAttendance, myMemberships, myRegistrations, syncHours,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
+import { openScanner } from '../scanner.js';
 import {
   addDays, avatarHtml, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
   eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, shortDay, toast,
@@ -27,15 +28,17 @@ const eventHref = (e) => `event.html?id=${encodeURIComponent(e.id)}`;
 const hexOr = (c, fallback) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : fallback);
 
 const profile = await ensureUserDoc(user);
+await claimInvites(user, profile.name).catch(orElse(0)); // staff invitations for this email
 await syncHours(user.uid).catch(orElse(0)); // confirmed attendance becomes ledger entries (Phase 1 confirm path)
 const follows = profile.follows || [];
 const { year } = dateParts(now);
 const yearStart = dayStart(new Date(Date.UTC(year, 0, 1, 12)));
 const nextYearStart = dayStart(new Date(Date.UTC(year + 1, 0, 1, 12)));
 
-const [memberships, regs, hoursThisYear, publicEvents, followerEvents, orgList] = await Promise.all([
+const [memberships, regs, attendance, hoursThisYear, publicEvents, followerEvents, orgList] = await Promise.all([
   myMemberships(user.uid).catch(orElse([])),
   myRegistrations(user.uid).catch(orElse([])),
+  myAttendance(user.uid).catch(orElse({})),
   hoursBetween(user.uid, yearStart, nextYearStart).catch(orElse(0)),
   listPublicEvents(today).catch(orElse([])),
   follows.length ? listFollowerEvents(follows, today).catch(orElse([])) : [],
@@ -92,6 +95,30 @@ $('my-qr').addEventListener('click', () => showQr());
 $('past-link').insertAdjacentHTML('beforeend', icon('chevron'));
 $('orgs-link').insertAdjacentHTML('beforeend', icon('chevron'));
 
+// Check-out: the organiser's code is a link to the event page with the code (event.html?id=…&checkout=…).
+function scanCheckOut(event) {
+  const scanner = openScanner({
+    title: 'Scan the check-out code',
+    onText: async (text) => {
+      let link = null;
+      try { link = new URL(text); } catch { /* not a link */ }
+      const code = link?.origin === location.origin && link.pathname.endsWith('/event.html') && link.searchParams.get('checkout');
+      if (!code) { scanner.showResult(`<div class="scan-card"><span class="vol-name">Not a check-out code</span></div>`); return; }
+      if (link.searchParams.get('id') !== event.id) { scanner.showResult(`<div class="scan-card"><span class="vol-name">This code is for another event</span></div>`); return; }
+      try {
+        const hours = await confirmWithCode(event.id, user.uid, code);
+        await syncHours(user.uid).catch(() => 0);
+        scanner.close();
+        toast(`${hoursText(hours)} confirmed`);
+        setTimeout(() => location.reload(), 1200);
+      } catch (err) {
+        console.warn(err);
+        scanner.showResult(`<div class="scan-card"><span class="vol-name">That check-out code didn’t work</span></div>`);
+      }
+    },
+  });
+}
+
 // Your events
 
 const upcoming = regEvents.filter((e) => e.endAt.toDate() > now).sort(byStart);
@@ -101,9 +128,12 @@ function upcomingCard(e) {
   const start = e.startAt.toDate(), end = e.endAt.toDate();
   const pending = e.regStatus === 'pending';
   const isToday = daysFromToday(start, now) === 0;
-  const foot = isToday && !pending
-    ? `<button type="button" class="ue-foot is-checkin" data-checkin="${esc(e.id)}">${icon('qr')}Check in</button>`
-    : `<a class="ue-foot" href="${eventHref(e)}" draggable="false">${icon('pin', 16, 2)}${esc(AREAS[e.area] || 'Singapore')}, Singapore</a>`;
+  const checkedIn = attendance[e.id]?.status === 'checked_in';
+  const foot = checkedIn
+    ? `<button type="button" class="ue-foot is-checkin" data-checkout="${esc(e.id)}">${icon('qr')}Check out</button>`
+    : isToday && !pending
+      ? `<button type="button" class="ue-foot is-checkin" data-checkin="${esc(e.id)}">${icon('qr')}Check in</button>`
+      : `<a class="ue-foot" href="${eventHref(e)}" draggable="false">${icon('pin', 16, 2)}${esc(AREAS[e.area] || 'Singapore')}, Singapore</a>`;
   return `<div class="glass ue-card">
     <a class="ue-main" href="${eventHref(e)}" draggable="false">
       <span class="ue-text">
@@ -123,6 +153,8 @@ if (upcoming.length) {
   upEl.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-checkin]');
     if (button) showQr(upcoming.find((e) => e.id === button.dataset.checkin));
+    const out = ev.target.closest('[data-checkout]');
+    if (out) scanCheckOut(upcoming.find((e) => e.id === out.dataset.checkout));
   });
   dragScroll(upEl, 'x');
 } else {

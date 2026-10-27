@@ -1,8 +1,8 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, cancelRegistration, ensureUserDoc, followOrg, getEvent, getExactVenue, getMyRegistration, getMyRole,
-  getOrganisation, joinEvent, joinStatus, listGoing, unfollowOrg,
+  AREAS, CAUSES, cancelRegistration, confirmWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue, getMyRegistration,
+  getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, syncHours, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import { coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml, toast } from '../ui.js';
@@ -303,5 +303,23 @@ reg = await getMyRegistration(eventId, user.uid).catch(() => null);
 going = await listGoing(eventId).catch(() => []);
 venue = await loadVenue();
 render();
+
+// Opened from the organiser's check-out code (event.html?id=…&checkout=…): confirm this volunteer's hours.
+const checkoutCode = new URLSearchParams(location.search).get('checkout');
+if (checkoutCode) {
+  history.replaceState(null, '', `event.html?id=${encodeURIComponent(eventId)}`);
+  if (reg?.status === 'going') {
+    try {
+      const hours = await confirmWithCode(eventId, user.uid, checkoutCode);
+      await syncHours(user.uid).catch(() => 0);
+      toast(`${hoursText(hours)} confirmed`);
+    } catch (err) {
+      console.warn(err);
+      toast('That check-out code didn’t work.');
+    }
+  } else {
+    toast('Check-out is for volunteers who are going.');
+  }
+}
 dragScroll(document.scrollingElement, 'y');
 document.body.classList.remove('is-loading');

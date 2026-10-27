@@ -63,6 +63,14 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 7: Instruction-like lines left out: the second line of each empty state ("Share the event link…"), and the summary's "Hours are added to each volunteer's profile when you mark them attended".
 - Slice 7: Cancelling says "Registered volunteers will see it as cancelled. This cannot be undone." The canvas says "Everyone who registered gets a cancellation notice right away", but notices are Phase 3; the button is "Cancel event". "Clone event" and "Transfer to another organisation" are marked Soon.
 - Slice 7 (production): Two more collection group indexes: attendance by uid and status, and hours entries by orgId. Both are in `firestore.indexes.json`.
+- Slice 8: jsQR's licence is Apache-2.0, not MIT as the brief says. It's still free to use. It loads from jsDelivr, pinned to 1.4.0 with an integrity hash, and only on phones without the built-in barcode reader.
+- Slice 8: Check-in records arrival only; hours are confirmed at check-out. So the canvas's "Checked in · 2 hours added" reads "Checked in", and Express reads "Checks the volunteer in the moment their code is scanned".
+- Slice 8: Check-in staff belong to the organisation and can scan at any of its events, since members are organisation-wide in section 6. The canvas's "for this event only" is left out.
+- Slice 8: Staff are added by email (`organisations/{id}/staffInvites/{email}`) and become staff when that person signs in. The canvas also offers a mobile number, but there's no phone sign-in, so it's email only.
+- Slice 8: The check-out QR holds a link to the event page with the code. A volunteer can scan it from Home's "Check out" button or with any phone camera.
+- Slice 8: Check-out with the code has no time limit and doesn't need a check-in first, since neither the brief nor the canvas sets one. A volunteer who is going and has the code can confirm their own hours, so a photo of the code passed on would work too; rotating codes (Phase 3) close that gap. The code stays the same for the whole event in Phase 1, as section 6 says, so the canvas's "New code every minute" is left out. The attendance record keeps the code that was scanned (`code`), which the rules check.
+- Slice 8: Left out: letter requests on Check-out and hours (Phase 3), and the canvas's "Sample scan" button.
+- Slice 8 (production): A collection group index on `staffInvites.email`, so people can find their invites when they sign in. It's in `firestore.indexes.json`.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -357,3 +365,58 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 8: check-in and check-out.
+
+## 28 Oct 2026: Phase 1, slice 8: Check-in and check-out
+
+**Done**
+- `js/scanner.js`: the full-screen camera scanner from the canvas, with the corner brackets, scan line and result card. It reads with the phone's built-in barcode reader, or with jsQR where there isn't one. Without a camera it says "Camera not available".
+- `checkin.html` (`design/Check-In.dc.html`):
+  - Open QR scanner, and Mark attendance by hand (the volunteers list) with "N of M marked".
+  - The default scan mode, Standard or Express. Admins save it on the event; staff can change it on their own phone unless it's locked.
+  - Lock for check-in staff, for admins.
+  - Check-in staff: the list, "+ Add staff" by email, and remove or withdraw, for admins. An empty state when there are none.
+  - Scanning a volunteer's personal code checks them in (Standard after a tap, Express at once). Codes for someone not going, for another event, or that aren't the app's say so on the card.
+- `checkout.html` (`design/Check-Out.dc.html`):
+  - The event's check-out QR, with Show full screen.
+  - Checked in, Hours confirmed and Not yet.
+  - "Checked in, not checked out", with Confirm all and a Confirm button per person.
+  - Hours claims, with Confirm and Decline (claims arrive in slice 9).
+- Volunteers:
+  - Home's card for an event they've checked in to shows "Check out". It opens the scanner, and reading the organiser's code confirms their hours.
+  - The code is a link to the event page, so a phone's own camera app works too.
+  - The hours entry follows straight away, through slice 7's `syncHours`.
+- Staff: an admin's invite becomes a staff membership when that person signs in (`claimInvites`).
+- Rules:
+  - A volunteer can confirm their own attendance only with the event's check-out code, only for the event's hours, and only while going. The attended count moves with it.
+  - After a check-in, the check-out keeps the organisation's check-in record.
+  - Only admins invite and remove staff. An invite can only be accepted by the person whose verified email it names, and only as staff.
+
+**Tested**
+- `npm test`: 135 of 135 pass (109 rules tests, 26 QR tests). The 8 new rules tests cover:
+  - A staff check-in.
+  - A volunteer confirming with the code, and the wrong code, other hours or someone else's attendance refused.
+  - The check-in record kept after check-out.
+  - Invites by admins only, and accepting an invite on sign-in.
+  - No staff without an invite, and no admin through one.
+  - Removing staff.
+- Browser at 390 px, two headless Edge windows against the emulators. Their fake cameras show real QR codes drawn by `js/qr.js`.
+- Organiser window, as Mei Lin:
+  - Check-in for the Yishun visit shows "0 of 7 marked".
+  - The scanner reads Aisha's personal code, and her card shows "Registered 26 Oct". Check in turns it into "Checked in", and her attendance record says checked in by Mei Lin.
+  - Check-out shows 1 checked in and 1 not yet.
+- Volunteer window, as Aisha:
+  - Home's Yishun card shows "Check out".
+  - Her camera reads the check-out code: "2 hours confirmed", and Home now says "2 hours volunteered this year".
+  - Mei Lin's check-out page then shows 1 hours confirmed and 0 not yet.
+- More cases:
+  - Chloe is checked in, and Mei Lin confirms her from the list.
+  - Opening the check-out link directly (the camera-app path) confirms Aisha's pantry hours and tidies the address.
+  - A wrong code says "That check-out code didn’t work." and writes nothing.
+  - Aisha's ledger holds both entries, each with its own reference number.
+  - Express and the lock save on the event. An Express scan of Aisha says "Already checked in".
+  - Mei Lin invites ben.tan@example.com. After Ben signs in he's listed as staff. On Check-in he gets the scanner, with no lock, no "+ Add staff" and the mode fixed.
+- No sideways scrolling.
+- The only console message is the browser's own note that the wrong code was refused (a 403 from Firestore). The rules check the code, since volunteers can't read it.
+
+**Next**
+- Slice 9: claim hours and the hours record.

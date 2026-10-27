@@ -180,7 +180,37 @@ service cloud.firestore {
 
       match /members/{uid} {
         allow read: if isSelf(uid) || isMember(orgId) || isNetworkAdmin();
+
+        // Someone invited as staff accepts by signing in: their app adds them as staff and removes the invite,
+        // in one write. Admins remove staff.
+        allow create: if isSelf(uid) && request.auth.token.email_verified == true
+          && exists(/databases/$(database)/documents/organisations/$(orgId)/staffInvites/$(request.auth.token.email.lower()))
+          && !existsAfter(/databases/$(database)/documents/organisations/$(orgId)/staffInvites/$(request.auth.token.email.lower()))
+          && request.resource.data.keys().hasOnly(['uid', 'role', 'name', 'addedAt'])
+          && request.resource.data.uid == uid && request.resource.data.role == 'staff'
+          && request.resource.data.name is string && request.resource.data.name.size() <= 100
+          && request.resource.data.addedAt == request.time;
+        allow delete: if isOrgAdmin(orgId) && resource.data.role == 'staff';
       }
+
+      // Staff invitations, by email: made and withdrawn by admins, read and accepted by the person invited.
+      match /staffInvites/{email} {
+        allow read: if isOrgAdmin(orgId)
+          || (signedIn() && request.auth.token.email_verified == true && email == request.auth.token.email.lower());
+        allow create: if isOrgAdmin(orgId)
+          && email.matches('[^@\\s]+@[^@\\s]+') && email == email.lower()
+          && request.resource.data.keys().hasOnly(['email', 'role', 'invitedBy', 'invitedAt'])
+          && request.resource.data.email == email && request.resource.data.role == 'staff'
+          && request.resource.data.invitedBy == request.auth.uid && request.resource.data.invitedAt == request.time;
+        allow delete: if isOrgAdmin(orgId)
+          || (signedIn() && email == request.auth.token.email.lower()
+              && existsAfter(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid)));
+      }
+    }
+
+    // Lets an invited person find their staff invitations (a collection group query on their own email).
+    match /{path=**}/staffInvites/{email} {
+      allow read: if signedIn() && request.auth.token.email_verified == true && resource.data.email == request.auth.token.email.lower();
     }
 
     // Lets someone find the organisations they belong to (a collection group query on their own uid).
@@ -383,7 +413,7 @@ service cloud.firestore {
       match /attendance/{uid} {
         function validAttendance(a) {
           return a.keys().hasOnly(['uid', 'name', 'status', 'hours', 'checkedInAt', 'checkedInBy', 'checkedOutAt', 'checkedOutBy',
-                   'confirmedAt', 'confirmedBy', 'claimedAt', 'autoConfirmAt', 'updatedAt'])
+                   'confirmedAt', 'confirmedBy', 'claimedAt', 'autoConfirmAt', 'code', 'updatedAt'])
             && a.uid == uid
             && a.status in ['checked_in', 'confirmed', 'claimed', 'declined']
             && a.hours is number && a.hours >= 0 && a.hours <= 24
@@ -404,6 +434,25 @@ service cloud.firestore {
           && attendedMoves();
 
         allow delete: if isMember(get(eventPath(eventId)).data.orgId) && attendedMoves();
+
+        // A volunteer who is going confirms their own hours by presenting the event's check-out code (section 7).
+        // A check-in recorded by the organisation is kept as it was.
+        function checkOutByCode() {
+          let a = request.resource.data;
+          return isSelf(uid) && statusBefore(eventId, uid) == 'going'
+            && validAttendance(a)
+            && a.status == 'confirmed' && a.confirmedBy == 'code'
+            && a.confirmedAt == request.time && a.checkedOutAt == request.time && a.checkedOutBy == uid
+            && a.hours == get(eventPath(eventId)).data.hours
+            && a.code == get(/databases/$(database)/documents/events/$(eventId)/private/codes).data.checkOut
+            && attendedMoves();
+        }
+
+        allow create: if checkOutByCode();
+        allow update: if checkOutByCode()
+          && resource.data.status in ['checked_in', 'claimed']
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'status', 'hours', 'code', 'checkedOutAt', 'checkedOutBy', 'confirmedAt', 'confirmedBy', 'updatedAt']);
       }
 
       // Check-in and check-out codes for the organisation; the exact venue also for approved volunteers.

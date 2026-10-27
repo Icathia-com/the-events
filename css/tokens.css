@@ -90,6 +90,15 @@
   --disabled-text: rgba(30,26,23,.45);
   --chip-off-bg: rgba(255,255,255,.8);
   --pill-dark: rgba(30,26,23,.9);
+  --radio-off: rgba(30,26,23,.3);
+
+  /* Scanner (canvas) */
+  --scanner-bg: #0F0D0C;
+  --scanner-glass: rgba(255,255,255,.12);
+  --scanner-border: rgba(255,255,255,.3);
+  --scanner-view: radial-gradient(circle at 50% 40%, #2A2522 0%, #15120F 70%);
+  --scanner-note: rgba(255,255,255,.55);
+  --scan-green: #8CB83E;
   --pill-shadow: 0 12px 28px rgba(30,26,23,.3);
 
   /* Manage menu icon tiles (canvas) */
