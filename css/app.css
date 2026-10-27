@@ -1,4 +1,18 @@
 /* Layout and components. Values come from tokens.css. */
+
+/* Manrope, the variable font from Google Fonts (SIL Open Font License, assets/fonts/OFL.txt), served with the app
+   so pages don't wait on two more servers. One file per script covers weights 500 to 800. */
+@font-face {
+  font-family: 'Manrope'; font-style: normal; font-weight: 500 800; font-display: swap;
+  src: url('../assets/fonts/manrope-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Manrope'; font-style: normal; font-weight: 500 800; font-display: swap;
+  src: url('../assets/fonts/manrope-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -18,7 +32,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 
 /* Hide a page until auth has decided what to show. */
-.is-loading main { visibility: hidden; }
+.is-loading main > :not(.shown) { visibility: hidden; }
 
 .page {
   max-width: 480px;
@@ -488,6 +502,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 /* Tab pages: title, round buttons and avatar on the gradient */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; }
 .page-head .page-title { flex: 1; margin: 0; }
+.page-head > #avatar { width: 44px; height: 44px; flex-shrink: 0; } /* the avatar's space while it loads */
 .search {
   width: 100%; height: 48px; padding: 0 18px; border-radius: 24px; outline: none;
   font-size: 15px; font-weight: 600; color: var(--ink); background: var(--glass-bg); border: var(--glass-border);
@@ -743,6 +758,9 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .empty-state { padding: 36px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
 .empty-ic { width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center; color: var(--muted); background: var(--tint-soft); }
 .empty-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+.empty-state.is-page { padding: 36px 24px; }
+.empty-state.is-page .empty-ic { width: 60px; height: 60px; border-radius: 20px; }
+.empty-state.is-page .empty-title { font-size: 17px; }
 .summary-card { padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
 .view-pill {
   position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); z-index: 40; transform: translateX(-50%);

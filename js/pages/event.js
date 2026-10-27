@@ -5,7 +5,7 @@ import {
   getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, syncHours, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
-import { coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml, toast } from '../ui.js';
+import { coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
@@ -18,7 +18,7 @@ let event = eventId ? await getEvent(eventId).catch(() => null) : null;
 if (!event) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
     <div class="glass empty-note">This event isn’t available.</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
@@ -322,4 +322,4 @@ if (checkoutCode) {
   }
 }
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();

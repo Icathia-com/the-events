@@ -1,5 +1,6 @@
 import { completeEmailLink, currentUser, isEmailLink, sendEmailLink, signInWithGoogle, storedEmail } from '../auth.js';
 import { ensureUserDoc } from '../data.js';
+import { reveal } from '../ui.js'; // also registers the app shell service worker
 
 const form = document.getElementById('email-form');
 const emailInput = document.getElementById('email');
@@ -93,7 +94,7 @@ async function start() {
   } catch (err) {
     showError(err);
   }
-  document.body.classList.remove('is-loading');
+  reveal();
 }
 
 start();

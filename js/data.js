@@ -280,9 +280,10 @@ export function claimHours(eventId, uid) {
 }
 
 // Phase 1 auto-confirm, run by the volunteer's own app (section 8): claims past autoConfirmAt confirm themselves,
-// and the attended count moves with each.
+// and the attended count moves with each. Returns how many were confirmed.
 async function autoConfirmClaims(uid) {
   const claims = await getDocs(query(collectionGroup(db, 'attendance'), where('uid', '==', uid), where('status', '==', 'claimed')));
+  let confirmed = 0;
   for (const claim of claims.docs) {
     const { autoConfirmAt, claimedAt } = claim.data();
     if (!autoConfirmAt || !claimedAt || Math.max(autoConfirmAt.toMillis(), claimedAt.toMillis() + WEEK) > Date.now()) continue;
@@ -292,8 +293,9 @@ async function autoConfirmClaims(uid) {
       if ((await tx.get(claim.ref)).data()?.status !== 'claimed') return;
       tx.update(eventRef, { counts: { ...event.counts, attended: (event.counts?.attended || 0) + 1 }, countsBy: uid });
       tx.update(claim.ref, { status: 'confirmed', confirmedAt: serverTimestamp(), confirmedBy: 'auto', updatedAt: serverTimestamp() });
-    }).catch((err) => console.warn(`Couldn’t confirm the claim for ${eventRef.id}`, err));
+    }).then(() => { confirmed += 1; }, (err) => console.warn(`Couldn’t confirm the claim for ${eventRef.id}`, err));
   }
+  return confirmed;
 }
 
 // Staff
@@ -340,16 +342,19 @@ export async function pastEventCounts(orgId) {
 
 // Phase 1 confirm path, run by the volunteer's own app: claims due to confirm themselves are confirmed, then a ledger
 // entry is added for each confirmed attendance, each with a new reference number, and hoursTotal moved by the same
-// hours. Entries whose confirmation was undone are removed. Returns how many entries were added.
+// hours. Entries whose confirmation was undone are removed. Returns how many entries were added or removed.
 export async function syncHours(uid) {
-  await autoConfirmClaims(uid).catch((err) => console.warn(err));
-  const [confirmed, entries] = await Promise.all([
-    getDocs(query(collectionGroup(db, 'attendance'), where('uid', '==', uid), where('status', '==', 'confirmed'))),
+  const confirmedAttendance = () =>
+    getDocs(query(collectionGroup(db, 'attendance'), where('uid', '==', uid), where('status', '==', 'confirmed')));
+  const [autoConfirmed, confirmedBefore, entries] = await Promise.all([
+    autoConfirmClaims(uid).catch((err) => { console.warn(err); return 0; }),
+    confirmedAttendance(),
     getDocs(collection(db, 'users', uid, 'hours')),
   ]);
+  const confirmed = autoConfirmed ? await confirmedAttendance() : confirmedBefore;
   const have = new Set(entries.docs.map((d) => d.id));
   const confirmedIds = new Set(confirmed.docs.map((d) => d.ref.parent.parent.id));
-  let added = 0;
+  let changed = 0;
 
   for (const att of confirmed.docs) {
     const eventId = att.ref.parent.parent.id;
@@ -368,7 +373,7 @@ export async function syncHours(uid) {
         batch.update(doc(db, 'users', uid), { hoursTotal: increment(att.data().hours), hoursBy: eventId });
         try {
           await batch.commit();
-          added += 1;
+          changed += 1;
           break;
         } catch (err) {
           if (attempt >= 5) throw err; // most likely the reference number was taken: try another
@@ -385,8 +390,9 @@ export async function syncHours(uid) {
     batch.delete(entry.ref);
     batch.update(doc(db, 'users', uid), { hoursTotal: increment(-entry.data().hours), hoursBy: entry.id });
     await batch.commit();
+    changed += 1;
   }
-  return added;
+  return changed;
 }
 
 // The first few people going (short names), oldest first.

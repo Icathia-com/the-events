@@ -5,7 +5,7 @@ import { requireUser } from '../auth.js';
 import {
   decideRegistration, getEvent, getMyRole, listAttendance, listRegistrations, markAttended, pastEventCounts, unmarkAttended,
 } from '../data.js';
-import { avatarHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, shortDay, toast } from '../ui.js';
+import { avatarHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, reveal, shortDay, toast } from '../ui.js';
 
 const TABS = [['going', 'Going'], ['attended', 'Attended'], ['unmarked', 'Not yet marked'], ['pending', 'Waiting for approval']];
 const EMPTY = {
@@ -21,7 +21,7 @@ const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : 
 if (!event || !role) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
     <div class="glass empty-note">Only the organisation’s members can see this list.</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
@@ -161,4 +161,4 @@ await load();
 render();
 dragScroll($('tabs'), 'x');
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();

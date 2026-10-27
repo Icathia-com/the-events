@@ -8,7 +8,8 @@ import { qrSvg } from '../qr.js';
 import { scanCheckOut } from '../scanner.js';
 import {
   addDays, avatarHtml, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
-  eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, shortDay, toast,
+  eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, reveal,
+  revealEarly, shortDay, toast,
 } from '../ui.js';
 
 const CAL_BEFORE = 14;   // days shown before today in the shifts tile
@@ -17,10 +18,16 @@ const CAL_COL = 100;     // px per day column
 const CLAIM_DAYS = 30;   // how long after an event Home offers to claim its hours
 const AREA_IDS = ['north', 'northeast', 'east', 'central', 'west'];
 
-const user = await requireUser();
 const now = new Date();
 const today = dayStart(now);
 const $ = (id) => document.getElementById(id);
+
+// The date needs nothing loaded, so the header shows it straight away; the greeting follows with the profile.
+const day = dateParts(now);
+$('today').textContent = `${day.weekday}, ${day.day} ${day.month}`;
+revealEarly(document.querySelector('.home-head'));
+
+const user = await requireUser();
 
 let failed = false;
 const orElse = (fallback) => (err) => { console.warn(err); failed = true; return fallback; };
@@ -28,30 +35,22 @@ const byStart = (a, b) => a.startAt.toMillis() - b.startAt.toMillis();
 const eventHref = (e) => `event.html?id=${encodeURIComponent(e.id)}`;
 const hexOr = (c, fallback) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : fallback);
 
-const profile = await ensureUserDoc(user);
-await claimInvites(user, profile.name).catch(orElse(0)); // staff invitations for this email
-await syncHours(user.uid).catch(orElse(0)); // confirmed attendance becomes ledger entries (Phase 1 confirm path)
-const follows = profile.follows || [];
 const { year } = dateParts(now);
 const yearStart = dayStart(new Date(Date.UTC(year, 0, 1, 12)));
 const nextYearStart = dayStart(new Date(Date.UTC(year + 1, 0, 1, 12)));
 
-const [memberships, regs, attendance, hoursThisYear, publicEvents, followerEvents, orgList] = await Promise.all([
+// Everything that needs only the user's id loads at once; the profile's follows and the registrations then
+// decide the rest.
+const [profile, memberships, regs, attendance, hoursThisYear, publicEvents, orgList] = await Promise.all([
+  ensureUserDoc(user),
   myMemberships(user.uid).catch(orElse([])),
   myRegistrations(user.uid).catch(orElse([])),
   myAttendance(user.uid).catch(orElse({})),
   hoursBetween(user.uid, yearStart, nextYearStart).catch(orElse(0)),
   listPublicEvents(today).catch(orElse([])),
-  follows.length ? listFollowerEvents(follows, today).catch(orElse([])) : [],
   listOrganisations().catch(orElse([])),
 ]);
-
-// Events the user is going to or waiting on, with their registration status.
-const regEvents = (await Promise.all(regs.map(async (r) => {
-  const event = await getEvent(r.eventId).catch(() => null);
-  return event && { ...event, regStatus: r.status };
-}))).filter(Boolean);
-
+const follows = profile.follows || [];
 const orgs = Object.fromEntries(orgList.map((o) => [o.id, o]));
 const isAdmin = memberships.some((m) => m.role === 'admin');
 
@@ -63,16 +62,15 @@ function firstName(name) {
   return words.length >= 3 ? words.slice(0, -1).join(' ') : words[0] || '';
 }
 
-const day = dateParts(now);
-$('today').textContent = `${day.weekday}, ${day.day} ${day.month}`;
 const hour = hourOf(now);
 const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 const first = firstName(profile.name);
 $('greeting').textContent = first ? `${hello}, ${first}` : hello;
-if (hoursThisYear > 0) {
-  $('impact').textContent = `${hoursText(hoursThisYear)} volunteered this year. Thank you.`;
-  $('impact').hidden = false;
+function showImpact(hours) {
+  $('impact').textContent = `${hoursText(hours)} volunteered this year. Thank you.`;
+  $('impact').hidden = !(hours > 0);
 }
+showImpact(hoursThisYear);
 $('avatar').outerHTML = avatarHtml({ uid: user.uid, name: profile.name, email: user.email, photoUrl: profile.photoUrl }, { size: 46 });
 
 // Quick actions and the QR code
@@ -95,6 +93,20 @@ $('quick').innerHTML = (isAdmin
 $('my-qr').addEventListener('click', () => showQr());
 $('past-link').insertAdjacentHTML('beforeend', icon('chevron'));
 $('orgs-link').insertAdjacentHTML('beforeend', icon('chevron'));
+
+// The quick actions show while the events load.
+revealEarly($('quick'));
+
+// Events the user is going to or waiting on, with their registration status: from the public list where they're
+// in it, otherwise read one by one (past events, followers-only ones).
+const listed = new Map(publicEvents.map((e) => [e.id, e]));
+const [followerEvents, regEvents] = await Promise.all([
+  follows.length ? listFollowerEvents(follows, today).catch(orElse([])) : [],
+  Promise.all(regs.map(async (r) => {
+    const event = listed.get(r.eventId) || await getEvent(r.eventId).catch(() => null);
+    return event && { ...event, regStatus: r.status };
+  })).then((list) => list.filter(Boolean)),
+]);
 
 const checkOut = (event) => scanCheckOut(event.id, user.uid, (hours) => {
   toast(`${hoursText(hours)} confirmed`);
@@ -275,7 +287,14 @@ renderEvents();
 renderBottomBar('home');
 if (isAdmin) renderEventFab();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();
 cal.scrollLeft = CAL_BEFORE * CAL_COL;
 syncShifts();
 if (failed) toast('Some of Home couldn’t load.');
+
+// Housekeeping once Home is up: staff invitations for this email, then the Phase 1 confirm path (confirmed
+// attendance and claims that are due become ledger entries). New entries update the impact line.
+await claimInvites(user, profile.name).catch((err) => console.warn(err));
+if (await syncHours(user.uid).catch((err) => { console.warn(err); return 0; })) {
+  showImpact(await hoursBetween(user.uid, yearStart, nextYearStart).catch(() => hoursThisYear));
+}

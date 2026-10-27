@@ -4,7 +4,7 @@
 import { requireUser } from '../auth.js';
 import { claimHours, getEvent, getMyAttendance, getMyRegistration, syncHours } from '../data.js';
 import { scanCheckOut } from '../scanner.js';
-import { coverHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, toast } from '../ui.js';
+import { coverHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
@@ -17,16 +17,20 @@ const head = `<header class="mg-head"><a class="ib" href="index.html" aria-label
 
 if (!event) {
   main.innerHTML = `${head}<div class="glass empty-note">This event isn’t available.</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
 // "Sat 17 Oct"
 const day = (date) => { const p = dateParts(date); return `${p.weekday.slice(0, 3)} ${p.day} ${p.month.slice(0, 3)}`; };
 
+// syncHours also confirms claims that are due, so the attendance is read again if it changed anything.
 async function load() {
-  await syncHours(user.uid).catch(() => 0); // also confirms claims that are due
-  [reg, att] = await Promise.all([getMyRegistration(eventId, user.uid), getMyAttendance(eventId, user.uid)]);
+  const [changed, registration, attendance] = await Promise.all([
+    syncHours(user.uid).catch(() => 0), getMyRegistration(eventId, user.uid), getMyAttendance(eventId, user.uid),
+  ]);
+  reg = registration;
+  att = changed ? await getMyAttendance(eventId, user.uid) : attendance;
 }
 
 function eventCard() {
@@ -101,4 +105,4 @@ main.addEventListener('click', async (e) => {
 await load();
 render();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();

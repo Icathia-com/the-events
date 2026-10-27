@@ -2,7 +2,7 @@
 // phases are marked Soon.
 import { requireUser } from '../auth.js';
 import { cancelEvent, getEvent, getMyRole } from '../data.js';
-import { coverHtml, dateParts, dragScroll, esc, fmtTime, icon, openModal, toast } from '../ui.js';
+import { coverHtml, dateParts, dragScroll, esc, fmtTime, icon, openModal, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
@@ -13,7 +13,7 @@ const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : 
 if (!event || !role) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
     <div class="glass empty-note">Only the organisation’s members can manage this event.</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
@@ -98,4 +98,4 @@ main.addEventListener('click', (e) => {
 
 render();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();

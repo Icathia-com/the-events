@@ -1,6 +1,6 @@
 // Sign-in, sign-out and the current user.
 import {
-  auth, GoogleAuthProvider, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail,
+  auth, browserPopupRedirectResolver, GoogleAuthProvider, isSignInWithEmailLink, onAuthStateChanged, sendSignInLinkToEmail,
   signInWithEmailLink, signInWithPopup, signOut as firebaseSignOut,
 } from './firebase.js';
 
@@ -40,7 +40,7 @@ export async function completeEmailLink(email, href) {
 }
 
 export async function signInWithGoogle() {
-  const { user } = await signInWithPopup(auth, new GoogleAuthProvider());
+  const { user } = await signInWithPopup(auth, new GoogleAuthProvider(), browserPopupRedirectResolver);
   return user;
 }
 

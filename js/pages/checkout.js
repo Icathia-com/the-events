@@ -4,7 +4,7 @@
 import { requireUser } from '../auth.js';
 import { declineClaim, getCodes, getEvent, getMyRole, listAttendance, markAttended } from '../data.js';
 import { qrSvg } from '../qr.js';
-import { avatarHtml, dragScroll, esc, fmtTime, hoursText, icon, shortDay, toast } from '../ui.js';
+import { avatarHtml, dragScroll, esc, fmtTime, hoursText, icon, reveal, shortDay, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
@@ -16,7 +16,7 @@ const codes = role ? await getCodes(eventId).catch(() => null) : null;
 if (!event || !role || !codes) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
     <div class="glass empty-note">Only the organisation’s members can open check-out.</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
@@ -129,4 +129,4 @@ main.addEventListener('click', async (e) => {
 await load();
 render();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();

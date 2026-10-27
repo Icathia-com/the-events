@@ -384,6 +384,20 @@ describe('the organisation\'s decisions, attendance and the hours ledger', () =>
     await assertFails(updateDoc(doc(dbAs('bob'), 'users/bob'), { hoursTotal: 10, hoursBy: 'e7' }));
   });
 
+  it('a volunteer cannot write anyone else\'s ledger or hours total', async () => {
+    await confirmBob();
+    const db = dbAs('alice');
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'users/bob/hours/e7'), {
+      eventId: 'e7', eventTitle: 'Yishun visit', orgId: 'open', orgName: 'Open Org', cover, date: startAt, hours: 2,
+      confirmedBy: 'mei', confirmedAt, reference: 'VN-2026-55555',
+    });
+    batch.set(doc(db, 'references/VN-2026-55555'), { uid: 'bob', entryId: 'e7' });
+    batch.update(doc(db, 'users/bob'), { hoursTotal: increment(2), hoursBy: 'e7' });
+    await assertFails(batch.commit());
+    await assertFails(updateDoc(doc(dbAs('alice'), 'users/bob'), { hoursTotal: 10, hoursBy: 'e7' }));
+  });
+
   it('organisation admins can list the ledger entries that name their organisation', async () => {
     await seedDocs({ 'users/bob/hours/past': { orgId: 'open', hours: 3 } });
     await assertSucceeds(getDocs(query(collectionGroup(dbAs('mei'), 'hours'), where('orgId', '==', 'open'))));
@@ -688,7 +702,7 @@ describe('registrations and the hours ledger: reading', () => {
     await assertFails(getDocs(collection(dbAs('mei'), 'users/alice/hours')));
   });
 
-  it('nobody can write the hours ledger yet', async () => {
+  it('a ledger entry needs confirmed attendance behind it', async () => {
     await assertFails(setDoc(doc(dbAs('alice'), 'users/alice/hours/e3'), { orgId: 'open', hours: 5 }));
   });
 });

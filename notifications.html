@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Notifications · The Events</title>
+  <meta name="theme-color" content="#9A4F33">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="modulepreload" href="js/firebase.js">
+  <link rel="modulepreload" href="js/auth.js">
+  <link rel="modulepreload" href="js/data.js">
+  <link rel="modulepreload" href="js/ui.js">
+  <link rel="preload" href="assets/fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/pages/notifications.js"></script>
+</head>
+<body class="is-loading">
+  <main class="page">
+    <header class="page-head shown">
+      <h1 class="page-title">Notifications</h1>
+      <span id="avatar"></span>
+    </header>
+    <div class="glass empty-state is-page">
+      <span class="empty-ic" id="bell"></span>
+      <span class="empty-title">Nothing here yet</span>
+    </div>
+  </main>
+</body>
+</html>

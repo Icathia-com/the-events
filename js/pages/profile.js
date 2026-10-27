@@ -1,20 +1,23 @@
 // Profile (design/Profile.dc.html). Notification settings arrive with notifications in Phase 3, so they aren't shown.
 import { requireUser, signOut } from '../auth.js';
 import { ensureUserDoc, listHours, listOrganisations, listOrgEvents, myMemberships, syncHours, updateProfile } from '../data.js';
-import { avatarHtml, coverHtml, coverLabel, dateParts, dragScroll, esc, icon, toast } from '../ui.js';
+import { avatarHtml, coverHtml, coverLabel, dateParts, dragScroll, esc, icon, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
 
-let profile = await ensureUserDoc(user);
 let failed = false;
 const orElse = (fallback) => (err) => { console.warn(err); failed = true; return fallback; };
-await syncHours(user.uid).catch(orElse(0));
-const [memberships, ledger, orgList] = await Promise.all([
+// The ledger is read while confirmed attendance and due claims become entries, and read again if any did.
+const [firstProfile, changed, memberships, firstLedger, orgList] = await Promise.all([
+  ensureUserDoc(user),
+  syncHours(user.uid).catch(orElse(0)),
   myMemberships(user.uid).catch(orElse([])),
   listHours(user.uid).catch(orElse([])),
   listOrganisations().catch(orElse([])),
 ]);
+let profile = firstProfile;
+const ledger = changed ? await listHours(user.uid).catch(orElse([])) : firstLedger;
 const orgs = Object.fromEntries(orgList.map((o) => [o.id, o]));
 
 // Events hosted: events this person created for an organisation they admin.
@@ -117,5 +120,5 @@ main.addEventListener('submit', (e) => { e.preventDefault(); main.querySelector(
 
 render();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();
 if (failed) toast('Some of your profile couldn’t load.');

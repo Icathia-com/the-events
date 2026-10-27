@@ -5,16 +5,20 @@
 import { requireUser } from '../auth.js';
 import { ensureUserDoc, getEvent, listHours, myAttendance, syncHours } from '../data.js';
 import { qrSvg } from '../qr.js';
-import { dateParts, dragScroll, esc, hoursText, icon, toast } from '../ui.js';
+import { dateParts, dragScroll, esc, hoursText, icon, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
-const profile = await ensureUserDoc(user);
-await syncHours(user.uid).catch((err) => console.warn(err)); // confirmed attendance and due claims become entries
 
 let failed = false;
 const orElse = (fallback) => (err) => { console.warn(err); failed = true; return fallback; };
-const [entries, attendance] = await Promise.all([listHours(user.uid).catch(orElse([])), myAttendance(user.uid).catch(orElse({}))]);
+const read = () => Promise.all([listHours(user.uid).catch(orElse([])), myAttendance(user.uid).catch(orElse({}))]);
+
+// The record is read while confirmed attendance and due claims become entries, and read again if any did.
+const [profile, changed, firstRead] = await Promise.all([
+  ensureUserDoc(user), syncHours(user.uid).catch((err) => { console.warn(err); return 0; }), read(),
+]);
+const [entries, attendance] = changed ? await read() : firstRead;
 const claims = await Promise.all(Object.entries(attendance).filter(([, a]) => a.status === 'claimed')
   .map(async ([eventId, a]) => ({ ...a, eventId, event: await getEvent(eventId).catch(() => null) })));
 
@@ -75,5 +79,5 @@ main.innerHTML = `
   ${pending}`;
 
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();
 if (failed) toast('Some of your record couldn’t load.');

@@ -3,7 +3,7 @@ import { requireUser } from '../auth.js';
 import { AREAS, CAUSES, ensureUserDoc, listFollowerEvents, listOrganisations, listPublicEvents } from '../data.js';
 import {
   addDays, avatarHtml, dayStart, dragScroll, esc, eventRowHtml, fmtTime, followButtonHtml, icon, orgLogoHtml,
-  renderBottomBar, shortDay, toast, wireFollow,
+  renderBottomBar, reveal, shortDay, toast, wireFollow,
 } from '../ui.js';
 
 const AREA_IDS = ['north', 'northeast', 'east', 'central', 'west'];
@@ -113,5 +113,5 @@ renderBottomBar('discover');
 dragScroll($('causes'), 'x');
 dragScroll($('areas'), 'x');
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();
 if (failed) toast('Some of Discover couldn’t load.');

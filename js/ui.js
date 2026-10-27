@@ -3,6 +3,27 @@
 // organisation's timezone.
 import { AREAS, followOrg, unfollowOrg } from './data.js';
 
+// The app shell service worker (brief section 3). Every page loads this module, so every page registers it.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((err) => console.warn(err));
+
+// Waits for Manrope, up to a second, so text doesn't reflow and jump when the web font arrives after it's shown.
+const fontReady = () => Promise.race([
+  document.fonts ? document.fonts.load('600 16px Manrope').catch(() => null) : null,
+  new Promise((resolve) => setTimeout(resolve, 1000)),
+]);
+
+// Shows the page once its content is in place.
+export async function reveal() {
+  await fontReady();
+  document.body.classList.remove('is-loading');
+}
+
+// Shows one part of the page (a child of main) before the rest has loaded.
+export async function revealEarly(el) {
+  await fontReady();
+  el.classList.add('shown');
+}
+
 export const TZ = 'Asia/Singapore';
 
 // Escapes text for use inside HTML.

@@ -2,7 +2,7 @@
 import { requireUser } from '../auth.js';
 import { AREAS, CAUSES, ensureUserDoc, listOrganisations, listOrgEvents, listPublicEvents, myMemberships } from '../data.js';
 import {
-  avatarHtml, dayStart, daysFromToday, dragScroll, esc, followButtonHtml, orgLogoHtml, renderBottomBar, toast, wireFollow,
+  avatarHtml, dayStart, daysFromToday, dragScroll, esc, followButtonHtml, orgLogoHtml, renderBottomBar, reveal, toast, wireFollow,
 } from '../ui.js';
 
 const user = await requireUser();
@@ -83,5 +83,5 @@ render();
 renderBottomBar('organisations');
 dragScroll($('chips'), 'x');
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();
 if (failed) toast('Some organisations couldn’t load.');

@@ -6,7 +6,7 @@ import {
   unfollowOrg, updateOrganisation,
 } from '../data.js';
 import {
-  coverHtml, dateParts, dayStart, dragScroll, esc, fmtTime, gradient, icon, orgLogoHtml, shortDay, spotsChip, toast,
+  coverHtml, dateParts, dayStart, dragScroll, esc, fmtTime, gradient, icon, orgLogoHtml, reveal, shortDay, spotsChip, toast,
 } from '../ui.js';
 
 const user = await requireUser();
@@ -20,7 +20,7 @@ let org = orgId ? await getOrganisation(orgId).catch(() => null) : null;
 if (!org) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="organisations.html" aria-label="Back">${icon('back', 20)}</a></div>
     <div class="glass empty-note">This organisation isn’t available.</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
@@ -159,5 +159,5 @@ main.addEventListener('submit', async (e) => {
 await loadEvents();
 render();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();
 if (location.hash === '#contact') document.getElementById('contact')?.scrollIntoView();

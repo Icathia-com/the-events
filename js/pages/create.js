@@ -4,7 +4,7 @@
 import { requireUser } from '../auth.js';
 import { AREAS, CAUSES, createEvent, getEvent, getMyRole, getOrganisation, myMemberships, updateEvent } from '../data.js';
 import { Timestamp } from '../firebase.js';
-import { addDays, coverHtml, coverLabel, dayStart, dragScroll, esc, icon, orgDotHtml, toast, TZ, zonedDate, zonedParts } from '../ui.js';
+import { addDays, coverHtml, coverLabel, dayStart, dragScroll, esc, icon, orgDotHtml, reveal, toast, TZ, zonedDate, zonedParts } from '../ui.js';
 
 const COVERS = [['#7A3E2A', '#D08A5E'], ['#2E5C44', '#5FA37B'], ['#1F4E6E', '#5B9BC2'], ['#8A5A1E', '#D9A24A'], ['#5A3E7A', '#9C7BC4'], ['#3E5A1E', '#8CB83E']];
 const SPOTS = ['', '5', '10', '20', '50', '100'];
@@ -30,7 +30,7 @@ const back = (fallback) => `<a class="ib" href="${fallback}" data-action="back" 
 if (!org) {
   main.innerHTML = `<div class="top-row">${back('index.html')}</div>
     <div class="glass empty-note">${editId ? 'Only the organisation’s admins can edit this event.' : 'Only organisation admins can create events.'}</div>`;
-  document.body.classList.remove('is-loading');
+  reveal();
   await new Promise(() => {}); // nothing more to show
 }
 
@@ -226,4 +226,4 @@ async function save() {
 
 showForm();
 dragScroll(document.scrollingElement, 'y');
-document.body.classList.remove('is-loading');
+reveal();

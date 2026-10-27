@@ -92,6 +92,19 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The Changi beach clean-up, 17 days before seeding. Mei Lin checked in but wasn't checked out. Farid's claim is past its auto-confirm date. Darren was going and has no check-in.
   - The Yishun visit from Mei Lin's hours record. Aisha checked in but wasn't checked out. Esther was going and has no check-in. Mei Lin's own hours are confirmed.
 - Slice 9 (rules): When a volunteer writes their own attendance (a check-out with the code, or a claim), it must carry the name on their registration. That stops a made-up name appearing in the organiser's lists.
+- Slice 10: Section 10's "check in by scanning the organiser's code" is built as the organiser scanning the volunteer's code. That's how the canvas Check-in screen and the queue have it, and section 7 lets only the organisation record a check-in. The event's own check-in code (`private/codes.checkIn`) is created with each event but not used in Phase 1.
+- Slice 10: Organisers have no list of past events in Phase 1. A past event's claims are on its check-out page, reached by its link (`checkout.html?id=…`). On the canvas a notification leads there, and notifications are Phase 3. A past-events list for admins could come sooner.
+- Slice 10: The app icon is an original mark: a Forest calendar card with a cream tick, on Clay. There's a rounded version, a full-bleed version for Android's masks and iOS, and an SVG for the browser tab.
+- Slice 10: The manifest uses Clay `#9A4F33` (the top of the page gradient) for both the theme and the splash background, with standalone display.
+- Slice 10: The service worker fetches the app's own files from the network first, and serves them from its cache only when offline. Firebase traffic never passes through it.
+- Slice 10, for speed:
+  - Firestore Lite replaces the full Firestore SDK: 43 KB instead of 184 KB, with the same reads, writes, batches and transactions. Phase 1 has no live listeners or offline data, which are the parts it leaves out.
+  - Sign-in starts without Google's pop-up helpers. They load only when someone chooses Google.
+  - Manrope is served from `assets/fonts` (the same Google Fonts files, with the OFL licence) instead of the Google Fonts service. Pages no longer wait on two more servers, and opening a page sends no request to Google Fonts.
+- Slice 10: Pages wait for the web font, up to a second, before showing, so text doesn't jump when it arrives. Page headers that need no data show straight away.
+- Slice 10: Home now loads in two rounds of reads instead of seven. Staff invitations and the hours sync run once Home is showing, so newly confirmed hours update the impact line a moment later.
+- Slice 10: Notifications shows only "Nothing here yet". The canvas's second line ("Reminders, new events from organisations you follow and changes to your registrations appear here.") is left out, because nothing arrives there until Phase 3.
+- Slice 10: Lighthouse was measured on this computer against the emulators, with a local server that compresses files as GitHub Pages does (`npm run serve` doesn't compress). It should be checked again on the live site after deploy.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -496,3 +509,63 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 10: the app manifest and service worker, the empty Notifications page, the section 10 acceptance checks, Lighthouse, and `docs/TRY-IT.md`.
+## 28 Oct 2026: Phase 1, slice 10: Polish and acceptance
+
+**Done**
+- `manifest.webmanifest`: name, standalone display, Clay theme, and the icons in `assets/` (192, 512, maskable 512, Apple touch, SVG). Every page links the manifest and the icons.
+- `sw.js`, the app shell service worker. It keeps the app's own pages, styles, scripts, icons and font for opening offline, and keeps no data.
+- `notifications.html`: the canvas empty state, "Nothing here yet", with the tab bar.
+- Speed (see Decisions to confirm):
+  - Firestore Lite.
+  - Sign-in without Google's pop-up helpers at start.
+  - Manrope served with the app.
+  - A preconnect to the Firebase SDK's server, and preloads for the shared scripts and the font.
+  - Pages shown once the font is ready, and static headers shown straight away.
+  - Home's reads in two rounds.
+  - `syncHours` checks due claims alongside its other reads, and the record, claim and Profile pages read in parallel with it.
+- `docs/TRY-IT.md`: how to start the emulators, load the sample data, sign in, and try each flow as a volunteer and as Mei Lin.
+
+**Tested**
+- `npm test`: 118 of 118 pass (92 rules tests, 26 QR tests). New: a volunteer can't write anyone else's ledger or hours total.
+- Section 10 acceptance, end to end at 390 px, in two browsers whose fake cameras show real codes:
+  1. Jun signs in with an email link from the emulator.
+  2. He asks to join the Yishun visit ("Pending approval"), and Mei Lin approves him.
+  3. Her scanner reads Jun's code and checks him in.
+  4. Jun scans the check-out code from Home: "2 hours confirmed".
+  5. His record shows 2 hours and reference VN-2026-42681.
+  6. Aisha, checked in but not out at last week's visit, claims. Mei Lin confirms it on the check-out page ("2 h confirmed"), and it reaches Aisha's record with a reference.
+  7. No console errors.
+- The rules tests cover the rest of section 10: a volunteer can't write anyone else's attendance or hours, can't read a draft event, and can't register for a cancelled event.
+- Lighthouse 12.8.2, phone profile (simulated slow 4G, 4× slower CPU), cold cache, signed in, compressed files:
+
+  | Page | Performance | Accessibility |
+  |---|---|---|
+  | Sign-in | 97 | 100 |
+  | Home | 92 | 100 |
+  | Discover | 98 | 100 |
+  | Event (Yishun visit) | 95 | 100 |
+  | Organisations | 100 | 100 |
+  | Organisation (Silver Companions) | 95 | 100 |
+  | Profile | 91 | 100 |
+  | Hours record | 94 | 100 |
+  | Claim | 93 | 100 |
+  | Notifications | 100 | 100 |
+  | Manage (Mei Lin) | 95 | 100 |
+  | Volunteers (Mei Lin) | 92 | 100 |
+  | Check-in (Mei Lin) | 95 | 100 |
+  | Check-out and hours (Mei Lin) | 95 | 100 |
+  | Create event (Mei Lin) | 94 | 100 |
+
+  With only Firestore Lite in place, eight pages scored 84 to 89, and Volunteers had a layout shift of 0.106 (the web font arriving late). The font and loading changes brought every page to 91 or above, and layout shift is now 0 on every page.
+- The service worker activates, the manifest and icons load, and the sign-in page opens offline.
+- The earlier browser checks still pass with the changes: Home (slice 3), check-in and check-out (slice 8), and claims (slice 9).
+
+**Notes**
+- Lighthouse and playwright-core run from a scratch folder outside the project; nothing was added to `package.json`.
+- No OneDrive file-lock errors in this session.
+
+**Next**
+- The Phase 1 queue is done. Waiting for Theersha on:
+  - the decisions above;
+  - pushing to GitHub and deploying (the rules and indexes need deploying with the site);
+  - a Lighthouse check on the live site.
