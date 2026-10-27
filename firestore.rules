@@ -1,8 +1,8 @@
 rules_version = '2';
 
-// Brief section 7. Covered so far: users and their hours ledger (reading), organisations and events (reading),
-// volunteers joining and cancelling (with the event's counts moving in the same write), who's going, and the
-// event's private details. Everything else is denied.
+// Brief section 7. Covered so far: users and the hours ledger, organisations, events (reading, creating, editing),
+// registrations (joining, cancelling, the organisation's decisions), who's going, attendance recorded by the
+// organisation, reference numbers, and the event's private details. Everything else is denied.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -14,8 +14,32 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
     function myUserPath() {
-      return /databases/$(database)/documents/users/$(request.auth.uid);
+      return userPath(request.auth.uid);
+    }
+
+    function eventPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId);
+    }
+
+    function regPath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/registrations/$(uid);
+    }
+
+    function goingPath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/going/$(uid);
+    }
+
+    function attendancePath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/attendance/$(uid);
+    }
+
+    function referencePath(ref) {
+      return /databases/$(database)/documents/references/$(ref);
     }
 
     // networkAdmin is set by hand in the console, never by the app.
@@ -47,6 +71,35 @@ service cloud.firestore {
         && d.follows is list && d.follows.size() <= 200;
     }
 
+    function attendanceConfirmed(eventId, uid) {
+      return exists(attendancePath(eventId, uid)) && get(attendancePath(eventId, uid)).data.status == 'confirmed';
+    }
+
+    // hoursTotal moves by exactly the hours of the one ledger entry (hoursBy) added or removed in the same write.
+    function hoursFollow(uid, entryId) {
+      let path = /databases/$(database)/documents/users/$(uid)/hours/$(entryId);
+      let before = exists(path) ? get(path).data.hours : 0;
+      let after = existsAfter(path) ? getAfter(path).data.hours : 0;
+      return exists(path) != existsAfter(path)
+        && request.resource.data.hoursTotal == resource.data.get('hoursTotal', 0) + after - before;
+    }
+
+    // A new ledger entry copies the confirmed attendance and the event, and registers a new reference number.
+    function entryMatchesAttendance(uid, entryId) {
+      let att = get(attendancePath(entryId, uid)).data;
+      let e = get(eventPath(entryId)).data;
+      let h = request.resource.data;
+      return att.status == 'confirmed'
+        && h.keys().hasOnly(['eventId', 'eventTitle', 'orgId', 'orgName', 'cover', 'date', 'hours', 'confirmedBy', 'confirmedAt', 'reference'])
+        && h.eventId == entryId && h.eventTitle == e.title && h.orgId == e.orgId && h.orgName == e.orgName
+        && h.cover == e.cover && h.date == e.startAt
+        && h.hours == att.hours && h.confirmedBy == att.confirmedBy && h.confirmedAt == att.confirmedAt
+        && h.reference is string && h.reference.matches('VN-[0-9]{4}-[0-9]{5}')
+        && !exists(referencePath(h.reference))
+        && getAfter(referencePath(h.reference)).data.uid == uid
+        && getAfter(userPath(uid)).data.get('hoursTotal', 0) == get(userPath(uid)).data.get('hoursTotal', 0) + h.hours;
+    }
+
     match /users/{uid} {
       allow read: if isSelf(uid);
 
@@ -65,15 +118,45 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && validProfile(request.resource.data);
 
+      // Phase 1 confirm path: hoursTotal moves only with the ledger, in the same write.
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hoursTotal', 'hoursBy'])
+        && hoursFollow(uid, request.resource.data.hoursBy);
+
       // The hours ledger: the volunteer, and admins of the organisation named on the entry.
       match /hours/{entryId} {
         allow read: if isSelf(uid) || isOrgAdmin(resource.data.orgId);
+
+        // Phase 1: the volunteer's own app adds the entry once the organisation has confirmed their attendance...
+        allow create: if isSelf(uid) && entryMatchesAttendance(uid, entryId);
+
+        // ...and removes it if the organisation undoes that confirmation.
+        allow delete: if isSelf(uid) && !attendanceConfirmed(entryId, uid)
+          && getAfter(userPath(uid)).data.get('hoursTotal', 0) == get(userPath(uid)).data.get('hoursTotal', 0) - resource.data.hours;
       }
     }
 
-    // Lets someone find their own registrations (a collection group query on their own uid).
+    // Reference numbers (VN-<year>-<5 digits>) are unique: each is registered once, with its ledger entry.
+    match /references/{ref} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create: if signedIn() && ref.matches('VN-[0-9]{4}-[0-9]{5}')
+        && request.resource.data.keys().hasOnly(['uid', 'entryId'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/hours/$(request.resource.data.entryId)).data.reference == ref;
+    }
+
+    // Collection group queries: people find their own registrations and attendance; organisation admins find the
+    // ledger entries that name their organisation.
     match /{path=**}/registrations/{regId} {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /{path=**}/attendance/{attendanceId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /{path=**}/hours/{entryId} {
+      allow read: if isOrgAdmin(resource.data.orgId);
     }
 
     // An organisation's own profile fields. Status, stats and approval are not among them.
@@ -105,18 +188,6 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
-    function eventPath(eventId) {
-      return /databases/$(database)/documents/events/$(eventId);
-    }
-
-    function regPath(eventId, uid) {
-      return /databases/$(database)/documents/events/$(eventId)/registrations/$(uid);
-    }
-
-    function goingPath(eventId, uid) {
-      return /databases/$(database)/documents/events/$(eventId)/going/$(uid);
-    }
-
     function canSee(e) {
       return signedIn() && (
         e.visibility == 'public'
@@ -126,13 +197,21 @@ service cloud.firestore {
       );
     }
 
-    // A registration's status before and after this write ('none' when there is no registration).
+    // A registration's or attendance's status before and after this write ('none' when there is none).
     function statusBefore(eventId, uid) {
       return exists(regPath(eventId, uid)) ? get(regPath(eventId, uid)).data.status : 'none';
     }
 
     function statusAfter(eventId, uid) {
       return existsAfter(regPath(eventId, uid)) ? getAfter(regPath(eventId, uid)).data.status : 'none';
+    }
+
+    function attendanceBefore(eventId, uid) {
+      return exists(attendancePath(eventId, uid)) ? get(attendancePath(eventId, uid)).data.status : 'none';
+    }
+
+    function attendanceAfter(eventId, uid) {
+      return existsAfter(attendancePath(eventId, uid)) ? getAfter(attendancePath(eventId, uid)).data.status : 'none';
     }
 
     function step(key, before, after) {
@@ -146,6 +225,20 @@ service cloud.firestore {
         && next.pending == old.pending + step('pending', before, after)
         && next.waitlist == old.waitlist + step('waitlist', before, after)
         && next.attended == old.attended;
+    }
+
+    // The counts moved by exactly one person's registration and attendance changes in this write.
+    function countsFollow(old, next, eventId, uid) {
+      let regBefore = statusBefore(eventId, uid);
+      let regAfter = statusAfter(eventId, uid);
+      let attBefore = attendanceBefore(eventId, uid);
+      let attAfter = attendanceAfter(eventId, uid);
+      return (regBefore != regAfter || attBefore != attAfter)
+        && next.keys().hasOnly(['going', 'pending', 'waitlist', 'attended'])
+        && next.going == old.going + step('going', regBefore, regAfter)
+        && next.pending == old.pending + step('pending', regBefore, regAfter)
+        && next.waitlist == old.waitlist + step('waitlist', regBefore, regAfter)
+        && next.attended == old.attended + step('confirmed', attBefore, attAfter);
     }
 
     // What joining gives: the waiting list when full (if it has one), pending when approval is on, otherwise going.
@@ -209,12 +302,12 @@ service cloud.firestore {
         && validEvent(request.resource.data)
         && request.resource.data.updatedAt == request.time;
 
-      // A volunteer's own join or cancel moves the counts, and nothing else on the event.
+      // The counts move only with one person's registration or attendance, changed in the same write; countsBy names
+      // that person. Volunteers move them for themselves, the organisation's members for anyone.
       allow update: if signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['counts'])
-        && statusBefore(eventId, request.auth.uid) != statusAfter(eventId, request.auth.uid)
-        && countsStep(resource.data.counts, request.resource.data.counts,
-             statusBefore(eventId, request.auth.uid), statusAfter(eventId, request.auth.uid));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['counts', 'countsBy'])
+        && (request.resource.data.countsBy == request.auth.uid || isMember(resource.data.orgId))
+        && countsFollow(resource.data.counts, request.resource.data.counts, eventId, request.resource.data.countsBy);
 
       match /registrations/{uid} {
         allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId) || isNetworkAdmin();
@@ -246,27 +339,71 @@ service cloud.firestore {
             && !existsAfter(goingPath(eventId, uid));
         }
 
+        // The organisation's admins decide: going, declined or the waiting list.
+        function decisionAllowed() {
+          let e = get(eventPath(eventId)).data;
+          let r = request.resource.data;
+          return isOrgAdmin(e.orgId)
+            && resource.data.status in ['pending', 'waitlist', 'going']
+            && r.status in ['going', 'declined', 'waitlist'] && r.status != resource.data.status
+            && r.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt', 'decidedBy', 'updatedAt'])
+            && r.decidedBy == request.auth.uid && r.decidedAt == request.time && r.updatedAt == request.time
+            && countsStep(e.counts, getAfter(eventPath(eventId)).data.counts, resource.data.status, r.status)
+            && existsAfter(goingPath(eventId, uid)) == (r.status == 'going');
+        }
+
         allow create: if isSelf(uid)
           && request.resource.data.keys().hasOnly(['uid', 'name', 'status', 'ticketTypeId', 'answers', 'registeredAt', 'createdAt', 'updatedAt'])
           && request.resource.data.createdAt == request.time
           && joinAllowed('none');
 
-        allow update: if isSelf(uid) && (
-          (resource.data.status == 'cancelled'
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'registeredAt', 'updatedAt'])
-            && joinAllowed('cancelled'))
-          || cancelAllowed()
-        );
+        allow update: if (isSelf(uid) && (
+            (resource.data.status == 'cancelled'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'registeredAt', 'updatedAt'])
+              && joinAllowed('cancelled'))
+            || cancelAllowed()))
+          || decisionAllowed();
       }
 
-      // Who's going: a first name per approved volunteer, readable by anyone who can see the event.
+      // Who's going: a first name per approved volunteer, readable by anyone who can see the event. Written by the
+      // volunteer, or by an admin approving them.
       match /going/{uid} {
         allow read: if canSee(get(eventPath(eventId)).data);
-        allow create: if isSelf(uid) && statusAfter(eventId, uid) == 'going'
+        allow create: if (isSelf(uid) || isOrgAdmin(get(eventPath(eventId)).data.orgId))
+          && statusAfter(eventId, uid) == 'going'
           && request.resource.data.keys().hasOnly(['name', 'since'])
           && request.resource.data.name is string && request.resource.data.name.size() <= 40
           && request.resource.data.since == request.time;
-        allow delete: if isSelf(uid) && statusAfter(eventId, uid) != 'going';
+        allow delete: if (isSelf(uid) || isOrgAdmin(get(eventPath(eventId)).data.orgId))
+          && statusAfter(eventId, uid) != 'going';
+      }
+
+      // Attendance: the volunteer reads their own; the organisation's admins and staff record it for volunteers
+      // who are going, and the attended count moves in the same write.
+      match /attendance/{uid} {
+        function validAttendance(a) {
+          return a.keys().hasOnly(['uid', 'name', 'status', 'hours', 'checkedInAt', 'checkedInBy', 'checkedOutAt', 'checkedOutBy',
+                   'confirmedAt', 'confirmedBy', 'claimedAt', 'autoConfirmAt', 'updatedAt'])
+            && a.uid == uid
+            && a.status in ['checked_in', 'confirmed', 'claimed', 'declined']
+            && a.hours is number && a.hours >= 0 && a.hours <= 24
+            && (a.status != 'confirmed' || (a.confirmedAt is timestamp && a.confirmedBy is string))
+            && a.updatedAt == request.time;
+        }
+
+        function attendedMoves() {
+          return getAfter(eventPath(eventId)).data.counts.attended
+            == get(eventPath(eventId)).data.counts.attended + step('confirmed', attendanceBefore(eventId, uid), attendanceAfter(eventId, uid));
+        }
+
+        allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId);
+
+        allow create, update: if isMember(get(eventPath(eventId)).data.orgId)
+          && statusBefore(eventId, uid) == 'going'
+          && validAttendance(request.resource.data)
+          && attendedMoves();
+
+        allow delete: if isMember(get(eventPath(eventId)).data.orgId) && attendedMoves();
       }
 
       // Check-in and check-out codes for the organisation; the exact venue also for approved volunteers.

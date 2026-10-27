@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
-  collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, setLogLevel,
+  collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, setDoc, setLogLevel,
   updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
@@ -269,6 +269,128 @@ describe('events: who can read', () => {
   });
 });
 
+describe('the organisation\'s decisions, attendance and the hours ledger', () => {
+  const startAt = new Date(Date.now() - 3 * 3600e3), endAt = new Date(Date.now() - 3600e3);
+  const confirmedAt = new Date(Date.now() - 1800e3);
+  const cover = { colors: ['#7A3E2A', '#D08A5E'], label: 'YISHUN\nVISIT' };
+  const counts = (over = {}) => ({ going: 1, pending: 1, waitlist: 0, attended: 0, ...over });
+  const reg = (uid, status) => ({ uid, name: `${uid} A.`, status, ticketTypeId: null, answers: {}, registeredAt: new Date(), createdAt: new Date(), updatedAt: new Date() });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
+      'events/e7': {
+        orgId: 'open', orgName: 'Open Org', title: 'Yishun visit', visibility: 'public', status: 'scheduled', startAt, endAt,
+        hours: 2, cover, registration: { open: true, approval: true, capacity: 10, waitlist: true, group: false }, counts: counts(),
+      },
+      'events/e7/registrations/alice': reg('alice', 'pending'),
+      'events/e7/registrations/bob': reg('bob', 'going'),
+      'events/e7/going/bob': { name: 'Bob B.' },
+    });
+  });
+
+  // An admin's decision the way the app writes it: the registration, the counts (naming whose) and who's going.
+  function decide(by, who, status, next, { goingEntry, countsBy = who } = {}) {
+    const db = dbAs(by);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'events/e7'), { counts: next, countsBy });
+    batch.update(doc(db, `events/e7/registrations/${who}`), { status, decidedAt: serverTimestamp(), decidedBy: by, updatedAt: serverTimestamp() });
+    if (goingEntry === 'add') batch.set(doc(db, `events/e7/going/${who}`), { name: `${who} A.`, since: serverTimestamp() });
+    if (goingEntry === 'remove') batch.delete(doc(db, `events/e7/going/${who}`));
+    return batch.commit();
+  }
+
+  function markAttended(by, who, next, { moveCounts = true } = {}) {
+    const db = dbAs(by);
+    const batch = writeBatch(db);
+    if (moveCounts) batch.update(doc(db, 'events/e7'), { counts: next, countsBy: who });
+    batch.set(doc(db, `events/e7/attendance/${who}`), {
+      uid: who, name: `${who} A.`, status: 'confirmed', hours: 2, checkedOutAt: serverTimestamp(), checkedOutBy: by,
+      confirmedAt: serverTimestamp(), confirmedBy: by, updatedAt: serverTimestamp(),
+    });
+    return batch.commit();
+  }
+
+  // The volunteer's app adding its ledger entry: the entry, its reference number and the new total, together.
+  function addEntry(uid, ref, { hours = 2 } = {}) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.set(doc(db, `users/${uid}/hours/e7`), {
+      eventId: 'e7', eventTitle: 'Yishun visit', orgId: 'open', orgName: 'Open Org', cover, date: startAt, hours,
+      confirmedBy: 'mei', confirmedAt, reference: ref,
+    });
+    batch.set(doc(db, `references/${ref}`), { uid, entryId: 'e7' });
+    batch.update(doc(db, `users/${uid}`), { hoursTotal: increment(hours), hoursBy: 'e7' });
+    return batch.commit();
+  }
+
+  const confirmBob = () => seedDocs({
+    'events/e7': {
+      orgId: 'open', orgName: 'Open Org', title: 'Yishun visit', visibility: 'public', status: 'scheduled', startAt, endAt,
+      hours: 2, cover, registration: { open: true, approval: true, capacity: 10, waitlist: true, group: false }, counts: counts({ attended: 1 }),
+    },
+    'events/e7/attendance/bob': { uid: 'bob', status: 'confirmed', hours: 2, confirmedAt, confirmedBy: 'mei', updatedAt: confirmedAt },
+  });
+
+  it('an admin approves a request: going, a who\'s-going entry, and the counts move', async () => {
+    await assertSucceeds(decide('mei', 'alice', 'going', counts({ going: 2, pending: 0 }), { goingEntry: 'add' }));
+  });
+
+  it('staff and volunteers cannot approve requests', async () => {
+    await assertFails(decide('sam', 'alice', 'going', counts({ going: 2, pending: 0 }), { goingEntry: 'add' }));
+    await assertFails(decide('bob', 'alice', 'going', counts({ going: 2, pending: 0 }), { goingEntry: 'add' }));
+  });
+
+  it('an admin declines a request', async () => {
+    await assertSucceeds(decide('mei', 'alice', 'declined', counts({ pending: 0 })));
+  });
+
+  it('the counts must follow the person whose registration changed', async () => {
+    await assertFails(decide('mei', 'alice', 'going', counts({ going: 2, pending: 0 }), { goingEntry: 'add', countsBy: 'bob' }));
+  });
+
+  it('staff mark a going volunteer attended, and the attended count moves with it', async () => {
+    await assertSucceeds(markAttended('sam', 'bob', counts({ attended: 1 })));
+  });
+
+  it('attendance needs a going registration, and the attended count must move', async () => {
+    await assertFails(markAttended('mei', 'alice', counts({ attended: 1 })));
+    await assertFails(markAttended('mei', 'bob', counts(), { moveCounts: false }));
+  });
+
+  it('a volunteer cannot record their own attendance', async () => {
+    await assertFails(markAttended('bob', 'bob', counts({ attended: 1 })));
+  });
+
+  it('once confirmed, the volunteer\'s app adds the entry, with a new reference number and the hours total', async () => {
+    await confirmBob();
+    await assertSucceeds(addEntry('bob', 'VN-2026-12345'));
+  });
+
+  it('no entry without confirmed attendance, or for different hours', async () => {
+    await assertFails(addEntry('alice', 'VN-2026-22222'));
+    await confirmBob();
+    await assertFails(addEntry('bob', 'VN-2026-33333', { hours: 3 }));
+  });
+
+  it('a reference number is used only once', async () => {
+    await confirmBob();
+    await seedDocs({ 'references/VN-2026-44444': { uid: 'carol', entryId: 'x' } });
+    await assertFails(addEntry('bob', 'VN-2026-44444'));
+  });
+
+  it('hoursTotal cannot be changed on its own', async () => {
+    await assertFails(updateDoc(doc(dbAs('bob'), 'users/bob'), { hoursTotal: 10, hoursBy: 'e7' }));
+  });
+
+  it('organisation admins can list the ledger entries that name their organisation', async () => {
+    await seedDocs({ 'users/bob/hours/past': { orgId: 'open', hours: 3 } });
+    await assertSucceeds(getDocs(query(collectionGroup(dbAs('mei'), 'hours'), where('orgId', '==', 'open'))));
+    await assertFails(getDocs(query(collectionGroup(dbAs('carol'), 'hours'), where('orgId', '==', 'open'))));
+  });
+});
+
 describe('events: creating and editing', () => {
   const start = new Date(Date.now() + 3 * 86400e3), end = new Date(start.getTime() + 2 * 3600e3);
   const newEvent = (over = {}) => ({
@@ -419,7 +541,7 @@ describe('registrations: joining and cancelling', () => {
   function join(uid, eventId, { status, counts: next, going = status === 'going', who = uid, moveCounts = true }) {
     const db = dbAs(uid);
     const batch = writeBatch(db);
-    if (moveCounts) batch.update(doc(db, 'events', eventId), { counts: next });
+    if (moveCounts) batch.update(doc(db, 'events', eventId), { counts: next, countsBy: who });
     batch.set(doc(db, `events/${eventId}/registrations/${who}`), regDoc(who, status));
     if (going) batch.set(doc(db, `events/${eventId}/going/${who}`), { name: 'Alice A.', since: serverTimestamp() });
     return batch.commit();
@@ -429,7 +551,7 @@ describe('registrations: joining and cancelling', () => {
   function change(uid, eventId, { status, counts: next, who = uid, goingEntry }) {
     const db = dbAs(uid);
     const batch = writeBatch(db);
-    batch.update(doc(db, 'events', eventId), { counts: next });
+    batch.update(doc(db, 'events', eventId), { counts: next, countsBy: who });
     batch.update(doc(db, `events/${eventId}/registrations/${who}`), { status, updatedAt: serverTimestamp(), ...(status === 'cancelled' ? {} : { registeredAt: serverTimestamp() }) });
     if (goingEntry === 'add') batch.set(doc(db, `events/${eventId}/going/${who}`), { name: 'Alice A.', since: serverTimestamp() });
     if (goingEntry === 'remove') batch.delete(doc(db, `events/${eventId}/going/${who}`));
@@ -463,7 +585,7 @@ describe('registrations: joining and cancelling', () => {
   it('the counts must move with the registration, by exactly one', async () => {
     await assertFails(join('alice', 'e-open', { status: 'going', counts: counts({ going: 1 }), moveCounts: false }));
     await assertFails(join('alice', 'e-open', { status: 'going', counts: counts({ going: 2 }) }));
-    await assertFails(updateDoc(doc(dbAs('alice'), 'events/e-open'), { counts: counts({ going: 1 }) }));
+    await assertFails(updateDoc(doc(dbAs('alice'), 'events/e-open'), { counts: counts({ going: 1 }), countsBy: 'alice' }));
   });
 
   it('cannot register someone else', async () => {

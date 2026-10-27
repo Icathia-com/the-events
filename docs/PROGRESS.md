@@ -51,6 +51,18 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 6: "Notify followers" is saved on the event (`notifyFollowers`), but nothing is sent until Phase 3. So the done screen leaves out the canvas's "Your followers are notified."
 - Slice 6: Someone who admins more than one organisation creates events for the first; a chooser can come later. An event with no area chosen counts as Islandwide, as on the canvas. An event can last up to 24 hours.
 - Slice 6: Form placeholders drop the canvas's "for example…" wording ("Meeting point", "Description", "What to bring"). Restore draft keeps the draft only on this device, as the brief says.
+- Slice 7 (rules): Every change to an event's counts names the person whose registration or attendance it follows (`countsBy` on the event). The rules check that the counts moved by exactly that person's change. That's what lets admins approve and mark attendance while the counts stay honest.
+- Slice 7: Confirmed hours follow section 7's Phase 1 path:
+  - The organisation confirms attendance.
+  - The volunteer's own app then adds the hours entry the next time it opens (Home or Profile). Each entry gets a reference number `VN-<year>-<5 digits>`, registered once in `references/{ref}` so no number is ever reused, and `hoursTotal` moves by the same hours (`hoursBy` names the entry).
+  - If the organisation undoes a confirmation, the entry and its hours go on the volunteer's next visit; that reference number stays retired.
+- Slice 7: Attendance records `confirmedAt` and `confirmedBy` (the admin's uid, or `code` from slice 8), and the hours entry copies both.
+- Slice 7: Attendance can be marked at any time, even before the event; the canvas sets no limit. A guard such as "only once the event has started" could be added later.
+- Slice 7: Approving is refused when every spot is taken; raising the spots in Edit event makes room. People on the waiting list are listed under "Waiting for approval", where Approve moves them up.
+- Slice 7: "N past events" on the volunteers list counts confirmed events with your organisation only, since an admin can't see a volunteer's hours elsewhere.
+- Slice 7: Instruction-like lines left out: the second line of each empty state ("Share the event link…"), and the summary's "Hours are added to each volunteer's profile when you mark them attended".
+- Slice 7: Cancelling says "Registered volunteers will see it as cancelled. This cannot be undone." The canvas says "Everyone who registered gets a cancellation notice right away", but notices are Phase 3; the button is "Cancel event". "Clone event" and "Transfer to another organisation" are marked Soon.
+- Slice 7 (production): Two more collection group indexes: attendance by uid and status, and hours entries by orgId. Both are in `firestore.indexes.json`.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -304,3 +316,44 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice 7: the Manage menu and the volunteers list.
+
+## 28 Oct 2026: Phase 1, slice 7: Manage menu and volunteers list
+
+**Done**
+- `manage.html` (`design/Manage-Event.dc.html`):
+  - The event card with its spots and visibility chips. Every row from the canvas is shown.
+  - Event details, Volunteers (with going and waiting counts), Check-in options, Check-out and hours, Check in volunteers, and Cancel event work. The other ten rows are dimmed with "Soon".
+  - Cancel event asks for confirmation in a sheet first.
+  - Staff see the menu without Event details and Cancel.
+- `volunteers.html` (`design/Volunteers.dc.html`):
+  - Tabs: Going, Attended, Not yet marked, Waiting for approval, with counts. Search, and sort by name.
+  - Approve and Decline, for admins. Mark attended, and undo, for admins and staff.
+  - The attended summary, and the List and Scan pill.
+- The Phase 1 confirm path:
+  - Marking someone attended confirms their attendance and the event's hours.
+  - The volunteer's app adds the matching hours entry, with its reference number, on Home or Profile (`syncHours`).
+- Rules:
+  - Admins decide registrations (going, declined, waiting list). Admins and staff record attendance, only for volunteers who are going.
+  - Counts move only with the named person's change.
+  - Hours entries must match the confirmed attendance and the event exactly, register a new reference number, and move `hoursTotal` by the same hours. They can be removed only once the confirmation is gone.
+  - `hoursTotal` can't change on its own.
+  - Admins can list the hours entries that name their organisation.
+
+**Tested**
+- `npm test`: 101 of 101 pass. The 12 new cases:
+  - Admin approve and decline. Staff and volunteers can't approve.
+  - Counts naming the wrong person are refused.
+  - Staff can mark attended. Attendance needs a going registration and must move the count. Volunteers can't record their own.
+  - An entry can't be made without confirmation or with other hours. A reference number can't be reused. `hoursTotal` can't change alone.
+  - Admins can list their organisation's entries, and other organisations' admins can't.
+- Browser at 390 px:
+  - Mei Lin's Manage menu for the Yishun visit: "7 of 10 spots filled", 6 working rows, 10 marked Soon.
+  - Volunteers starts with Going 7, Waiting 2. She approves Hari and declines Ivy (Going 8, Waiting 0), then marks Hari attended ("Attended · 2 hours added", "1 attended · 2 volunteer hours").
+  - Search "aish" finds Aisha, and sort by name works.
+  - Hari signs in: Home says "2 hours volunteered this year", and his entry exists with reference VN-2026-94350, confirmed by Mei Lin. `hoursTotal` is 2, and Profile shows the event.
+  - Mei Lin undoes the mark. On Hari's next visit the entry and his hours are gone.
+  - Cancel event, behind the sheet: "Cancelled" on Manage and on the event page.
+  - No sideways scrolling, no console errors.
+
+**Next**
+- Slice 8: check-in and check-out.

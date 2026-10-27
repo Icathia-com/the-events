@@ -89,6 +89,20 @@
   --disabled-bg: rgba(30,26,23,.15);
   --disabled-text: rgba(30,26,23,.45);
   --chip-off-bg: rgba(255,255,255,.8);
+  --pill-dark: rgba(30,26,23,.9);
+  --pill-shadow: 0 12px 28px rgba(30,26,23,.3);
+
+  /* Manage menu icon tiles (canvas) */
+  --tile-details: #24412F;
+  --tile-volunteers: #C9702D;
+  --tile-hosts: #5A3E7A;
+  --tile-checkin: #1F4E6E;
+  --tile-checkout: #2E7D5B;
+  --tile-access: #2E7D5B;
+  --tile-vouchers: #8A5A1E;
+  --tile-questions: #B04A6A;
+  --tile-announce: #C2704F;
+  --tile-insights: #3E5A1E;
 
   /* Area cards on Discover (canvas) */
   --area-north: linear-gradient(135deg, #2E5C44, #5FA37B);

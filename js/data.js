@@ -1,7 +1,7 @@
 // All Firestore reads and writes.
 import {
-  arrayRemove, arrayUnion, collection, collectionGroup, db, doc, getDoc, getDocs, limit, orderBy, query, runTransaction,
-  serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
+  arrayRemove, arrayUnion, collection, collectionGroup, db, deleteField, doc, getDoc, getDocs, increment, limit, orderBy,
+  query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch,
 } from './firebase.js';
 
 // Fixed lists (brief section 6). Keys are stored in Firestore; values are what people see.
@@ -103,7 +103,7 @@ export function joinEvent(eventId, uid, name) {
 
     const status = joinStatus(event);
     if (status === 'full') return 'full';
-    tx.update(eventRef, { counts: stepCounts(event.counts, before, status) });
+    tx.update(eventRef, { counts: stepCounts(event.counts, before, status), countsBy: uid });
     const fields = { status, name, registeredAt: serverTimestamp(), updatedAt: serverTimestamp() };
     if (regSnap.exists()) tx.update(regRef, fields);
     else tx.set(regRef, { uid, ticketTypeId: null, answers: {}, createdAt: serverTimestamp(), ...fields });
@@ -121,11 +121,139 @@ export function cancelRegistration(eventId, uid) {
     const before = regSnap.exists() ? regSnap.data().status : 'none';
     if (!COUNTED.includes(before)) return before;
 
-    tx.update(eventRef, { counts: stepCounts(event.counts, before, 'cancelled') });
+    tx.update(eventRef, { counts: stepCounts(event.counts, before, 'cancelled'), countsBy: uid });
     tx.update(regRef, { status: 'cancelled', updatedAt: serverTimestamp() });
     if (before === 'going') tx.delete(doc(db, 'events', eventId, 'going', uid));
     return 'cancelled';
   });
+}
+
+// The organisation's view of an event: every registration and every attendance record.
+export async function listRegistrations(eventId) {
+  return allWithIds(await getDocs(collection(db, 'events', eventId, 'registrations')));
+}
+
+export async function listAttendance(eventId) {
+  return allWithIds(await getDocs(collection(db, 'events', eventId, 'attendance')));
+}
+
+// An admin's decision on a registration: 'going', 'declined' or 'waitlist'. Returns false if the event is full.
+export function decideRegistration(eventId, uid, status, adminUid) {
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const regRef = doc(db, 'events', eventId, 'registrations', uid);
+    const event = (await tx.get(eventRef)).data();
+    const reg = (await tx.get(regRef)).data();
+    const capacity = event.registration?.capacity;
+    if (status === 'going' && reg.status !== 'going' && capacity != null && (event.counts?.going || 0) >= capacity) return false;
+
+    tx.update(eventRef, { counts: stepCounts(event.counts, reg.status, status), countsBy: uid });
+    tx.update(regRef, { status, decidedAt: serverTimestamp(), decidedBy: adminUid, updatedAt: serverTimestamp() });
+    const goingRef = doc(db, 'events', eventId, 'going', uid);
+    if (status === 'going') tx.set(goingRef, { name: shortName(reg.name), since: serverTimestamp() });
+    else if (reg.status === 'going') tx.delete(goingRef);
+    return true;
+  });
+}
+
+// Marks a going volunteer attended: their hours for the event are confirmed. Any check-in time is kept.
+export function markAttended(eventId, uid, byUid) {
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const attRef = doc(db, 'events', eventId, 'attendance', uid);
+    const event = (await tx.get(eventRef)).data();
+    const attSnap = await tx.get(attRef);
+    const reg = (await tx.get(doc(db, 'events', eventId, 'registrations', uid))).data();
+    if (attSnap.data()?.status === 'confirmed') return;
+
+    const counts = { ...event.counts, attended: (event.counts?.attended || 0) + 1 };
+    tx.update(eventRef, { counts, countsBy: uid });
+    tx.set(attRef, {
+      ...(attSnap.exists() ? attSnap.data() : {}), uid, name: reg.name, status: 'confirmed', hours: event.hours,
+      checkedOutAt: serverTimestamp(), checkedOutBy: byUid, confirmedAt: serverTimestamp(), confirmedBy: byUid, updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+// Undoes "Mark attended": back to checked in if they had checked in, otherwise no attendance at all.
+export function unmarkAttended(eventId, uid) {
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const attRef = doc(db, 'events', eventId, 'attendance', uid);
+    const event = (await tx.get(eventRef)).data();
+    const att = (await tx.get(attRef)).data();
+    if (att?.status !== 'confirmed') return;
+
+    tx.update(eventRef, { counts: { ...event.counts, attended: Math.max(0, (event.counts?.attended || 0) - 1) }, countsBy: uid });
+    if (att.checkedInAt) {
+      tx.update(attRef, {
+        status: 'checked_in', checkedOutAt: deleteField(), checkedOutBy: deleteField(),
+        confirmedAt: deleteField(), confirmedBy: deleteField(), updatedAt: serverTimestamp(),
+      });
+    } else {
+      tx.delete(attRef);
+    }
+  });
+}
+
+export const cancelEvent = (eventId) => updateEvent(eventId, { status: 'cancelled' });
+
+// For an organisation's admins: how many confirmed events each volunteer has had with the organisation.
+export async function pastEventCounts(orgId) {
+  const snaps = await getDocs(query(collectionGroup(db, 'hours'), where('orgId', '==', orgId)));
+  const counts = {};
+  snaps.docs.forEach((d) => { const uid = d.ref.parent.parent.id; counts[uid] = (counts[uid] || 0) + 1; });
+  return counts;
+}
+
+// Phase 1 confirm path, run by the volunteer's own app: a ledger entry for each attendance the organisation has
+// confirmed, each with a new reference number, and hoursTotal moved by the same hours. Entries whose confirmation
+// was undone are removed. Returns how many entries were added.
+export async function syncHours(uid) {
+  const [confirmed, entries] = await Promise.all([
+    getDocs(query(collectionGroup(db, 'attendance'), where('uid', '==', uid), where('status', '==', 'confirmed'))),
+    getDocs(collection(db, 'users', uid, 'hours')),
+  ]);
+  const have = new Set(entries.docs.map((d) => d.id));
+  const confirmedIds = new Set(confirmed.docs.map((d) => d.ref.parent.parent.id));
+  let added = 0;
+
+  for (const att of confirmed.docs) {
+    const eventId = att.ref.parent.parent.id;
+    if (have.has(eventId)) continue;
+    try {
+      const event = (await getDoc(doc(db, 'events', eventId))).data();
+      const year = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', year: 'numeric' }).format(event.startAt.toDate());
+      for (let attempt = 1; ; attempt++) {
+        const reference = `VN-${year}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+        const batch = writeBatch(db);
+        batch.set(doc(db, 'users', uid, 'hours', eventId), {
+          eventId, eventTitle: event.title, orgId: event.orgId, orgName: event.orgName, cover: event.cover, date: event.startAt,
+          hours: att.data().hours, confirmedBy: att.data().confirmedBy, confirmedAt: att.data().confirmedAt, reference,
+        });
+        batch.set(doc(db, 'references', reference), { uid, entryId: eventId });
+        batch.update(doc(db, 'users', uid), { hoursTotal: increment(att.data().hours), hoursBy: eventId });
+        try {
+          await batch.commit();
+          added += 1;
+          break;
+        } catch (err) {
+          if (attempt >= 5) throw err; // most likely the reference number was taken: try another
+        }
+      }
+    } catch (err) {
+      console.warn(`Couldn’t add the hours for ${eventId}`, err);
+    }
+  }
+
+  for (const entry of entries.docs) {
+    if (entry.data().sample || confirmedIds.has(entry.id)) continue;
+    const batch = writeBatch(db);
+    batch.delete(entry.ref);
+    batch.update(doc(db, 'users', uid), { hoursTotal: increment(-entry.data().hours), hoursBy: entry.id });
+    await batch.commit();
+  }
+  return added;
 }
 
 // The first few people going (short names), oldest first.

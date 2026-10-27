@@ -2,7 +2,7 @@
 import { requireUser } from '../auth.js';
 import {
   AREAS, CAUSES, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations, listPublicEvents,
-  myMemberships, myRegistrations,
+  myMemberships, myRegistrations, syncHours,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import {
@@ -27,6 +27,7 @@ const eventHref = (e) => `event.html?id=${encodeURIComponent(e.id)}`;
 const hexOr = (c, fallback) => (/^#[0-9a-f]{6}$/i.test(c || '') ? c : fallback);
 
 const profile = await ensureUserDoc(user);
+await syncHours(user.uid).catch(orElse(0)); // confirmed attendance becomes ledger entries (Phase 1 confirm path)
 const follows = profile.follows || [];
 const { year } = dateParts(now);
 const yearStart = dayStart(new Date(Date.UTC(year, 0, 1, 12)));

@@ -1,6 +1,6 @@
 // Profile (design/Profile.dc.html). Notification settings arrive with notifications in Phase 3, so they aren't shown.
 import { requireUser, signOut } from '../auth.js';
-import { ensureUserDoc, listHours, listOrganisations, listOrgEvents, myMemberships, updateProfile } from '../data.js';
+import { ensureUserDoc, listHours, listOrganisations, listOrgEvents, myMemberships, syncHours, updateProfile } from '../data.js';
 import { avatarHtml, coverHtml, coverLabel, dateParts, dragScroll, esc, icon, toast } from '../ui.js';
 
 const user = await requireUser();
@@ -9,6 +9,7 @@ const main = document.querySelector('main');
 let profile = await ensureUserDoc(user);
 let failed = false;
 const orElse = (fallback) => (err) => { console.warn(err); failed = true; return fallback; };
+await syncHours(user.uid).catch(orElse(0));
 const [memberships, ledger, orgList] = await Promise.all([
   myMemberships(user.uid).catch(orElse([])),
   listHours(user.uid).catch(orElse([])),

@@ -80,3 +80,14 @@ users/{uid}/hours/{eventId}             the entry id is the event id: one entry 
 
 sample: true                            on every document the seed script writes
 ```
+
+```
+events/{eventId}
+  countsBy                              the uid whose registration or attendance the last counts change followed
+events/{eventId}/attendance/{uid}
+  uid, name                             who it is (uid lets volunteers find their own with a collection group query)
+  confirmedAt, confirmedBy              when and by whom the hours were confirmed: an admin's uid, or "code"
+users/{uid}
+  hoursBy                               the ledger entry the last hoursTotal change followed
+references/{ref}                        uid, entryId: each VN-<year>-<5 digits> number, registered once
+```
