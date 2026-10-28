@@ -1,14 +1,14 @@
 // Manage menu (design/Manage-Event.dc.html). Every row from the canvas is shown; the ones that arrive in later
 // phases are marked Soon.
 import { requireUser } from '../auth.js';
-import { cancelEvent, getEvent, getMyRole } from '../data.js';
+import { cancelEvent, getEvent, getEventRole, getMyRole } from '../data.js';
 import { coverHtml, dateParts, dragScroll, esc, fmtTime, icon, openModal, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
 const eventId = new URLSearchParams(location.search).get('id');
 let event = eventId ? await getEvent(eventId).catch(() => null) : null;
-const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : null;
+const role = event ? await getEventRole(event, eventId, user).catch(() => null) : null;
 
 if (!event || !role) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
@@ -18,6 +18,8 @@ if (!event || !role) {
 }
 
 const isAdmin = role === 'admin';
+// Hosts are managed by the organisation's own admins, not by the event's co-hosts.
+const orgAdmin = isAdmin && (await getMyRole(event.orgId, user.uid).catch(() => null)) === 'admin';
 const q = `?id=${encodeURIComponent(eventId)}`;
 
 // A row: a link when it works, a dimmed row with "Soon" when it comes later.
@@ -47,7 +49,7 @@ function render() {
     <div class="glass mg-card">
       ${isAdmin ? row({ href: `create.html${q}`, iconName: 'edit', tile: 'details', title: 'Event details', sub: 'Name, description, time and location' }) : ''}
       ${row({ href: `volunteers.html${q}`, iconName: 'organisations', tile: 'volunteers', title: 'Volunteers', sub: `${going} going${pending ? ` · ${pending} waiting for approval` : ''}` })}
-      ${row({ iconName: 'hosts', tile: 'hosts', title: 'Hosts', sub: 'Add co-hosts and event staff', soon: true })}
+      ${orgAdmin ? row({ href: `hosts.html${q}`, iconName: 'hosts', tile: 'hosts', title: 'Hosts', sub: 'Add co-hosts and event staff' }) : ''}
       ${row({ href: `checkin.html${q}`, iconName: 'qr', tile: 'checkin', title: 'Check-in options', sub: 'QR scanning, manual attendance and staff' })}
       ${row({ href: `checkout.html${q}`, iconName: 'clock', tile: 'checkout', title: 'Check-out and hours', sub: 'Check-out code, confirm hours, claims from volunteers' })}
     </div>

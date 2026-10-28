@@ -3,7 +3,7 @@
 // at check-out. Admins set the default mode, lock it for staff, and invite staff by email.
 import { requireUser } from '../auth.js';
 import {
-  checkIn, getEvent, getMyRole, getRegistration, inviteStaff, listAttendance, listStaff, listStaffInvites, removeStaff,
+  checkIn, getEvent, getEventRole, getMyRole, getRegistration, inviteStaff, listAttendance, listStaff, listStaffInvites, removeStaff,
   setCheckInMode, withdrawInvite,
 } from '../data.js';
 import { openScanner } from '../scanner.js';
@@ -13,7 +13,7 @@ const user = await requireUser();
 const main = document.querySelector('main');
 const eventId = new URLSearchParams(location.search).get('id');
 let event = eventId ? await getEvent(eventId).catch(() => null) : null;
-const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : null;
+const role = event ? await getEventRole(event, eventId, user).catch(() => null) : null;
 
 if (!event || !role) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
@@ -23,6 +23,9 @@ if (!event || !role) {
 }
 
 const isAdmin = role === 'admin';
+// Check-in staff belong to the organisation, so only its own members see them and only its admins change them.
+const orgRole = await getMyRole(event.orgId, user.uid).catch(() => null);
+const orgAdmin = orgRole === 'admin';
 const q = `?id=${encodeURIComponent(eventId)}`;
 let mode = event.checkInMode === 'express' ? 'express' : 'standard';
 let staff = [], invites = [], attendance = [], addOpen = false;
@@ -30,8 +33,8 @@ let staff = [], invites = [], attendance = [], addOpen = false;
 async function load() {
   [attendance, staff, invites] = await Promise.all([
     listAttendance(eventId).catch(() => []),
-    listStaff(event.orgId).catch(() => []),
-    isAdmin ? listStaffInvites(event.orgId).catch(() => []) : [],
+    orgRole ? listStaff(event.orgId).catch(() => []) : [],
+    orgAdmin ? listStaffInvites(event.orgId).catch(() => []) : [],
   ]);
 }
 
@@ -55,7 +58,7 @@ function staffRows() {
   return `<div class="glass list-card">${rows.map((r) => `<div class="vol-row">
     ${avatarHtml({ uid: r.key, name: r.name }, { size: 40, href: null })}
     <span class="vol-text"><span class="vol-name ellipsis">${esc(r.name)}</span><span class="vol-line">${esc(r.line)}</span></span>
-    ${isAdmin ? `<button type="button" class="remove-btn" data-${r.action}="${esc(r.key)}" aria-label="Remove ${esc(r.name)}">${icon('close', 14, 2.4)}</button>` : ''}
+    ${orgAdmin ? `<button type="button" class="remove-btn" data-${r.action}="${esc(r.key)}" aria-label="Remove ${esc(r.name)}">${icon('close', 14, 2.4)}</button>` : ''}
   </div>`).join('')}</div>`;
 }
 
@@ -75,12 +78,12 @@ function render() {
     ${isAdmin ? `<div class="glass"><div class="lock-row"><span class="radio-text grow"><span class="radio-title">Lock for check-in staff</span>
       <span class="meta">Staff can scan but cannot change the scan mode</span></span>
       <button type="button" class="switch" role="switch" data-action="lock" aria-checked="${!!event.checkInLocked}" aria-label="Lock for check-in staff"></button></div></div>` : ''}
-    <div class="lbl-row"><span class="lbl">Check-in staff</span>
-      ${isAdmin ? `<button type="button" class="sec-link link-btn hit" data-action="add">${addOpen ? 'Close' : '+ Add staff'}</button>` : ''}</div>
+    ${orgRole ? `<div class="lbl-row"><span class="lbl">Check-in staff</span>
+      ${orgAdmin ? `<button type="button" class="sec-link link-btn hit" data-action="add">${addOpen ? 'Close' : '+ Add staff'}</button>` : ''}</div>
     ${addOpen ? `<form class="glass staff-add" id="staff-form">
       <input class="field-flat" type="email" name="email" aria-label="Staff email" placeholder="Email" required autocomplete="off">
       <button type="submit" class="approve-btn">Add</button></form>` : ''}
-    ${staffRows()}`;
+    ${staffRows()}` : ''}`;
 }
 
 // The scanner: reads a volunteer's personal code (TE1:<uid>, or TE1:<uid>:<eventId> for one event).

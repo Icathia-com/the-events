@@ -557,6 +557,26 @@ export async function getMyRole(orgId, uid) {
   return (await getDoc(doc(db, 'organisations', orgId, 'members', uid))).data()?.role || null;
 }
 
+// The user's role for one event: their organisation role, or else their host role on the event (Phase 2). A co-host
+// acts as an admin for that event only, and event staff as staff.
+export async function getEventRole(event, eventId, user) {
+  const email = user.email?.toLowerCase();
+  const [orgRole, host] = await Promise.all([
+    getMyRole(event.orgId, user.uid).catch(() => null),
+    email ? getDoc(doc(db, 'events', eventId, 'hosts', email)).then((s) => s.data()?.role || null).catch(() => null) : null,
+  ]);
+  return orgRole || (host === 'cohost' ? 'admin' : host);
+}
+
+// Event hosts (Phase 2): co-hosts and staff, one per email. Guest speakers and partner organisations are kept on the
+// event itself (speakers, partners), because they're shown on the event page.
+export async function listHosts(eventId) {
+  return allWithIds(await getDocs(collection(db, 'events', eventId, 'hosts')));
+}
+export const addHost = (eventId, email, role, by) =>
+  setDoc(doc(db, 'events', eventId, 'hosts', email), { email, role, addedBy: by, addedAt: serverTimestamp() });
+export const removeHost = (eventId, email) => deleteDoc(doc(db, 'events', eventId, 'hosts', email));
+
 // The organisations the user belongs to: [{ orgId, role, name }].
 export async function myMemberships(uid) {
   const snaps = await getDocs(query(collectionGroup(db, 'members'), where('uid', '==', uid)));

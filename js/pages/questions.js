@@ -1,14 +1,14 @@
 // Registration questions (design/Questions.dc.html), for the organisation's admins: the personal questions, each
 // Off, Optional or Required, and custom questions of the canvas's types.
 import { requireUser } from '../auth.js';
-import { getEvent, getMyRole, listQuestions, PERSONAL_QUESTIONS, QUESTION_TYPES, removeQuestion, setQuestion } from '../data.js';
+import { getEvent, getEventRole, listQuestions, PERSONAL_QUESTIONS, QUESTION_TYPES, removeQuestion, setQuestion } from '../data.js';
 import { dragScroll, esc, icon, openModal, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
 const eventId = new URLSearchParams(location.search).get('id');
 const event = eventId ? await getEvent(eventId).catch(() => null) : null;
-const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : null;
+const role = event ? await getEventRole(event, eventId, user).catch(() => null) : null;
 const q = `?id=${encodeURIComponent(eventId)}`;
 
 if (!event || role !== 'admin') {

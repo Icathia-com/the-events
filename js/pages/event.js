@@ -2,12 +2,12 @@
 import { requireUser } from '../auth.js';
 import {
   AGE_GROUPS, AREAS, approvalFor, audiencesFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent,
-  getExactVenue, getMyAttendance, getMyRegistration, getMyRole, getOrganisation, joinEvent, joinStatus, listAnnouncements, listGoing,
+  getEventRole, getExactVenue, getMyAttendance, getMyRegistration, getOrganisation, joinEvent, joinStatus, listAnnouncements, listGoing,
   listQuestions, questionLabel, syncHours, ticketFor, typeOpen, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import {
-  checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, markSeen, openModal,
+  avatarHtml, checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, markSeen, openModal,
   orgDotHtml, reveal, shortDay, toast,
 } from '../ui.js';
 
@@ -28,7 +28,7 @@ if (!event) {
 
 const [org, role] = await Promise.all([
   getOrganisation(event.orgId).catch(() => null),
-  getMyRole(event.orgId, user.uid).catch(() => null),
+  getEventRole(event, eventId, user).catch(() => null),
 ]);
 const isAdmin = role === 'admin';
 const follows = new Set(profile.follows || []);
@@ -294,7 +294,11 @@ function hostedBy() {
     <a class="host-link" href="${orgHref()}">${orgDotHtml(org || { name: orgName() })}
       <span class="host-text"><span class="host-name">${esc(orgName())}</span>${org?.tagline ? `<span class="meta">${esc(org.tagline)}</span>` : ''}</span></a>
     <button type="button" class="follow-btn hit" data-action="follow" aria-pressed="${on}" aria-label="${on ? 'Unfollow' : 'Follow'} ${esc(orgName())}">${on ? 'Following' : 'Follow'}</button>
-  </div></div>`;
+  </div>${(event.partners || []).map((p) => `<a class="glass host-card host-link" href="organisation.html?id=${encodeURIComponent(p.id)}">
+    ${orgDotHtml(p)}<span class="host-text"><span class="host-name">${esc(p.name)}</span><span class="meta">Partner organisation</span></span></a>`).join('')}
+  ${(event.speakers || []).length ? `<div class="glass host-card is-list">${event.speakers.map((s) => `<div class="host-row">
+    ${avatarHtml({ uid: s, name: s }, { size: 36, href: null })}<span class="host-text"><span class="host-name">${esc(s)}</span><span class="meta">Guest speaker</span></span></div>`).join('')}</div>` : ''}
+  </div>`;
 }
 
 function render() {

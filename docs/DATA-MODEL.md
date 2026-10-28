@@ -67,6 +67,10 @@ events/{eventId}
   waiting: { uid: { type, name } }      each waiting person's ticket type id and short name ("Aisha R.")
   movedUp, movedUpAt                    the last person moved up from the waiting list by a cancellation, and when
   announcedAt: { audience: timestamp }  when each audience last got an announcement (Phase 2, the unread dot)
+  speakers: [name]                      guest speakers, shown on the event page (Phase 2)
+  partners: [{ id, name, logoColors }]  partner organisations, shown on the event page (Phase 2)
+events/{eventId}/hosts/{email}          email, role ("cohost" | "staff"), addedBy, addedAt (Phase 2). A co-host has
+                                        admin powers for this event only; event staff check in and out
 events/{eventId}/announcements/{id}     text, audience ("going" | "waiting" | "attended"), by, byName, count,
                                         createdAt (Phase 2, in the app only; read only by that audience and the
                                         organisation's members)

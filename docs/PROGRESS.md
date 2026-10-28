@@ -138,6 +138,18 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
   - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
   - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice E (security): Hosts are kept per event, by email (`events/{id}/hosts/{email}`). The rules recognise a co-host or event staff member by their verified sign-in email, so nothing is claimed at sign-in (unlike organisation staff in slice 8).
+- Phase 2, slice E: What each host can do:
+  - A co-host has the organisation's admin powers for that one event: edit it (including Access and registration, questions, check-in options and cancelling), approve and decline, send announcements, and check in and out.
+  - A co-host can't change the hosts, see the organisation's staff, or see how many past events a volunteer has had with the organisation.
+  - Event staff check volunteers in and out and see the volunteer list, answers included. Slice C's "the organisation's admins and staff" is read as including staff added to the event, because they need the list to check people in.
+- Phase 2, slice E: The Hosts page:
+  - Co-hosts and staff aren't shown on the event page, because they're added by email and emails stay private. Only guest speakers (a name) and partner organisations are shown there. The canvas puts everyone under "Shown on the event page", so this page heads the list "Hosting this event" instead.
+  - People are added by email only; the canvas also offers a name or mobile number. A name is used only for guest speakers.
+  - Co-hosts and staff can switch between those two roles. A guest speaker can only be removed, since making an email host a speaker would show the email.
+  - Invite adds a partner organisation straight away ("Co-hosting · shown on the event page"), as on the canvas. The partner isn't asked, and its people get no access.
+  - Speakers and partners are stored on the event (`speakers`, `partners`).
+- Phase 2, slice E: Hosts aren't told they've been added, and the event doesn't appear on their Home. The organiser shares the event link. Notifications are Phase 3.
 - Phase 2, slice D: Announcements:
   - The audiences are Going; Going and waiting for approval (pending or on the waiting list); and Attended. The canvas's "Everyone invited" is left out until invitations exist (slice H).
   - Push notification, Email and SMS are shown with their switches off and a Soon tag. The summary reads "Goes to 9 volunteers in the app."
@@ -764,3 +776,39 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice E: Hosts.
+
+## 28 Oct 2026: Phase 2, slice E: Hosts
+
+**Done**
+- `hosts.html` from design/Hosts.dc.html, opened from Manage (the organisation's own admins only):
+  - The organisation as Organiser.
+  - Co-hosts and staff added by email, each with its role (tap to switch) and Remove.
+  - Guest speakers added by name.
+  - Each role's line from the canvas.
+  - Partner organisations, with Invite and Co-hosting.
+- Co-hosts get admin powers for that event only:
+  - The event page's admin view, Manage, Edit event, Access and registration, Registration questions, Announcements, the Volunteers list with Approve, Check-in and Check-out.
+  - Another of the organisation's events stays closed to them.
+- Event staff: Check-in, Check-out and the Volunteers list. The organisation's own check-in staff section and the volunteers' past-event counts stay with the organisation.
+- Event page: partner organisations and guest speakers appear under "Hosted by".
+- Rules:
+  - Hosts are read by the organisation, the event's hosts and the person themselves, and only the organisation's admins add or remove them.
+  - Every event rule that the organisation's admins or members pass now also passes for that event's co-hosts or staff, as fits the role.
+
+**Tested**
+- Rules tests: 143 of 143 pass (117 rules tests, 26 QR tests), run against the emulator. New tests:
+  - Admins add and remove hosts; co-hosts and volunteers can't.
+  - A co-host reads a draft event, edits it and approves on it, and is refused all three on another of the organisation's events.
+  - A co-host posts announcements and sets questions.
+  - Staff check in and read registrations, but can't edit or approve.
+  - Host powers need the verified email they were added under.
+  - A host reads their own host record, and other volunteers can't.
+- At 390 px against the emulators:
+  1. Mei Lin added Jun as co-host, Darren as staff, "Dr Tan Wei Ming" as guest speaker and Harvest Table SG as partner.
+  2. Jun saw Manage on the event, approved Hari, and opened Edit event, but was refused Manage on the past Yishun visit.
+  3. Darren opened Check-in, without the organisation's staff section, and was refused Access and registration.
+  4. Aisha saw Silver Companions, Harvest Table SG and Dr Tan Wei Ming under "Hosted by".
+- Found and fixed: the Volunteers list asked for the organisation's past-event counts as a co-host and got a 403. It now asks only as one of the organisation's admins. No console errors after the fix.
+
+**Next**
+- Slice F: Organisation applications.

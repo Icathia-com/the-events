@@ -3,7 +3,7 @@
 // the requests, so an admin can move them up.
 import { requireUser } from '../auth.js';
 import {
-  decideRegistration, getEvent, getMyRole, listAttendance, listQuestions, listRegistrations, markAttended, pastEventCounts,
+  decideRegistration, getEvent, getEventRole, getMyRole, listAttendance, listQuestions, listRegistrations, markAttended, pastEventCounts,
   questionLabel, ticketFor, unmarkAttended,
 } from '../data.js';
 import { avatarHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, openModal, reveal, shortDay, toast } from '../ui.js';
@@ -17,7 +17,7 @@ const user = await requireUser();
 const main = document.querySelector('main');
 const eventId = new URLSearchParams(location.search).get('id');
 let event = eventId ? await getEvent(eventId).catch(() => null) : null;
-const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : null;
+const role = event ? await getEventRole(event, eventId, user).catch(() => null) : null;
 
 if (!event || !role) {
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
@@ -27,6 +27,8 @@ if (!event || !role) {
 }
 
 const isAdmin = role === 'admin';
+// Past events with the organisation are counted for its own admins; an event's co-host can't see that history.
+const orgAdmin = isAdmin && (await getMyRole(event.orgId, user.uid).catch(() => null)) === 'admin';
 const q = `?id=${encodeURIComponent(eventId)}`;
 let people = [], past = {}, questions = [];
 let tab = 'going', search = '', searchOpen = false, byName = false;
@@ -36,7 +38,7 @@ async function load() {
   const [regs, attendance, pastCounts, fresh, qs] = await Promise.all([
     listRegistrations(eventId),
     listAttendance(eventId),
-    isAdmin ? pastEventCounts(event.orgId).catch(() => ({})) : {},
+    orgAdmin ? pastEventCounts(event.orgId).catch(() => ({})) : {},
     getEvent(eventId),
     listQuestions(eventId).catch(() => []),
   ]);
@@ -85,7 +87,7 @@ function line(p) {
   }
   if (attended(p)) return `Attended · ${hoursText(Number(p.att.hours) || 0)} added`;
   const n = past[p.uid] || 0;
-  return `Registered ${d.day} ${d.month.slice(0, 3)}${isAdmin ? (n ? ` · ${n} past ${n === 1 ? 'event' : 'events'}` : ' · first event') : ''}`;
+  return `Registered ${d.day} ${d.month.slice(0, 3)}${orgAdmin ? (n ? ` · ${n} past ${n === 1 ? 'event' : 'events'}` : ' · first event') : ''}`;
 }
 
 function actions(p) {

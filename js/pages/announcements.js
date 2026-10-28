@@ -1,14 +1,14 @@
 // Announcements (design/Blasts.dc.html), for the organisation's admins. In Phase 2 they reach volunteers in the app
 // only, on the event page; push, email and SMS are shown as Soon.
 import { requireUser } from '../auth.js';
-import { AUDIENCES, ensureUserDoc, getEvent, getMyRole, listAnnouncements, postAnnouncement } from '../data.js';
+import { AUDIENCES, ensureUserDoc, getEvent, getEventRole, listAnnouncements, postAnnouncement } from '../data.js';
 import { dragScroll, esc, fmtTime, icon, reveal, shortDay, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
 const eventId = new URLSearchParams(location.search).get('id');
 let event = eventId ? await getEvent(eventId).catch(() => null) : null;
-const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : null;
+const role = event ? await getEventRole(event, eventId, user).catch(() => null) : null;
 const q = `?id=${encodeURIComponent(eventId)}`;
 
 if (!event || role !== 'admin') {

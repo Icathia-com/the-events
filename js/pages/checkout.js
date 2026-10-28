@@ -2,7 +2,7 @@
 // check-ins by hand, and hours claims. The code stays the same for the event in Phase 1; it rotates from Phase 3.
 // Letter requests are Phase 3, so they aren't shown.
 import { requireUser } from '../auth.js';
-import { declineClaim, getCodes, getEvent, getMyRole, listAttendance, markAttended } from '../data.js';
+import { declineClaim, getCodes, getEvent, getEventRole, listAttendance, markAttended } from '../data.js';
 import { qrSvg } from '../qr.js';
 import { avatarHtml, dragScroll, esc, fmtTime, hoursText, icon, reveal, shortDay, toast } from '../ui.js';
 
@@ -10,7 +10,7 @@ const user = await requireUser();
 const main = document.querySelector('main');
 const eventId = new URLSearchParams(location.search).get('id');
 let event = eventId ? await getEvent(eventId).catch(() => null) : null;
-const role = event ? await getMyRole(event.orgId, user.uid).catch(() => null) : null;
+const role = event ? await getEventRole(event, eventId, user).catch(() => null) : null;
 const codes = role ? await getCodes(eventId).catch(() => null) : null;
 
 if (!event || !role || !codes) {

@@ -2,7 +2,7 @@
 // Photo covers need Cloud Storage (Phase 2), so covers are a colour gradient for now. "Notify followers" is
 // stored; notifications are sent from Phase 3.
 import { requireUser } from '../auth.js';
-import { AREAS, CAUSES, createEvent, getEvent, getMyRole, getOrganisation, myMemberships, updateEvent } from '../data.js';
+import { AREAS, CAUSES, createEvent, getEvent, getEventRole, getOrganisation, myMemberships, updateEvent } from '../data.js';
 import { Timestamp } from '../firebase.js';
 import { addDays, coverHtml, coverLabel, dayStart, dragScroll, esc, icon, orgDotHtml, reveal, toast, TZ, zonedDate, zonedParts } from '../ui.js';
 
@@ -18,7 +18,7 @@ const editId = new URLSearchParams(location.search).get('id');
 let org = null, existing = null;
 if (editId) {
   existing = await getEvent(editId).catch(() => null);
-  if (existing && (await getMyRole(existing.orgId, user.uid).catch(() => null)) === 'admin') {
+  if (existing && (await getEventRole(existing, editId, user).catch(() => null)) === 'admin') {
     org = await getOrganisation(existing.orgId).catch(() => null);
   }
 } else {

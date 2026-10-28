@@ -59,6 +59,25 @@ service cloud.firestore {
       return isMember(orgId) && get(myMemberPath(orgId)).data.role == 'admin';
     }
 
+    // Event hosts (Phase 2): people added to one event by email, as co-host or staff. A co-host has the
+    // organisation's admin powers for that event only; event staff check volunteers in and out and see the list.
+    function hostPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId)/hosts/$(request.auth.token.email);
+    }
+
+    function hostRole(eventId) {
+      return signedIn() && request.auth.token.get('email', null) is string
+          && request.auth.token.get('email_verified', false) == true && exists(hostPath(eventId))
+        ? get(hostPath(eventId)).data.role : 'none';
+    }
+
+    function isEventAdmin(eventId, orgId) {
+      return isOrgAdmin(orgId) || hostRole(eventId) == 'cohost';
+    }
+
+    function isEventMember(eventId, orgId) {
+      return isMember(orgId) || hostRole(eventId) in ['cohost', 'staff'];
+    }
     function followsOrg(orgId) {
       return signedIn() && exists(myUserPath()) && orgId in get(myUserPath()).data.get('follows', []);
     }
@@ -396,11 +415,13 @@ service cloud.firestore {
             || (e.registration.capacity is int && e.registration.capacity > 0 && e.registration.capacity <= 10000))
         && e.cover.colors is list && e.cover.colors.size() == 2 && e.cover.label is string && e.cover.label.size() <= 40
         && e.ticketTypes is list && e.ticketTypes.size() <= 10
-        && (!('notifyFollowers' in e) || e.notifyFollowers is bool);
+        && (!('notifyFollowers' in e) || e.notifyFollowers is bool)
+        && (!('speakers' in e) || (e.speakers is list && e.speakers.size() <= 20))
+        && (!('partners' in e) || (e.partners is list && e.partners.size() <= 10));
     }
 
     match /events/{eventId} {
-      allow read: if canSee(resource.data);
+      allow read: if canSee(resource.data) || isEventMember(eventId, resource.data.orgId);
 
       // The organisation's admins create its events: scheduled, nobody registered yet, under its real name.
       allow create: if isOrgAdmin(request.resource.data.orgId)
@@ -417,10 +438,10 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time;
 
       // ...and edit them. The organisation and the counts can't change, and a cancelled event stays cancelled.
-      allow update: if isOrgAdmin(resource.data.orgId)
+      allow update: if isEventAdmin(eventId, resource.data.orgId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'cause', 'area',
              'venue', 'meetingPoint', 'bring', 'startAt', 'endAt', 'hours', 'cover', 'visibility', 'status',
-             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'announcedAt', 'updatedAt'])
+             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'announcedAt', 'speakers', 'partners', 'updatedAt'])
         && (request.resource.data.status == resource.data.status
             || (resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled'))
         && validEvent(request.resource.data)
@@ -433,7 +454,7 @@ service cloud.firestore {
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['counts', 'countsBy', 'typeCounts', 'waitingList', 'waiting', 'movedUp', 'movedUpAt'])
-        && (request.resource.data.countsBy == request.auth.uid || isMember(resource.data.orgId))
+        && (request.resource.data.countsBy == request.auth.uid || isEventMember(eventId, resource.data.orgId))
         && (request.resource.data.get('movedUpAt', null) == request.time
           ? request.resource.data.countsBy == request.auth.uid && movesUp(resource.data, request.resource.data, eventId)
           : oneChange(resource.data, request.resource.data, eventId, request.resource.data.countsBy));
@@ -452,8 +473,21 @@ service cloud.firestore {
             && q.updatedAt == request.time;
         }
 
-        allow read: if canSee(get(eventPath(eventId)).data);
-        allow create, update: if isOrgAdmin(get(eventPath(eventId)).data.orgId) && validQuestion(request.resource.data);
+        allow read: if canSee(get(eventPath(eventId)).data) || isEventMember(eventId, get(eventPath(eventId)).data.orgId);
+        allow create, update: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId) && validQuestion(request.resource.data);
+        allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+      }
+
+      // Hosts (Phase 2), one per email: co-hosts and event staff. The organisation's admins add and remove them;
+      // the organisation, the event's hosts and the person themselves read them.
+      match /hosts/{email} {
+        allow read: if isEventMember(eventId, get(eventPath(eventId)).data.orgId)
+          || (signedIn() && request.auth.token.get('email', null) == email);
+        allow create, update: if isOrgAdmin(get(eventPath(eventId)).data.orgId)
+          && request.resource.data.keys().hasOnly(['email', 'role', 'addedBy', 'addedAt'])
+          && request.resource.data.email == email && email.matches('[^@ ]+@[^@ ]+')
+          && request.resource.data.role in ['cohost', 'staff']
+          && request.resource.data.addedBy == request.auth.uid && request.resource.data.addedAt == request.time;
         allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
       }
 
@@ -467,8 +501,8 @@ service cloud.firestore {
             : audience == 'attended' && attendanceBefore(eventId, request.auth.uid) == 'confirmed';
         }
 
-        allow read: if isMember(get(eventPath(eventId)).data.orgId) || (signedIn() && inAudience(resource.data.audience));
-        allow create: if isOrgAdmin(get(eventPath(eventId)).data.orgId)
+        allow read: if isEventMember(eventId, get(eventPath(eventId)).data.orgId) || (signedIn() && inAudience(resource.data.audience));
+        allow create: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
           && request.resource.data.keys().hasOnly(['text', 'audience', 'by', 'byName', 'count', 'createdAt'])
           && (!('count' in request.resource.data) || (request.resource.data.count is int && request.resource.data.count >= 0))
           && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
@@ -476,13 +510,13 @@ service cloud.firestore {
           && request.resource.data.by == request.auth.uid
           && request.resource.data.byName is string && request.resource.data.byName.size() <= 100
           && request.resource.data.createdAt == request.time;
-        allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
+        allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
       }
 
       // A registration, with its answers to the questions, is read only by the volunteer and the organisation's
       // admins and staff.
       match /registrations/{uid} {
-        allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId);
+        allow read: if isSelf(uid) || isEventMember(eventId, get(eventPath(eventId)).data.orgId);
 
         // Joining, or joining again after cancelling. The event decides the status, and the counts and the
         // who's-going entry change in the same write.
@@ -536,7 +570,7 @@ service cloud.firestore {
         function decisionAllowed() {
           let e = get(eventPath(eventId)).data;
           let r = request.resource.data;
-          return isOrgAdmin(e.orgId)
+          return isEventAdmin(eventId, e.orgId)
             && resource.data.status in ['pending', 'waitlist', 'going']
             && r.status in ['going', 'declined', 'waitlist'] && r.status != resource.data.status
             && r.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt', 'decidedBy', 'updatedAt'])
@@ -563,14 +597,14 @@ service cloud.firestore {
       // volunteer, by an admin approving them, or by the cancelling volunteer whose write moves them up.
       match /going/{uid} {
         allow read: if canSee(get(eventPath(eventId)).data);
-        allow create: if (isSelf(uid) || isOrgAdmin(get(eventPath(eventId)).data.orgId)
+        allow create: if (isSelf(uid) || isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
             || (getAfter(eventPath(eventId)).data.get('movedUp', null) == uid
               && getAfter(eventPath(eventId)).data.get('movedUpAt', null) == request.time))
           && statusAfter(eventId, uid) == 'going'
           && request.resource.data.keys().hasOnly(['name', 'since'])
           && request.resource.data.name is string && request.resource.data.name.size() <= 40
           && request.resource.data.since == request.time;
-        allow delete: if (isSelf(uid) || isOrgAdmin(get(eventPath(eventId)).data.orgId))
+        allow delete: if (isSelf(uid) || isEventAdmin(eventId, get(eventPath(eventId)).data.orgId))
           && statusAfter(eventId, uid) != 'going';
       }
 
@@ -593,14 +627,14 @@ service cloud.firestore {
             == get(eventPath(eventId)).data.counts.attended + step('confirmed', attendanceBefore(eventId, uid), attendanceAfter(eventId, uid));
         }
 
-        allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId);
+        allow read: if isSelf(uid) || isEventMember(eventId, get(eventPath(eventId)).data.orgId);
 
-        allow create, update: if isMember(get(eventPath(eventId)).data.orgId)
+        allow create, update: if isEventMember(eventId, get(eventPath(eventId)).data.orgId)
           && statusBefore(eventId, uid) == 'going'
           && validAttendance(request.resource.data)
           && attendedMoves();
 
-        allow delete: if isMember(get(eventPath(eventId)).data.orgId) && attendedMoves();
+        allow delete: if isEventMember(eventId, get(eventPath(eventId)).data.orgId) && attendedMoves();
 
         function checkOutCode() {
           return get(/databases/$(database)/documents/events/$(eventId)/private/codes).data.checkOut;
@@ -678,7 +712,7 @@ service cloud.firestore {
 
       // Check-in and check-out codes for the organisation; the exact venue also for approved volunteers.
       match /private/{docId} {
-        allow read: if isMember(get(eventPath(eventId)).data.orgId)
+        allow read: if isEventMember(eventId, get(eventPath(eventId)).data.orgId)
           || (docId == 'location' && statusBefore(eventId, request.auth.uid) == 'going');
 
         // The codes are made with the event, by the admin creating it.

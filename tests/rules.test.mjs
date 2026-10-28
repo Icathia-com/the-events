@@ -1124,3 +1124,81 @@ describe('announcements', () => {
     await assertFails(getDocs(collection(dbAs('alice'), 'events/e-a/announcements')));
   });
 });
+
+describe('event hosts', () => {
+  const later = new Date(Date.now() + 7 * 86400e3);
+  const st = serverTimestamp;
+  const as = (uid, email, verified = true) => testEnv.authenticatedContext(uid, { email, email_verified: verified }).firestore();
+  const kim = () => as('kim', 'kim@example.com');
+  const sid = () => as('sid', 'sid@example.com');
+  const event = (over = {}) => ({
+    orgId: 'open', orgName: 'Open Org', title: 'Pantry restock', description: '', cause: 'food', area: 'central', venue: 'Hall',
+    meetingPoint: '', bring: '', startAt: new Date(Date.now() + 6 * 86400e3), endAt: later, hours: 2, visibility: 'draft',
+    status: 'scheduled', registration: { open: true, approval: true, capacity: 10, waitlist: true, group: false },
+    cover: { colors: ['#111111', '#222222'], label: 'PANTRY' }, ticketTypes: [], counts: { going: 1, pending: 1, waitlist: 0, attended: 0 }, ...over,
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'events/e-h': event(),
+      'events/e-other': event(),
+      'events/e-h/hosts/kim@example.com': { email: 'kim@example.com', role: 'cohost', addedBy: 'mei' },
+      'events/e-h/hosts/sid@example.com': { email: 'sid@example.com', role: 'staff', addedBy: 'mei' },
+      'events/e-h/registrations/alice': { uid: 'alice', name: 'Alice A.', status: 'pending' },
+      'events/e-h/registrations/bob': { uid: 'bob', name: 'Bob B.', status: 'going' },
+      'events/e-other/registrations/alice': { uid: 'alice', name: 'Alice A.', status: 'pending' },
+    });
+  });
+
+  const approve = (db, eventId, by = 'kim') => {
+    const batch = writeBatch(db);
+    batch.update(doc(db, `events/${eventId}`), { counts: { going: 2, pending: 0, waitlist: 0, attended: 0 }, countsBy: 'alice' });
+    batch.update(doc(db, `events/${eventId}/registrations/alice`), { status: 'going', decidedAt: st(), decidedBy: by, updatedAt: st() });
+    batch.set(doc(db, `events/${eventId}/going/alice`), { name: 'Alice A.', since: st() });
+    return batch.commit();
+  };
+  const checkIn = (db) => setDoc(doc(db, 'events/e-h/attendance/bob'), {
+    uid: 'bob', name: 'Bob B.', status: 'checked_in', hours: 2, checkedInAt: st(), checkedInBy: 'sid', updatedAt: st(),
+  });
+
+  it('the organisation\'s admins add and remove hosts; hosts and volunteers cannot', async () => {
+    const add = (db) => setDoc(doc(db, 'events/e-h/hosts/lee@example.com'), { email: 'lee@example.com', role: 'cohost', addedBy: 'mei', addedAt: st() });
+    await assertSucceeds(add(dbAs('mei')));
+    await assertFails(add(kim()));
+    await assertFails(add(dbAs('alice')));
+    await assertFails(deleteDoc(doc(kim(), 'events/e-h/hosts/sid@example.com')));
+    await assertSucceeds(deleteDoc(doc(dbAs('mei'), 'events/e-h/hosts/sid@example.com')));
+  });
+
+  it('a co-host reads, edits and approves for their event only', async () => {
+    await assertSucceeds(getDoc(doc(kim(), 'events/e-h')));
+    await assertSucceeds(updateDoc(doc(kim(), 'events/e-h'), { title: 'Pantry restock and sort', updatedAt: st() }));
+    await assertSucceeds(approve(kim(), 'e-h'));
+    await assertFails(getDoc(doc(kim(), 'events/e-other')));
+    await assertFails(updateDoc(doc(kim(), 'events/e-other'), { title: 'Taken over', updatedAt: st() }));
+    await assertFails(approve(kim(), 'e-other'));
+  });
+
+  it('a co-host posts announcements and sets questions for their event', async () => {
+    await assertSucceeds(setDoc(doc(kim(), 'events/e-h/announcements/n1'), { text: 'See you there.', audience: 'going', by: 'kim', byName: 'Kim', createdAt: st() }));
+    await assertSucceeds(setDoc(doc(kim(), 'events/e-h/questions/mobile'), { type: 'mobile', required: true, order: 0, updatedAt: st() }));
+  });
+
+  it('event staff check volunteers in and read the list, but cannot edit or approve', async () => {
+    await assertSucceeds(checkIn(sid()));
+    await assertSucceeds(getDoc(doc(sid(), 'events/e-h/registrations/alice')));
+    await assertFails(updateDoc(doc(sid(), 'events/e-h'), { title: 'Changed', updatedAt: st() }));
+    await assertFails(approve(sid(), 'e-h', 'sid'));
+  });
+
+  it('host powers need the verified email they were added under', async () => {
+    await assertFails(checkIn(as('sid', 'sid@example.com', false)));
+    await assertFails(checkIn(as('sid2', 'other@example.com')));
+  });
+
+  it('a host reads their own host record; other volunteers cannot', async () => {
+    await assertSucceeds(getDoc(doc(sid(), 'events/e-h/hosts/sid@example.com')));
+    await assertFails(getDoc(doc(as('lee', 'lee@example.com'), 'events/e-h/hosts/sid@example.com')));
+  });
+});
