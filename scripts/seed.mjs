@@ -215,6 +215,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     });
   }
   put(`organisations/silver/members/${uidOf('meilin')}`, { uid: uidOf('meilin'), role: 'admin', name: 'Mei Lin Tan', addedAt: daysAgo(200) });
+  // A sample admin for a second organisation, who can accept an invitation to partner on a Silver Companions event.
+  put(`organisations/harvest/members/${uidOf('hari')}`, { uid: uidOf('hari'), role: 'admin', name: 'Hari Subramaniam', addedAt: daysAgo(120) });
 
   for (const [id, day, start, end, title, org, area, cause, capacity, approval, label, venue, meetingPoint, bring, description] of EVENTS) {
     const regs = REGISTRATIONS[id];
@@ -319,4 +321,4 @@ console.log('Sample data loaded into the emulator (Firestore was cleared first):
 for (const [what, count] of Object.entries(written)) console.log(`  ${what}: ${count}`);
 console.log(`  sign-in accounts: ${PEOPLE.length - existing} created, ${existing} already there`);
 console.log('Mei Lin Tan (Silver Companions admin) signs in as mei.lin.tan@example.com; volunteers as e.g. aisha.rahman@example.com;');
-console.log('the sample network admin as network.admin@example.com.');
+console.log('Hari Subramaniam (Harvest Table SG admin) as hari.subramaniam@example.com; the sample network admin as network.admin@example.com.');

@@ -169,7 +169,8 @@ export const orgLogoHtml = (org, size = 42, round = false) =>
 export function spotsChip(event) {
   const capacity = event.registration?.capacity;
   if (!capacity) return '';
-  const left = Math.max(0, capacity - (event.counts?.going || 0));
+  // Spots held back for reserved-spot codes (event.reserved) aren't open to everyone.
+  const left = Math.max(0, capacity - (event.counts?.going || 0) - (event.reserved || 0));
   if (left === 0) return '<span class="chip chip-muted">Full</span>';
   if (left <= 3) return `<span class="chip chip-wait">Almost full · ${left} left</span>`;
   return `<span class="chip chip-ok">${left} spots left</span>`;

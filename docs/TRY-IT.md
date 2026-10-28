@@ -34,6 +34,7 @@ Sample people (all made up):
 - Mei Lin Tan, admin of Silver Companions: `mei.lin.tan@example.com`
 - Volunteers: `aisha.rahman`, `ben.tan`, `chloe.lim`, `darren.koh`, `esther.ng`, `farid.aziz`, `grace.ong`, `hari.subramaniam`, `ivy.chen` and `jun.wei`, each followed by `@example.com`
 - The sample network admin, who reviews applications to join: `network.admin@example.com`
+- Hari Subramaniam is also the sample admin of Harvest Table SG, who can accept an invitation to partner on an event: `hari.subramaniam@example.com`
 
 To be two people at once, for example Mei Lin and a volunteer, use a normal window for one and an InPrivate window (Ctrl+Shift+N) for the other.
 
@@ -66,14 +67,17 @@ Jun (`jun.wei@example.com`) starts with no registrations, so he's a good one to 
   - Here she sets visibility, accepting registrations, volunteer spots and the waiting list, and ticket types.
   - Each ticket type has its own price (free, or paid on site), approval, spots and registration dates.
   - To see the waiting list move: set the Yishun visit to 7 spots, so it's full. Jun joins the waiting list, choosing a ticket type if there's more than one. When Aisha cancels, Jun moves up.
-- **Vouchers and access codes**: Manage, then Vouchers and access codes. Make a code (letters and digits) for reserved spots, skipping approval, unlocking a hidden event, or a discount on the on-site fee, with a use limit and an expiry date.
+- **Vouchers and access codes**: Manage, then Vouchers and access codes. Make a code for reserved spots, skipping approval, unlocking a hidden event, or a discount on the on-site fee, with a use limit and an expiry date.
+  - Each new code starts with a suggested 8-character code. You can type your own instead, of at least 6 letters or digits.
   - Volunteers enter it with "Have a code?" on the event page.
+  - Reserved spots come out of the event's own spots. On the Yishun visit (10 spots, 7 going), a code for 2 spots leaves 1 for everyone else, and Access and registration shows how many are held. Someone with the code can still register. Deleting the code gives back the spots nobody took.
   - For a followers-only or draft event, a volunteer who can't see it types the access code on the "This event isn't available" page.
 - **Registration questions**: Manage, then Registration questions. Tap Mobile number, Emergency contact or Age group to switch it between Off, Optional and Required, or add your own questions. Volunteers answer them in a sheet when they register. Mei Lin sees the answers when she taps a volunteer in the Volunteers list.
 - **Announcements**: Manage, then Announcements, or Message on the event page. Write a message, choose who gets it, and send. Volunteers in that group see it on the event page. Until they've seen it, their Home card for the event has a dot. Aisha starts with one from the sample data.
 - **Hosts**: Manage, then Hosts.
   - Add a co-host or staff member by email, for example `jun.wei@example.com` as co-host. When Jun signs in and opens the event's link, he can manage that event, but no other.
-  - Guest speakers (a name) and partner organisations appear under "Hosted by" on the event page.
+  - Guest speakers (a name) appear under "Hosted by" on the event page.
+  - A partner organisation appears there only once it accepts. For example, Mei Lin taps Invite next to Harvest Table SG. Hari (`hari.subramaniam@example.com`) opens Harvest Table SG's organisation page and accepts under Partner invitations.
 - **Invite volunteers**: Manage, then Invite volunteers, or Invite on the event page.
   - Choose past volunteers, or a past event to invite everyone who attended it.
   - Invited volunteers see an "Invited" card in "Your events" on Home. They're listed under Volunteers, Invited.

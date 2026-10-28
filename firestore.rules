@@ -263,6 +263,11 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // Lets an organisation find the events it's invited to partner on (a collection group query on its id).
+    match /{path=**}/partners/{partnerId} {
+      allow read: if isMember(resource.data.orgId);
+    }
+
     // Lets an invited person find their staff invitations (a collection group query on their own email).
     match /{path=**}/staffInvites/{email} {
       allow read: if signedIn() && request.auth.token.email_verified == true && resource.data.email == request.auth.token.email.lower();
@@ -353,13 +358,14 @@ service cloud.firestore {
     }
 
     // What joining gives: the waiting list when full, or while people are waiting (if it has one); pending when the
-    // ticket type (or, without types, the event) needs approval; otherwise going.
+    // ticket type (or, without types, the event) needs approval; otherwise going. The spots held back for
+    // reserved-spot codes (reserved) are not open to everyone else.
     function joinStatus(e, t) {
       return joinStatusWith(e, t, approvalFor(e, t));
     }
 
     function joinStatusWith(e, t, approval) {
-      return (e.registration.capacity != null && e.counts.going >= e.registration.capacity)
+      return (e.registration.capacity != null && e.counts.going + e.get('reserved', 0) >= e.registration.capacity)
           || (e.registration.waitlist == true && e.get('waitingList', []).size() > 0)
         ? (e.registration.waitlist == true && !typeFull(e, t) ? 'waitlist' : 'full')
         : (typeFull(e, t) ? 'full' : (approval ? 'pending' : 'going'));
@@ -375,10 +381,22 @@ service cloud.firestore {
       return signedIn() && exists(/databases/$(database)/documents/events/$(eventId)/unlocks/$(request.auth.uid));
     }
 
-    // What joining gives with a code: a reserved spot is going, even past the event's spots; skip approval is
-    // joining without approval; a discount or an unlock leaves it as it is.
+    // What joining gives with a code: a reserved-spot code takes one of the spots held back for codes, going straight
+    // away while the event (and the ticket type) has a spot; skip approval is joining without approval; a discount or
+    // an unlock leaves it as it is.
     function codeStatus(e, t, kind) {
-      return kind == 'reserve' ? 'going' : kind == 'skip' ? joinStatusWith(e, t, false) : joinStatus(e, t);
+      return kind == 'reserve'
+        ? ((e.registration.capacity != null && e.counts.going >= e.registration.capacity) || typeFull(e, t) ? 'full' : 'going')
+        : kind == 'skip' ? joinStatusWith(e, t, false) : joinStatus(e, t);
+    }
+
+    // A registration that takes a reserved spot (marked reserved) takes it from the spots held back for codes, in the
+    // write that registers with the code; nothing else moves them.
+    function reservedFollows(old, next, eventId, p) {
+      let held = old.get('reserved', 0);
+      let r = existsAfter(regPath(eventId, p)) ? getAfter(regPath(eventId, p)).data : {};
+      let took = r.get('status', 'none') == 'going' && r.get('reserved', false) == true && r.get('registeredAt', null) == request.time;
+      return next.get('reserved', 0) == (took && held > 0 ? held - 1 : held);
     }
 
     function typeOfReg(eventId, uid) {
@@ -421,6 +439,7 @@ service cloud.firestore {
       return countsFollow(old.counts, next.counts, eventId, p)
         && typeCountsMove(old, next, typeOfReg(eventId, p), step('going', before, after), null, 0)
         && waitingFollows(old, next, eventId, p, before, after)
+        && reservedFollows(old, next, eventId, p)
         && next.get('movedUp', null) == old.get('movedUp', null)
         && next.get('movedUpAt', null) == old.get('movedUpAt', null);
     }
@@ -444,6 +463,7 @@ service cloud.firestore {
         && next.counts.pending == old.counts.pending + (bAfter == 'pending' ? 1 : 0)
         && next.counts.waitlist == old.counts.waitlist - 1
         && next.counts.attended == old.counts.attended
+        && next.get('reserved', 0) == old.get('reserved', 0)
         && typeCountsMove(old, next, typeOfReg(eventId, a), -1, typeOfReg(eventId, b), up);
     }
 
@@ -472,8 +492,7 @@ service cloud.firestore {
         && e.cover.colors is list && e.cover.colors.size() == 2 && e.cover.label is string && e.cover.label.size() <= 40
         && e.ticketTypes is list && e.ticketTypes.size() <= 10
         && (!('notifyFollowers' in e) || e.notifyFollowers is bool)
-        && (!('speakers' in e) || (e.speakers is list && e.speakers.size() <= 20))
-        && (!('partners' in e) || (e.partners is list && e.partners.size() <= 10));
+        && (!('speakers' in e) || (e.speakers is list && e.speakers.size() <= 20));
     }
 
     match /events/{eventId} {
@@ -498,10 +517,17 @@ service cloud.firestore {
       allow update: if isEventAdmin(eventId, resource.data.orgId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'cause', 'area',
              'venue', 'meetingPoint', 'bring', 'startAt', 'endAt', 'hours', 'cover', 'visibility', 'status',
-             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'announcedAt', 'speakers', 'partners', 'updatedAt'])
+             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'announcedAt', 'speakers', 'updatedAt'])
         && (request.resource.data.status == resource.data.status
             || (resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled'))
         && validEvent(request.resource.data)
+        && request.resource.data.updatedAt == request.time;
+
+      // The spots held back for reserved-spot codes (reserved) go up when an admin makes a code and down by its unused
+      // spots when they delete it, in the same write (see codes), and down by one with each registration that takes one.
+      allow update: if isEventAdmin(eventId, resource.data.orgId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reserved', 'updatedAt'])
+        && request.resource.data.reserved is int && request.resource.data.reserved >= 0
         && request.resource.data.updatedAt == request.time;
 
       // The counts, the ticket type counts and the waiting list move only with one person's registration or
@@ -510,7 +536,7 @@ service cloud.firestore {
       // person on the waiting list up (movedUp, movedUpAt), and then everything follows both changes.
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['counts', 'countsBy', 'typeCounts', 'waitingList', 'waiting', 'movedUp', 'movedUpAt'])
+             .hasOnly(['counts', 'countsBy', 'typeCounts', 'waitingList', 'waiting', 'reserved', 'movedUp', 'movedUpAt'])
         && (request.resource.data.countsBy == request.auth.uid || isEventMember(eventId, resource.data.orgId))
         && (request.resource.data.get('movedUpAt', null) == request.time
           ? request.resource.data.countsBy == request.auth.uid && movesUp(resource.data, request.resource.data, eventId)
@@ -535,21 +561,33 @@ service cloud.firestore {
         allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
       }
 
-      // The codes themselves: only the event's admins read, make and delete them. A volunteer's write can only add
-      // one use, while the code has uses left and hasn't expired, and only when the same write presents it on their
-      // registration (joining with it) or their unlock.
+      // The codes themselves: only the event's admins read, make and delete them. A code is 6 to 20 letters or digits.
+      // A reserved-spot code holds back as many of the event's spots as it has uses, until it's deleted. A volunteer's
+      // write can only add one use, while the code has uses left and hasn't expired, and only when the same write
+      // presents it on their registration (joining with it) or their unlock.
       match /codes/{codeId} {
+        function held() {
+          return get(eventPath(eventId)).data.get('reserved', 0);
+        }
+
+        function heldAfter() {
+          return getAfter(eventPath(eventId)).data.get('reserved', 0);
+        }
+
         allow read: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
         allow create: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
-          && codeId.matches('[A-Z0-9]{3,20}')
+          && codeId.matches('[A-Z0-9]{6,20}')
           && request.resource.data.keys().hasOnly(['kind', 'amount', 'uses', 'used', 'expiresAt', 'createdBy', 'createdAt'])
           && request.resource.data.kind in ['reserve', 'skip', 'unlock', 'discount']
           && request.resource.data.used == 0
           && (request.resource.data.uses == null || (request.resource.data.uses is int && request.resource.data.uses >= 1))
+          && (request.resource.data.kind != 'reserve' || (request.resource.data.uses is int && heldAfter() == held() + request.resource.data.uses))
           && (request.resource.data.kind != 'discount' || (request.resource.data.amount is number && request.resource.data.amount > 0))
           && (request.resource.data.expiresAt == null || request.resource.data.expiresAt is timestamp)
           && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
-        allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+        allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
+          && (resource.data.kind != 'reserve' || !(resource.data.uses is int)
+            || heldAfter() == (held() > resource.data.uses - resource.data.used ? held() - (resource.data.uses - resource.data.used) : 0));
         allow update: if signedIn()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used'])
           && request.resource.data.used == resource.data.used + 1
@@ -614,6 +652,33 @@ service cloud.firestore {
         allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
       }
 
+      // Partner organisations (Phase 2), one per organisation: the event's organisation invites an approved
+      // organisation, and it's shown on the event page only once an admin of that organisation accepts. The invitation
+      // carries the event's title, organisation and time, for the partner organisation's page.
+      match /partners/{partnerId} {
+        function partnerOrg() {
+          return get(/databases/$(database)/documents/organisations/$(partnerId)).data;
+        }
+
+        allow read: if isEventMember(eventId, get(eventPath(eventId)).data.orgId) || isMember(partnerId)
+          || (resource.data.status == 'accepted' && (canSee(get(eventPath(eventId)).data) || unlocked(eventId)));
+        allow create, update: if isOrgAdmin(get(eventPath(eventId)).data.orgId)
+          && partnerId != get(eventPath(eventId)).data.orgId
+          && request.resource.data.keys().hasOnly(['orgId', 'name', 'logoColors', 'status', 'eventTitle', 'hostName', 'startAt', 'invitedBy', 'invitedAt'])
+          && request.resource.data.orgId == partnerId && request.resource.data.status == 'invited'
+          && partnerOrg().status == 'approved'
+          && request.resource.data.name == partnerOrg().name && request.resource.data.logoColors == partnerOrg().logoColors
+          && request.resource.data.eventTitle == get(eventPath(eventId)).data.title
+          && request.resource.data.hostName == get(eventPath(eventId)).data.orgName
+          && request.resource.data.startAt == get(eventPath(eventId)).data.startAt
+          && request.resource.data.invitedBy == request.auth.uid && request.resource.data.invitedAt == request.time;
+        allow update: if isOrgAdmin(partnerId) && resource.data.status == 'invited'
+          && request.resource.data.status in ['accepted', 'declined']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedBy', 'decidedAt'])
+          && request.resource.data.decidedBy == request.auth.uid && request.resource.data.decidedAt == request.time;
+        allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
+      }
+
       // Announcements (Phase 2, in the app only): the event's admins write them for one audience, and only that
       // audience reads them: going; going and waiting (pending or on the waiting list); or attended.
       match /announcements/{announcementId} {
@@ -654,6 +719,7 @@ service cloud.firestore {
           return (canSee(e) || open) && openForJoining(e, open) && status != 'full'
             && (c == null || getAfter(codePath(eventId, code)).data.used == c.used + 1)
             && (!('discount' in r) || (c != null && c.kind == 'discount' && r.discount == c.amount))
+            && r.get('reserved', false) == (c != null && c.kind == 'reserve')
             && (!('source' in r) || r.source in ['home', 'discover', 'organisation', 'invite', 'link'])
             && (e.get('ticketTypes', []).size() == 0 ? r.ticketTypeId == null : t != null) && typeOpen(t)
             && r.status == status && r.uid == uid
@@ -709,13 +775,13 @@ service cloud.firestore {
         }
 
         allow create: if isSelf(uid)
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'code', 'discount', 'source', 'registeredAt', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'code', 'discount', 'reserved', 'source', 'registeredAt', 'createdAt', 'updatedAt'])
           && request.resource.data.createdAt == request.time
           && joinAllowed('none');
 
         allow update: if (isSelf(uid) && (
             (resource.data.status == 'cancelled'
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'code', 'discount', 'source', 'registeredAt', 'updatedAt'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'code', 'discount', 'reserved', 'source', 'registeredAt', 'updatedAt'])
               && joinAllowed('cancelled'))
             || cancelAllowed()))
           || decisionAllowed()

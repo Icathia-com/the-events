@@ -737,6 +737,17 @@ describe('registrations and the hours ledger: reading', () => {
   it('a ledger entry needs confirmed attendance behind it', async () => {
     await assertFails(setDoc(doc(dbAs('alice'), 'users/alice/hours/e3'), { orgId: 'open', hours: 5 }));
   });
+
+  it('the network admin reads organisations and events, but no one\'s registrations, attendance, profile or hours', async () => {
+    await seedDocs({ 'events/pub/attendance/alice': { uid: 'alice', status: 'confirmed', hours: 2 } });
+    await assertSucceeds(getDoc(doc(dbAs('root'), 'organisations/waiting')));
+    await assertSucceeds(getDoc(doc(dbAs('root'), 'events/drf')));
+    await assertFails(getDoc(doc(dbAs('root'), 'events/pub/registrations/alice')));
+    await assertFails(getDocs(collection(dbAs('root'), 'events/pub/registrations')));
+    await assertFails(getDoc(doc(dbAs('root'), 'events/pub/attendance/alice')));
+    await assertFails(getDoc(doc(dbAs('root'), 'users/alice')));
+    await assertFails(getDocs(collection(dbAs('root'), 'users/alice/hours')));
+  });
 });
 
 describe('registrations: joining and cancelling', () => {
@@ -1203,6 +1214,72 @@ describe('event hosts', () => {
   });
 });
 
+describe('partner organisations', () => {
+  const st = serverTimestamp;
+  const start = new Date(Date.now() + 6 * 86400e3);
+  const colors = ['#111111', '#222222'];
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/part': { name: 'Partner Org', status: 'approved', logoColors: colors },
+      'organisations/part/members/pam': { uid: 'pam', role: 'admin' },
+      'organisations/part/members/sam': { uid: 'sam', role: 'staff' },
+      'events/e-p': {
+        orgId: 'open', orgName: 'Open Org', title: 'Pantry restock', description: '', cause: 'food', area: 'central', venue: 'Hall',
+        meetingPoint: '', bring: '', startAt: start, endAt: new Date(start.getTime() + 2 * 3600e3), hours: 2, visibility: 'public',
+        status: 'scheduled', registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false },
+        cover: { colors, label: 'PANTRY' }, ticketTypes: [], counts: { going: 0, pending: 0, waitlist: 0, attended: 0 },
+      },
+    });
+  });
+
+  const invite = (by, partnerId = 'part', over = {}) => setDoc(doc(dbAs(by), `events/e-p/partners/${partnerId}`), {
+    orgId: partnerId, name: 'Partner Org', logoColors: colors, status: 'invited',
+    eventTitle: 'Pantry restock', hostName: 'Open Org', startAt: start, invitedBy: by, invitedAt: st(), ...over,
+  });
+  const answer = (uid, status) => updateDoc(doc(dbAs(uid), 'events/e-p/partners/part'), { status, decidedBy: uid, decidedAt: st() });
+  const accepted = (uid) => getDocs(query(collection(dbAs(uid), 'events/e-p/partners'), where('status', '==', 'accepted')));
+
+  it('the event\'s organisation invites an approved organisation; it can\'t start accepted', async () => {
+    await assertFails(invite('alice'));
+    await assertFails(invite('pam'));
+    await assertFails(invite('mei', 'part', { status: 'accepted' }));
+    await assertFails(invite('mei', 'part', { name: 'Someone Else' }));
+    await assertFails(invite('mei', 'waiting', { name: 'Waiting Org' }));
+    await assertSucceeds(invite('mei'));
+  });
+
+  it('only an admin of the partner organisation accepts or declines', async () => {
+    await invite('mei');
+    await assertFails(answer('mei', 'accepted'));
+    await assertFails(answer('alice', 'accepted'));
+    await assertFails(answer('sam', 'accepted'));
+    await assertSucceeds(answer('pam', 'accepted'));
+  });
+
+  it('volunteers see a partner only once it has accepted', async () => {
+    await invite('mei');
+    await assertFails(getDoc(doc(dbAs('alice'), 'events/e-p/partners/part')));
+    await assertFails(getDocs(collection(dbAs('alice'), 'events/e-p/partners')));
+    assert.equal((await assertSucceeds(accepted('alice'))).size, 0);
+    await answer('pam', 'accepted');
+    assert.equal((await assertSucceeds(accepted('alice'))).size, 1);
+  });
+
+  it('the partner organisation finds its invitations; others can\'t', async () => {
+    await invite('mei');
+    const mine = (uid) => getDocs(query(collectionGroup(dbAs(uid), 'partners'), where('orgId', '==', 'part')));
+    assert.equal((await assertSucceeds(mine('pam'))).size, 1);
+    await assertFails(mine('alice'));
+  });
+
+  it('the event itself can\'t list partners', async () => {
+    await assertSucceeds(updateDoc(doc(dbAs('mei'), 'events/e-p'), { title: 'Pantry restock and sort', updatedAt: st() }));
+    await assertFails(updateDoc(doc(dbAs('mei'), 'events/e-p'), { partners: [{ id: 'part', name: 'Partner Org' }], updatedAt: st() }));
+  });
+});
+
 describe('organisation applications', () => {
   const st = serverTimestamp;
   const profile = (over = {}) => ({
@@ -1284,9 +1361,15 @@ describe('vouchers and access codes', () => {
     await seedDocs({
       'events/e-full': ev({ registration: { open: true, approval: true, capacity: 1, waitlist: false, group: false }, counts: counts({ going: 1 }) }),
       'events/e-full/codes/TEAMABC': code('reserve', { uses: 2 }),
+      // 3 spots: 2 going, and the last one held back for TEAMONE.
+      'events/e-held': ev({ registration: { open: true, approval: true, capacity: 3, waitlist: false, group: false }, counts: counts({ going: 2 }), reserved: 1 }),
+      'events/e-held/codes/TEAMONE': code('reserve', { uses: 1 }),
+      // 10 spots: none taken, 5 held back.
+      'events/e-room': ev({ registration: { open: true, approval: false, capacity: 10, waitlist: false, group: false }, reserved: 5 }),
+      'events/e-room/codes/SCHOOL8': code('reserve', { uses: 8, used: 3 }),
       'events/e-v': ev(),
       'events/e-v/codes/REGULAR': code('skip'),
-      'events/e-v/codes/DISC': code('discount', { amount: 3 }),
+      'events/e-v/codes/DISCOUNT3': code('discount', { amount: 3 }),
       'events/e-v/codes/USEDUP': code('skip', { uses: 1, used: 1 }),
       'events/e-v/codes/OLDCODE': code('skip', { expiresAt: earlier }),
       'events/e-v/codeHints/abc123': { kind: 'skip' },
@@ -1297,13 +1380,14 @@ describe('vouchers and access codes', () => {
   });
 
   // Joins the way the app does: the registration with the code, the counts, who's going and one use of the code.
-  function join(uid, eventId, { status, code: c, next, discount, use = true }) {
+  // With a reserved-spot code, the registration is marked reserved and the event's held spots go to `held`.
+  function join(uid, eventId, { status, code: c, next, discount, use = true, reserved = false, held }) {
     const db = dbAs(uid);
     const batch = writeBatch(db);
-    batch.update(doc(db, `events/${eventId}`), { counts: next, countsBy: uid });
+    batch.update(doc(db, `events/${eventId}`), { counts: next, countsBy: uid, ...(held != null ? { reserved: held } : {}) });
     batch.set(doc(db, `events/${eventId}/registrations/${uid}`), {
       uid, name: `${uid} A.`, status, ticketTypeId: null, answers: {}, ...(c ? { code: c } : {}), ...(discount != null ? { discount } : {}),
-      registeredAt: st(), createdAt: st(), updatedAt: st(),
+      ...(reserved ? { reserved: true } : {}), registeredAt: st(), createdAt: st(), updatedAt: st(),
     });
     if (status === 'going') batch.set(doc(db, `events/${eventId}/going/${uid}`), { name: `${uid} A.`, since: st() });
     if (c && use) batch.update(doc(db, `events/${eventId}/codes/${c}`), { used: increment(1) });
@@ -1321,14 +1405,63 @@ describe('vouchers and access codes', () => {
     await assertFails(getDocs(collection(dbAs('alice'), 'events/e-v/codeHints')));
   });
 
-  it('a reserved-spot code lets its holder in when the event is full', async () => {
-    await assertFails(join('alice', 'e-full', { status: 'going', next: counts({ going: 2 }) }));
-    await assertSucceeds(join('alice', 'e-full', { status: 'going', code: 'TEAMABC', next: counts({ going: 2 }) }));
+  it('reserved spots are held back from the event\'s spots: only a reserved-spot code takes one', async () => {
+    await assertFails(join('alice', 'e-held', { status: 'going', next: counts({ going: 3 }) }));
+    await assertSucceeds(join('alice', 'e-held', { status: 'going', code: 'TEAMONE', reserved: true, held: 0, next: counts({ going: 3 }) }));
+  });
+
+  it('a reserved spot comes off the held spots, and is marked on the registration', async () => {
+    await assertFails(join('alice', 'e-held', { status: 'going', code: 'TEAMONE', reserved: true, next: counts({ going: 3 }) }));
+    await assertFails(join('alice', 'e-held', { status: 'going', code: 'TEAMONE', held: 0, next: counts({ going: 3 }) }));
+  });
+
+  it('a reserved-spot code needs a free spot: it no longer goes past the event\'s spots', async () => {
+    await assertFails(join('alice', 'e-full', { status: 'going', code: 'TEAMABC', reserved: true, next: counts({ going: 2 }) }));
+  });
+
+  it('joining without a code takes one of the other spots and leaves the held ones alone', async () => {
+    await assertFails(join('alice', 'e-room', { status: 'going', held: 4, next: counts({ going: 1 }) }));
+    await assertFails(join('alice', 'e-room', { status: 'going', reserved: true, next: counts({ going: 1 }) }));
+    await assertSucceeds(join('alice', 'e-room', { status: 'going', next: counts({ going: 1 }) }));
+    await assertFails(updateDoc(doc(dbAs('bob'), 'events/e-room'), { reserved: 0, updatedAt: st() }));
   });
 
   it('a guessed code, or one presented without using it, is refused', async () => {
-    await assertFails(join('alice', 'e-full', { status: 'going', code: 'GUESS1', next: counts({ going: 2 }) }));
-    await assertFails(join('alice', 'e-full', { status: 'going', code: 'TEAMABC', next: counts({ going: 2 }), use: false }));
+    await assertFails(join('alice', 'e-held', { status: 'going', code: 'GUESS1', reserved: true, held: 0, next: counts({ going: 3 }) }));
+    await assertFails(join('alice', 'e-held', { status: 'going', code: 'TEAMONE', reserved: true, held: 0, next: counts({ going: 3 }), use: false }));
+  });
+
+  it('codes are 6 to 20 capital letters or digits', async () => {
+    const make = (id) => setDoc(doc(dbAs('mei'), `events/e-v/codes/${id}`), code('skip', { createdAt: st() }));
+    await assertFails(make('ABC12'));
+    await assertFails(make('abc123'));
+    await assertFails(make('ABCDEFGHIJ0123456789X'));
+    await assertSucceeds(make('ABC123'));
+    await assertSucceeds(make('K7QM4XRT'));
+  });
+
+  it('a reserved-spot code holds back its spots, and deleting it gives the unused ones back', async () => {
+    const make = (held) => {
+      const db = dbAs('mei');
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'events/e-v/codes/SCHOOL8'), code('reserve', { uses: 8, createdAt: st() }));
+      if (held != null) batch.update(doc(db, 'events/e-v'), { reserved: held, updatedAt: st() });
+      return batch.commit();
+    };
+    await assertFails(make(null));
+    await assertFails(make(5));
+    await assertSucceeds(make(8));
+    // e-room's SCHOOL8 has 3 of its 8 uses taken, so deleting it gives back the other 5.
+    const remove = (held) => {
+      const db = dbAs('mei');
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'events/e-room/codes/SCHOOL8'));
+      if (held != null) batch.update(doc(db, 'events/e-room'), { reserved: held, updatedAt: st() });
+      return batch.commit();
+    };
+    await assertFails(remove(null));
+    await assertFails(remove(2));
+    await assertSucceeds(remove(0));
   });
 
   it('skip approval: going straight away with the code, a request without it', async () => {
@@ -1342,8 +1475,8 @@ describe('vouchers and access codes', () => {
   });
 
   it('a discount code records the code\'s own amount off', async () => {
-    await assertFails(join('alice', 'e-v', { status: 'pending', code: 'DISC', discount: 5, next: counts({ pending: 1 }) }));
-    await assertSucceeds(join('alice', 'e-v', { status: 'pending', code: 'DISC', discount: 3, next: counts({ pending: 1 }) }));
+    await assertFails(join('alice', 'e-v', { status: 'pending', code: 'DISCOUNT3', discount: 5, next: counts({ pending: 1 }) }));
+    await assertSucceeds(join('alice', 'e-v', { status: 'pending', code: 'DISCOUNT3', discount: 3, next: counts({ pending: 1 }) }));
   });
 
   it('a code already used on a registration can\'t be used again by it', async () => {

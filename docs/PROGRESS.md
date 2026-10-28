@@ -127,7 +127,7 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - This happens only if their type still has a spot. Otherwise nobody moves up, and the organiser approves from the waiting list as before.
   - The rules allow moving up but can't force it, so a changed app could skip it. Even then nobody jumps the queue: while anyone is waiting, newcomers join the end of the list, even if a spot is free.
   - Raising the spots doesn't move anyone up. The organiser approves them under Waiting for approval.
-- Phase 2, slice B: Group registration is saved (`registration.group`) but doesn't change registering yet. The canvas doesn't show how a group signs up: how many people, their names, or how they're checked in.
+- Phase 2, slice B: Group registration is saved (`registration.group`) but doesn't change registering yet. The canvas doesn't show how a group signs up: how many people, their names, or how they're checked in. **Decided 28 Oct: the switch is hidden until group registration is designed; `registration.group` stays false.**
 - Phase 2, slice B: Left out of Access and registration:
   - "Choose who can find this event. Anyone with the direct link can always open it." A followers-only event can't be opened from a link by people who don't follow the organisation.
   - "Followers are notified." and "Nothing is sent.", since notifications are Phase 3.
@@ -149,8 +149,7 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - Left out until Phase 3, when emails arrive: contacts access, inviting a new email or mobile number, and the done screen's "They get a push notification and an email with a one-tap Register link." The done screen keeps "See invited list" and "Invite more".
   - An invitation carries the event's title and time, so Home can show it without reading the event. On Home, invitations to upcoming events appear at the end of "Your events" as "Invited" cards.
   - An invitation doesn't open a followers-only or draft event; an access code does that.
-- Phase 2, slice G: Reserved spots are extra spots for code holders, on top of the event's own. A code with 2 uses lets 2 people in even when the event is full, and the public "spots left" doesn't count them.
-  - Holding spots back out of the event's own number would need a running total that the rules can check. That can come later if you'd rather have it that way.
+- Phase 2, slice G (**changed 28 Oct**: reserved spots are now held back from the event's own spots, so 20 spots with 8 reserved leaves 12 for everyone else; see "Reserved spots" below): Reserved spots are extra spots for code holders, on top of the event's own. A code with 2 uses lets 2 people in even when the event is full, and the public "spots left" doesn't count them.
   - A reserved-spot code needs a number of uses, which is its number of spots. Its holders are going straight away, without approval.
 - Phase 2, slice G: The other kinds:
   - Skip approval: going straight away when there's a spot, otherwise the waiting list or "Full".
@@ -159,9 +158,9 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Phase 2, slice G (security): How a volunteer's app knows what a code does:
   - Each code has a hint stored under its SHA-256 hash. Only someone who already knows the code can fetch the hint (the kind and any discount), and nobody can list the hints.
   - Uses left and expiry stay private, and the rules check them when the code is used.
-  - Each guess at a code costs one request, and the rules can't limit how many requests someone makes. Codes should be long enough not to be guessed; the canvas allows 3 characters or more. Should the app ask for at least 8?
+  - Each guess at a code costs one request, and the rules can't limit how many requests someone makes. Codes should be long enough not to be guessed; the canvas allows 3 characters or more. Should the app ask for at least 8? **Decided 28 Oct: at least 6 letters or digits, and a new code starts with a suggested 8-character one.**
 - Phase 2, slice G: Code rules:
-  - Codes are 3 to 20 capital letters and digits.
+  - Codes are 6 to 20 capital letters and digits (3 to 20 until 28 Oct). The suggestion leaves out 0, O, 1, I and L, which are easy to mix up; the admin can type their own.
   - The expiry date starts on the event's day, as on the canvas. A code works until the end of that day in Singapore.
   - A use is counted when someone registers or unlocks with the code. Cancelling doesn't give the use back, and registering again with the same code uses another.
   - Codes can be deleted but not edited, as on the canvas.
@@ -181,11 +180,11 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - A co-host can't change the hosts, see the organisation's staff, or see how many past events a volunteer has had with the organisation.
   - Event staff check volunteers in and out and see the volunteer list, answers included. Slice C's "the organisation's admins and staff" is read as including staff added to the event, because they need the list to check people in.
 - Phase 2, slice E: The Hosts page:
-  - Co-hosts and staff aren't shown on the event page, because they're added by email and emails stay private. Only guest speakers (a name) and partner organisations are shown there. The canvas puts everyone under "Shown on the event page", so this page heads the list "Hosting this event" instead.
+  - Co-hosts and staff aren't shown on the event page, because they're added by email and emails stay private. Only guest speakers (a name) and partner organisations are shown there. The canvas puts everyone under "Shown on the event page", so this page heads the list "Hosting this event" instead. **Decided 28 Oct: approved; co-host and staff emails stay off the public page.**
   - People are added by email only; the canvas also offers a name or mobile number. A name is used only for guest speakers.
   - Co-hosts and staff can switch between those two roles. A guest speaker can only be removed, since making an email host a speaker would show the email.
-  - Invite adds a partner organisation straight away ("Co-hosting · shown on the event page"), as on the canvas. The partner isn't asked, and its people get no access.
-  - Speakers and partners are stored on the event (`speakers`, `partners`).
+  - (**Changed 28 Oct**: a partner organisation now appears only after one of its admins accepts; see "Partner organisations" below.) Invite adds a partner organisation straight away ("Co-hosting · shown on the event page"), as on the canvas. The partner isn't asked, and its people get no access.
+  - Speakers are stored on the event (`speakers`); partners were too (`partners`) until 28 Oct.
 - Phase 2, slice E: Hosts aren't told they've been added, and the event doesn't appear on their Home. The organiser shares the event link. Notifications are Phase 3.
 - Phase 2, slice D: Announcements:
   - The audiences are Going; Going and waiting for approval (pending or on the waiting list); and Attended. The canvas's "Everyone invited" is left out until invitations exist (slice H).
@@ -197,8 +196,8 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - Which announcements someone has seen is kept on their device, so on a second phone the dot shows again.
   - The event records when each audience last got an announcement (`announcedAt`). Anyone who can see the event can tell an announcement was sent, but not what it says.
 - Phase 2, slice D (seed): One sample announcement, labelled Sample, to the volunteers going to the Yishun visit, so the dot can be tried.
-- Phase 2, slice C (privacy): A registration and its answers are now read only by the volunteer and the organisation's admins and staff, as the queue asks. The network admin could read registrations before, and section 1 says the network admin "sees everything". Which should hold?
-- Phase 2, slice C (privacy): The sign-in email now goes with every registration (`email`), and the rules check it's the volunteer's own. That makes the canvas's "Email: Required" true. Organisers see it in a volunteer's details; before this, they saw only names.
+- Phase 2, slice C (privacy): A registration and its answers are now read only by the volunteer and the organisation's admins and staff, as the queue asks. The network admin could read registrations before, and section 1 says the network admin "sees everything". Which should hold? **Decided 28 Oct: registrations stay private. The network admin sees organisations, events and totals (registrations, attendance, hours), not volunteers' personal details; section 1 of the brief now says so. A rules test checks the network admin can't read registrations, attendance, profiles or hours.**
+- Phase 2, slice C (privacy): The sign-in email now goes with every registration (`email`), and the rules check it's the volunteer's own. That makes the canvas's "Email: Required" true. Organisers see it in a volunteer's details; before this, they saw only names. **Decided 28 Oct: approved, with the line "<Organisation name> will see your name and email." when registering.**
 - Phase 2, slice C: Questions:
   - They're in `events/{id}/questions`, as in section 6. Mobile number, Emergency contact and Age group are stored under those ids; "Off" means the question isn't there.
   - Age groups: Under 18, 18 to 24, 25 to 34, 35 to 44, 45 to 54, 55 to 64, 65 and over. The canvas doesn't list them.
@@ -212,6 +211,20 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The browser checks the required answers. The rules can't go through each question, so they only cap a registration at 30 answers; a changed app could skip a required question.
   - Answers can't be changed after registering, short of cancelling and registering again.
 - Phase 2, slice B: The event page's "Choose a ticket" sheet isn't on the canvas. It lists each type with its price ("Free", or "S$5, paid at the event") and what joining gives: Instant registration, Requires approval, Waiting list, Full, Opens …, or Registration closed. Once someone has registered, the details card shows their type's on-site amount.
+- 28 Oct, decisions follow-up: Reserved spots:
+  - The event keeps the number of spots still held back (`reserved`). Making a reserved-spot code adds its uses, each registration with it takes one, and deleting the code gives back the ones not taken. The rules check all three.
+  - Everyone without the code sees the spots left after the held ones ("1 of 10 spots left"), and the waiting list opens when those are gone.
+  - A code holder still needs a free spot within the event's spots, and within their ticket type's own spots.
+  - Unused reserved spots stay held until the code is deleted, even after it expires. Releasing them at expiry would need a scheduled job (Phase 3).
+  - When someone with a reserved spot cancels, their spot goes back to everyone, and the code's use stays used.
+  - Access and registration says "2 of the 10 spots are held for codes. A waiting list opens when the other 8 are filled."
+- 28 Oct, decisions follow-up: "<Organisation name> will see your name and email." shows under Register, and again in the Registration questions sheet. Events without questions register in one tap, with no sheet, so the line under the button is the one everyone sees.
+- 28 Oct, decisions follow-up: Partner organisations:
+  - Invite sends an invitation (`events/{id}/partners/{orgId}`), and the Hosts row reads "Invited · waiting for them to accept". Tapping Invited takes it back; tapping Co-hosting removes the partner. A declined invitation reads "Declined", and Invite sends it again.
+  - The partner organisation's admins answer under "Partner invitations" on their organisation page, with Decline and Accept. Its staff can see the invitation but not answer it.
+  - The event page shows only accepted partners. The rules allow nothing else, and the event can no longer list partners itself.
+  - Partners still get no access to the event, and aren't told about the invitation outside the app until notifications (Phase 3).
+- 28 Oct, decisions follow-up (seed): Hari Subramaniam is now the sample admin of Harvest Table SG, so a partner invitation can be accepted. He's still a volunteer at Silver Companions' events.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -995,3 +1008,24 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - group registration.
 - Before the first push: her GitHub address for the commit email, then push and deploy. The rules and indexes have changed a lot and need deploying with the site.
 - Left in Phase 2: event chat (needs live updates) and cover photo upload (needs the paid Firebase plan). Both wait on her go-ahead.
+
+## 28 Oct 2026: decisions confirmed, before going live
+
+**Done** (Theersha's answers on the Phase 2 decisions)
+1. Registrations stay private. The rules already kept the network admin out; a test now checks it, and section 1 of the brief says the network admin sees organisations, events and totals, not volunteers' personal details.
+2. Reserved spots are held back from the event's own spots: 20 spots with 8 reserved leaves 12 for everyone else. Rules, app and tests changed; details under "Decisions to confirm".
+3. Codes need at least 6 letters or digits, and Vouchers and access codes suggests an 8-character code for each new one.
+4. The group registration switch is hidden until it's designed.
+5. Registering shows "<Organisation name> will see your name and email."
+6. A partner organisation appears on the event page only after one of its admins accepts, on its organisation page. Co-host and staff emails stay off the public page.
+- Event chat and cover photo upload: not now, as Theersha said.
+- New index: a collection group index on `partners.orgId`, for the partner invitations. It's in `firestore.indexes.json`.
+
+**Tested**
+- `npm test`: 172 of 172 pass (146 rules tests, 26 QR tests). New tests cover reserved spots (held back, taken only with the code, given back when the code is deleted), code length, partner invitations, and the network admin.
+- At 390 px against the emulators, with no console errors:
+  - A new check of all six answers. A suggested code (`48FRK3JD`). Fewer than 6 characters can't be saved. A 2-spot code holds 2 of the Yishun visit's 10 spots, and Jun takes one with it. Deleting the code gives the other back. No group switch. The line under Register and in the questions sheet. Hari accepts Harvest Table SG's invitation, and only then does it show on the visit.
+  - Re-run: slice B (waiting list), slice E (hosts; the partner now waits for its admin), slice G (codes, changed to 9 spots so the 2 held ones fit), and the section 10 acceptance run. Slice G still shows its one deliberate 403, the hidden event opened before its access code.
+
+**Next**
+- Going live, in Theersha's order. The commit email first: the address in Theersha's message was still the placeholder "<PASTE NOREPLY ADDRESS>", so this waits for the real one. Only the 22 local commits get the new author; the 2 already on GitHub ("Initial commit", "Add files via upload") stay as they are, so the push needs no force.

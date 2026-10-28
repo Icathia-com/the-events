@@ -2,7 +2,7 @@
 // a hidden event, and a discount on the on-site fee, each with a use limit and an expiry date.
 import { requireUser } from '../auth.js';
 import { Timestamp } from '../firebase.js';
-import { CODE_KINDS, createCode, deleteCode, getEvent, getEventRole, listCodes } from '../data.js';
+import { CODE_KINDS, CODE_MIN, createCode, deleteCode, getEvent, getEventRole, listCodes, suggestCode } from '../data.js';
 import { dragScroll, esc, icon, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
@@ -30,9 +30,11 @@ const eventDay = new Date(event.startAt.toMillis() + 8 * 3600e3).toISOString().s
 const endOfDay = (day) => Timestamp.fromMillis(new Date(`${day}T00:00:00+08:00`).getTime() + 86400e3);
 const dayOf = (ts) => new Date(ts.toMillis() - 86400e3 + 8 * 3600e3).toISOString().slice(0, 10);
 
-let codes = [], editing = false, draft = { code: '', kind: 'reserve', amount: '', uses: '', expires: eventDay }, busy = false;
+// A new code starts with a suggested one, which the admin can change.
+const newDraft = () => ({ code: suggestCode(), kind: 'reserve', amount: '', uses: '', expires: eventDay });
+let codes = [], editing = false, draft = newDraft(), busy = false;
 const load = async () => { codes = await listCodes(eventId); };
-const canSave = () => !busy && draft.code.length >= 3 && (draft.kind !== 'discount' || Number(draft.amount) > 0)
+const canSave = () => !busy && draft.code.length >= CODE_MIN && (draft.kind !== 'discount' || Number(draft.amount) > 0)
   && (draft.kind !== 'reserve' || Number(draft.uses) >= 1);
 
 function codeRow(c) {
@@ -47,7 +49,7 @@ function codeRow(c) {
 function formHtml() {
   return `<form class="glass compose-card" id="new-code" novalidate>
     <span class="card-title">New code</span>
-    <input class="field-flat code-input" id="code" aria-label="Code" placeholder="Code" maxlength="20" autocomplete="off" value="${esc(draft.code)}">
+    <input class="field-flat code-input" id="code" aria-label="Code" placeholder="Code" minlength="${CODE_MIN}" maxlength="20" autocomplete="off" spellcheck="false" value="${esc(draft.code)}">
     <div class="lbl">What the code does</div>
     <div class="kind-list" role="radiogroup" aria-label="What the code does">${Object.entries(CODE_KINDS).map(([id, label]) =>
       `<button type="button" class="kind-card" role="radio" data-kind="${id}" aria-checked="${draft.kind === id}">
@@ -95,9 +97,9 @@ main.addEventListener('click', async (e) => {
   if (t.dataset.kind) { draft.kind = t.dataset.kind; render(); main.querySelector(`[data-kind="${draft.kind}"]`)?.focus(); return; }
   if (t.dataset.action === 'new' || t.dataset.action === 'cancel') {
     editing = t.dataset.action === 'new' ? !editing : false;
-    draft = { code: '', kind: 'reserve', amount: '', uses: '', expires: eventDay };
+    draft = newDraft();
     render();
-    if (editing) main.querySelector('#code')?.focus();
+    if (editing) main.querySelector('#code')?.select();
     return;
   }
   if (t.dataset.delete) {

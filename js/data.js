@@ -80,11 +80,18 @@ export function typeOpen(type, now = Date.now()) {
   return !type || ((!type.opensAt || type.opensAt.toMillis() <= now) && (!type.closesAt || type.closesAt.toMillis() > now));
 }
 
+// The event's spots still free to everyone: the spots held back for reserved-spot codes (reserved) aren't. Null
+// when the event has no limit.
+export function spotsLeft(event) {
+  const capacity = event.registration?.capacity;
+  return capacity == null ? null : Math.max(0, capacity - (event.counts?.going || 0) - (event.reserved || 0));
+}
+
 // What joining gives right now, with the chosen ticket type; the rules apply the same test. While people are on the
 // waiting list, newcomers join the end of it, even if a spot is free.
 export function joinStatus(event, type = null, approval = approvalFor(event, type)) {
-  const { capacity, waitlist } = event.registration || {};
-  const full = capacity != null && (event.counts?.going || 0) >= capacity;
+  const { waitlist } = event.registration || {};
+  const full = spotsLeft(event) === 0;
   if (full || (waitlist && event.waitingList?.length)) return waitlist && !typeFull(event, type) ? 'waitlist' : 'full';
   if (typeFull(event, type)) return 'full';
   return approval ? 'pending' : 'going';
@@ -94,12 +101,23 @@ export function joinStatus(event, type = null, approval = approvalFor(event, typ
 // SHA-256, so a volunteer's app can tell what a code they typed does without listing or reading any code.
 export const CODE_KINDS = { reserve: 'Reserved spots', skip: 'Skip approval', unlock: 'Unlock a hidden event', discount: 'Discount' };
 
-// What joining gives with a code: a reserved spot is going, even past the event's spots; skip approval joins without
-// approval; a discount or an unlock leaves it as it is.
+// What joining gives with a code: a reserved-spot code takes one of the spots held back for codes, going straight
+// away while the event (and the ticket type) has a spot; skip approval joins without approval; a discount or an
+// unlock leaves it as it is.
 export function codeStatus(event, type, kind) {
-  if (kind === 'reserve') return 'going';
+  if (kind === 'reserve') {
+    const capacity = event.registration?.capacity;
+    return (capacity != null && (event.counts?.going || 0) >= capacity) || typeFull(event, type) ? 'full' : 'going';
+  }
   return kind === 'skip' ? joinStatus(event, type, false) : joinStatus(event, type);
 }
+
+// A suggested code: 8 letters and digits, leaving out ones that are easy to mix up (0 and O, 1, I and L).
+export function suggestCode() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  return [...crypto.getRandomValues(new Uint8Array(8))].map((b) => chars[b % chars.length]).join('');
+}
+export const CODE_MIN = 6;
 
 async function codeHash(code) {
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code)));
@@ -111,19 +129,30 @@ export async function listCodes(eventId) {
     .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
 }
 
+// A reserved-spot code holds back as many of the event's spots as it has uses (event.reserved), until it's deleted.
 export async function createCode(eventId, code, { kind, amount, uses, expiresAt }, by) {
   const extra = kind === 'discount' ? { amount } : {};
   const batch = writeBatch(db);
   batch.set(doc(db, 'events', eventId, 'codes', code), { kind, ...extra, uses, used: 0, expiresAt, createdBy: by, createdAt: serverTimestamp() });
   batch.set(doc(db, 'events', eventId, 'codeHints', await codeHash(code)), { kind, ...extra });
+  if (kind === 'reserve') batch.update(doc(db, 'events', eventId), { reserved: increment(uses), updatedAt: serverTimestamp() });
   return batch.commit();
 }
 
+// Deleting a reserved-spot code gives its unused spots back to everyone.
 export async function deleteCode(eventId, code) {
-  const batch = writeBatch(db);
-  batch.delete(doc(db, 'events', eventId, 'codes', code));
-  batch.delete(doc(db, 'events', eventId, 'codeHints', await codeHash(code)));
-  return batch.commit();
+  const hint = doc(db, 'events', eventId, 'codeHints', await codeHash(code));
+  return runTransaction(db, async (tx) => {
+    const eventRef = doc(db, 'events', eventId);
+    const codeRef = doc(db, 'events', eventId, 'codes', code);
+    const c = (await tx.get(codeRef)).data();
+    if (c?.kind === 'reserve' && c.uses != null) {
+      const held = (await tx.get(eventRef)).data().reserved || 0;
+      tx.update(eventRef, { reserved: Math.max(0, held - (c.uses - (c.used || 0))), updatedAt: serverTimestamp() });
+    }
+    tx.delete(codeRef);
+    tx.delete(hint);
+  });
 }
 
 // What a code someone typed does ({ code, kind, amount? }), or null. Whether it still has uses left is only known
@@ -227,18 +256,27 @@ export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {
     const type = ticketFor(event, ticketTypeId);
     const status = code ? codeStatus(event, type, code.kind) : joinStatus(event, type);
     if (status === 'full') return 'full';
-    tx.update(eventRef, followFields(event, uid, before, status, type?.id, name));
+    const reserved = code?.kind === 'reserve';
+    tx.update(eventRef, {
+      ...followFields(event, uid, before, status, type?.id, name),
+      // A reserved spot comes off the spots held back for codes.
+      ...(reserved ? { reserved: Math.max(0, (event.reserved || 0) - 1) } : {}),
+    });
     // A code goes on the registration and uses one of its uses (the rules check it's real, current and not used up).
     if (code) tx.update(doc(db, 'events', eventId, 'codes', code.code), { used: increment(1) });
     const fields = {
       status, name, ...(email ? { email } : {}), ticketTypeId: type?.id || null, answers,
       ...(code ? { code: code.code, ...(code.kind === 'discount' ? { discount: code.amount } : {}) } : {}),
+      ...(reserved ? { reserved: true } : {}),
       ...(source in SOURCES ? { source } : {}),
       registeredAt: serverTimestamp(), updatedAt: serverTimestamp(),
     };
     // Joining again after cancelling: a code from the earlier registration doesn't carry over.
-    if (regSnap.exists() && !code) Object.assign(fields, { code: deleteField(), discount: deleteField() });
-    else if (regSnap.exists() && code.kind !== 'discount') fields.discount = deleteField();
+    if (regSnap.exists() && !code) Object.assign(fields, { code: deleteField(), discount: deleteField(), reserved: deleteField() });
+    else if (regSnap.exists()) {
+      if (code.kind !== 'discount') fields.discount = deleteField();
+      if (!reserved) fields.reserved = deleteField();
+    }
     if (regSnap.exists()) tx.update(regRef, fields);
     else tx.set(regRef, { uid, answers: {}, createdAt: serverTimestamp(), ...fields });
     if (status === 'going') tx.set(doc(db, 'events', eventId, 'going', uid), { name: shortName(name), since: serverTimestamp() });
@@ -300,8 +338,7 @@ export function decideRegistration(eventId, uid, status, adminUid) {
     const regRef = doc(db, 'events', eventId, 'registrations', uid);
     const event = (await tx.get(eventRef)).data();
     const reg = (await tx.get(regRef)).data();
-    const capacity = event.registration?.capacity;
-    const full = capacity != null && (event.counts?.going || 0) >= capacity;
+    const full = spotsLeft(event) === 0;
     if (status === 'going' && reg.status !== 'going' && (full || typeFull(event, ticketFor(event, reg.ticketTypeId)))) return false;
 
     tx.update(eventRef, followFields(event, uid, reg.status, status, reg.ticketTypeId, reg.name));
@@ -700,14 +737,35 @@ export const decideApplication = (orgId, status, uid) => updateDoc(doc(db, 'orga
   status, decidedBy: uid, updatedAt: serverTimestamp(), ...(status === 'approved' ? { approvedAt: serverTimestamp() } : {}),
 });
 
-// Event hosts (Phase 2): co-hosts and staff, one per email. Guest speakers and partner organisations are kept on the
-// event itself (speakers, partners), because they're shown on the event page.
+// Event hosts (Phase 2): co-hosts and staff, one per email. Guest speakers are kept on the event itself (speakers),
+// because they're shown on the event page.
 export async function listHosts(eventId) {
   return allWithIds(await getDocs(collection(db, 'events', eventId, 'hosts')));
 }
 export const addHost = (eventId, email, role, by) =>
   setDoc(doc(db, 'events', eventId, 'hosts', email), { email, role, addedBy: by, addedAt: serverTimestamp() });
 export const removeHost = (eventId, email) => deleteDoc(doc(db, 'events', eventId, 'hosts', email));
+
+// Partner organisations (Phase 2), one per organisation: invited by the event's organisation, and shown on the event
+// page once an admin of the partner organisation accepts. status: 'invited', 'accepted' or 'declined'.
+export async function listPartners(eventId, acceptedOnly = false) {
+  const all = collection(db, 'events', eventId, 'partners');
+  return allWithIds(await getDocs(acceptedOnly ? query(all, where('status', '==', 'accepted')) : all));
+}
+export const invitePartner = (eventId, event, org, by) => setDoc(doc(db, 'events', eventId, 'partners', org.id), {
+  orgId: org.id, name: org.name, logoColors: org.logoColors, status: 'invited',
+  eventTitle: event.title, hostName: event.orgName, startAt: event.startAt, invitedBy: by, invitedAt: serverTimestamp(),
+});
+export const removePartner = (eventId, orgId) => deleteDoc(doc(db, 'events', eventId, 'partners', orgId));
+
+// The events an organisation is invited to partner on, soonest first: [{ eventId, eventTitle, hostName, startAt, status }].
+export async function listPartnerInvites(orgId) {
+  const snaps = await getDocs(query(collectionGroup(db, 'partners'), where('orgId', '==', orgId)));
+  return snaps.docs.map((d) => ({ eventId: d.ref.parent.parent.id, ...d.data() }))
+    .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
+}
+export const answerPartnerInvite = (eventId, orgId, status, uid) =>
+  updateDoc(doc(db, 'events', eventId, 'partners', orgId), { status, decidedBy: uid, decidedAt: serverTimestamp() });
 
 // The organisations the user belongs to: [{ orgId, role, name }].
 export async function myMemberships(uid) {

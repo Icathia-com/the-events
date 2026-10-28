@@ -1,10 +1,10 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AGE_GROUPS, AREAS, approvalFor, audiencesFor, CAUSES, cancelRegistration, checkOutWithCode, codeStatus, ensureUserDoc, followOrg,
-  getEvent, lookUpCode, unlockEvent,
+  AGE_GROUPS, AREAS, approvalFor, audiencesFor, CAUSES, cancelRegistration, checkOutWithCode, CODE_MIN, codeStatus, ensureUserDoc,
+  followOrg, getEvent, lookUpCode, unlockEvent,
   getEventRole, getExactVenue, getMyAttendance, getMyRegistration, getOrganisation, joinEvent, joinStatus, listAnnouncements, listGoing,
-  listQuestions, questionLabel, syncHours, ticketFor, typeOpen, unfollowOrg,
+  listPartners, listQuestions, questionLabel, spotsLeft, syncHours, ticketFor, typeOpen, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import {
@@ -48,7 +48,8 @@ const [org, role] = await Promise.all([
 ]);
 const isAdmin = role === 'admin';
 const follows = new Set(profile.follows || []);
-let reg = null, going = [], venue = null, menuOpen = false, busy = false;
+// partners: the partner organisations that accepted (Phase 2).
+let reg = null, going = [], venue = null, partners = [], menuOpen = false, busy = false;
 
 // Exact venue: shown unless hidden, and then only to approved volunteers and the organisation.
 async function loadVenue() {
@@ -102,7 +103,8 @@ function statusChip() {
   if (ended()) return ['Ended', 'chip-muted'];
   const capacity = event.registration?.capacity;
   if (!capacity) return ['Open registration', 'chip-ok'];
-  const left = Math.max(0, capacity - (event.counts?.going || 0));
+  // With a reserved-spot code, the spots held back for codes count too.
+  const left = appliedCode?.kind === 'reserve' ? Math.max(0, capacity - (event.counts?.going || 0)) : spotsLeft(event);
   if (left === 0) return ['Full', 'chip-muted'];
   return left <= 3 ? [`${left} spots left · almost full`, 'chip-wait'] : [`${left} spots left`, 'chip-ok'];
 }
@@ -156,7 +158,7 @@ function codeSheet() {
   sheet.element.querySelector('#code-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const code = String(new FormData(e.target).get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const found = code.length >= 3 ? await lookUpCode(eventId, code).catch(() => null) : null;
+    const found = code.length >= CODE_MIN ? await lookUpCode(eventId, code).catch(() => null) : null;
     if (!found || found.kind === 'unlock') { toast('That code didn’t work.'); return; }
     appliedCode = found;
     sheet.close();
@@ -229,9 +231,13 @@ function questionField(q) {
   return input('text');
 }
 
+// Each registration carries the volunteer's name and sign-in email, for the organisation.
+const sharedLine = () => `<span class="meta reg-note">${esc(`${orgName()} will see your name and email.`)}</span>`;
+
 function askQuestions(ticketTypeId, questions) {
   const sheet = openModal({ title: 'Registration questions', body: `<form class="ans-form" id="answers">
     ${questions.map(questionField).join('')}
+    ${sharedLine()}
     <button type="submit" class="big-btn">${esc(joinLabel(choices().find((c) => (c.t?.id || null) === ticketTypeId)?.status))}</button></form>` });
   sheet.element.querySelector('#answers').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -295,7 +301,7 @@ function actions() {
   return `<div class="act-row">
       <button type="button" class="reg-btn ${b.cls}" data-action="join"${b.disabled || busy ? ' disabled' : ''}>${b.check ? icon('check', 18, 2.6) : ''}${esc(b.label)}</button>
       <a class="act act-narrow" href="${orgHref()}#contact">${icon('mail', 20, 2)}Contact</a>${moreButton('act-narrow')}${menu()}
-    </div>${codeLine()}${role ? checkinBar() : ''}`;
+    </div>${b.disabled ? '' : sharedLine()}${codeLine()}${role ? checkinBar() : ''}`;
 }
 
 const checkinBar = () => `<a class="checkin-bar" href="checkin.html?id=${encodeURIComponent(eventId)}">
@@ -338,7 +344,7 @@ function whoIsGoing() {
       const others = count - (b ? 2 : 1);
       line = `${a}${b ? `, ${b}` : ''} and ${others} ${others === 1 ? 'other' : 'others'} are going`;
     }
-    line += capacity ? `. ${Math.max(0, capacity - count)} of ${capacity} spots left.` : '.';
+    line += capacity ? `. ${spotsLeft(event)} of ${capacity} spots left.` : '.';
   }
   const faces = going.slice(0, Math.min(5, count)).map((name, i) =>
     `<span class="face" style="background:var(--avatar-${(i % 9) + 1})" aria-hidden="true">${esc(initials(name))}</span>`).join('');
@@ -355,7 +361,7 @@ function hostedBy() {
     <a class="host-link" href="${orgHref()}">${orgDotHtml(org || { name: orgName() })}
       <span class="host-text"><span class="host-name">${esc(orgName())}</span>${org?.tagline ? `<span class="meta">${esc(org.tagline)}</span>` : ''}</span></a>
     <button type="button" class="follow-btn hit" data-action="follow" aria-pressed="${on}" aria-label="${on ? 'Unfollow' : 'Follow'} ${esc(orgName())}">${on ? 'Following' : 'Follow'}</button>
-  </div>${(event.partners || []).map((p) => `<a class="glass host-card host-link" href="organisation.html?id=${encodeURIComponent(p.id)}">
+  </div>${partners.map((p) => `<a class="glass host-card host-link" href="organisation.html?id=${encodeURIComponent(p.id)}">
     ${orgDotHtml(p)}<span class="host-text"><span class="host-name">${esc(p.name)}</span><span class="meta">Partner organisation</span></span></a>`).join('')}
   ${(event.speakers || []).length ? `<div class="glass host-card is-list">${event.speakers.map((s) => `<div class="host-row">
     ${avatarHtml({ uid: s, name: s }, { size: 36, href: null })}<span class="host-text"><span class="host-name">${esc(s)}</span><span class="meta">Guest speaker</span></span></div>`).join('')}</div>` : ''}
@@ -487,7 +493,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 reg = await getMyRegistration(eventId, user.uid).catch(() => null);
-[going, venue, notes] = await Promise.all([listGoing(eventId).catch(() => []), loadVenue(), loadNotes()]);
+[going, venue, notes, partners] = await Promise.all([
+  listGoing(eventId).catch(() => []), loadVenue(), loadNotes(), listPartners(eventId, true).catch(() => []),
+]);
 render();
 if (notes.length && !role) markSeen(eventId);
 

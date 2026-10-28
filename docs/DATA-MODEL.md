@@ -68,13 +68,22 @@ events/{eventId}
   movedUp, movedUpAt                    the last person moved up from the waiting list by a cancellation, and when
   announcedAt: { audience: timestamp }  when each audience last got an announcement (Phase 2, the unread dot)
   speakers: [name]                      guest speakers, shown on the event page (Phase 2)
-  partners: [{ id, name, logoColors }]  partner organisations, shown on the event page (Phase 2)
+  reserved: number                      spots still held back for reserved-spot codes, out of registration.capacity:
+                                        up by a code's uses when it's made, down by one with each registration that
+                                        takes one, down by the unused ones when it's deleted (Phase 2)
+  registration.group                    hidden in the app until group registration is designed; stays false
+events/{eventId}/partners/{orgId}       orgId, name, logoColors, status ("invited" | "accepted" | "declined"), eventTitle,
+                                        hostName, startAt, invitedBy, invitedAt, decidedBy?, decidedAt? (Phase 2). Shown on
+                                        the event page once an admin of the partner organisation accepts. In place of the
+                                        event's own partners list, which the rules no longer allow
 events/{eventId}/codes/{CODE}           kind ("reserve" | "skip" | "unlock" | "discount"), amount?, uses (null for
-                                        unlimited), used, expiresAt, createdBy, createdAt (Phase 2; admins only)
+                                        unlimited; a reserved-spot code's number of spots), used, expiresAt, createdBy,
+                                        createdAt (Phase 2; admins only). CODE is 6 to 20 capital letters and digits
 events/{eventId}/codeHints/{sha256}     kind, amount?: what a code does, fetched by the hash of the code typed
 events/{eventId}/unlocks/{uid}          code, at: an access code that opened a hidden event to this volunteer
 events/{eventId}/registrations/{uid}
   code, discount                        the code registered with, and any discount from it (Phase 2)
+  reserved: true                        registered with a reserved-spot code, taking one of the held spots (Phase 2)
   source                                where the registration came from: home, discover, organisation, invite, link
 events/{eventId}/invites/{uid}          uid, name, eventTitle, orgName, startAt, fromEvent?, invitedBy, invitedAt
                                         (Phase 2; shown on the volunteer's Home and under Volunteers, Invited)

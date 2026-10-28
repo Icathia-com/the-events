@@ -1,7 +1,10 @@
 // Hosts (design/Hosts.dc.html), for the organisation's admins: co-hosts and staff added by email, guest speakers by
-// name, and partner organisations. Speakers and partners are shown on the event page; co-hosts and staff are not.
+// name, and partner organisations. Speakers are shown on the event page, and partners once they accept; co-hosts and
+// staff are not.
 import { requireUser } from '../auth.js';
-import { addHost, getEvent, getMyRole, listHosts, listOrganisations, removeHost, updateEvent } from '../data.js';
+import {
+  addHost, getEvent, getMyRole, invitePartner, listHosts, listOrganisations, listPartners, removeHost, removePartner, updateEvent,
+} from '../data.js';
 import { avatarHtml, dragScroll, esc, icon, orgDotHtml, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
@@ -26,10 +29,18 @@ const HELP = {
 };
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-let hosts = [], orgs = [], draft = '', pick = 'cohost', busy = false;
+// What a partner organisation's row says and its button, by the invitation's status.
+const PARTNER = {
+  none: [null, 'Invite'],
+  invited: ['Invited · waiting for them to accept', 'Invited'],
+  accepted: ['Co-hosting · shown on the event page', 'Co-hosting'],
+  declined: ['Declined', 'Invite'],
+};
+
+let hosts = [], orgs = [], partners = [], draft = '', pick = 'cohost', busy = false;
 async function load() {
-  [hosts, orgs, event] = await Promise.all([
-    listHosts(eventId).catch(() => []), listOrganisations().catch(() => []), getEvent(eventId),
+  [hosts, orgs, partners, event] = await Promise.all([
+    listHosts(eventId).catch(() => []), listOrganisations().catch(() => []), listPartners(eventId).catch(() => []), getEvent(eventId),
   ]);
 }
 
@@ -43,7 +54,7 @@ function hostRow({ key, name, line, tag, action }) {
 
 function render() {
   const speakers = event.speakers || [];
-  const partners = new Set((event.partners || []).map((p) => p.id));
+  const partnerStatus = (id) => partners.find((p) => p.id === id)?.status || 'none';
   const rows = [
     `<div class="host-row">${orgDotHtml({ name: event.orgName, logoColors: event.cover?.colors })}
       <span class="host-text"><span class="host-name">${esc(event.orgName)}</span><span class="meta">Your organisation · hosts this event</span></span>
@@ -69,10 +80,12 @@ function render() {
         <button type="button" class="big-btn" data-action="add"${can ? '' : ' disabled'}>Add host</button>
       </div></div>
     <div class="stack-6"><div class="lbl">Partner organisation</div><div class="glass host-list">${orgs.filter((o) => o.id !== event.orgId).map((o) => {
-      const on = partners.has(o.id);
+      const status = partnerStatus(o.id);
+      const [line, label] = PARTNER[status];
+      const on = status === 'invited' || status === 'accepted';
       return `<div class="host-row">${orgDotHtml(o)}
-        <span class="host-text"><span class="host-name">${esc(o.name)}</span><span class="meta">${esc(on ? 'Co-hosting · shown on the event page' : o.tagline || '')}</span></span>
-        <button type="button" class="partner-btn hit" data-partner="${esc(o.id)}" aria-pressed="${on}">${on ? 'Co-hosting' : 'Invite'}</button></div>`;
+        <span class="host-text"><span class="host-name">${esc(o.name)}</span><span class="meta">${esc(line || o.tagline || '')}</span></span>
+        <button type="button" class="partner-btn hit" data-partner="${esc(o.id)}" aria-pressed="${on}">${label}</button></div>`;
     }).join('')}</div></div>`;
 }
 
@@ -118,10 +131,13 @@ main.addEventListener('click', async (e) => {
     return;
   }
   if (t.dataset.partner) {
-    const id = t.dataset.partner, list = event.partners || [];
+    // Invite (again, after a decline), or take back an invitation or a partner that accepted.
+    const id = t.dataset.partner;
+    const status = partners.find((p) => p.id === id)?.status;
     const o = orgs.find((x) => x.id === id);
-    const next = list.some((p) => p.id === id) ? list.filter((p) => p.id !== id) : [...list, { id, name: o.name, logoColors: o.logoColors || [] }];
-    await act(() => updateEvent(eventId, { partners: next.slice(0, 10) }), 'Couldn’t update the partner.');
+    await act(() => (status === 'invited' || status === 'accepted' ? removePartner(eventId, id) : invitePartner(eventId, event, o, user.uid)),
+      'Couldn’t update the partner.');
+    main.querySelector(`[data-partner="${CSS.escape(id)}"]`)?.focus();
   }
 });
 

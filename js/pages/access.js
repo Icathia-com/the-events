@@ -1,5 +1,6 @@
 // Access and registration (design/Access.dc.html), for the organisation's admins: visibility, accepting
-// registrations, volunteer spots and the waiting list, group registration, and ticket types.
+// registrations, volunteer spots and the waiting list, and ticket types. Group registration is hidden until it's
+// designed (registration.group stays false).
 import { requireUser } from '../auth.js';
 import { Timestamp } from '../firebase.js';
 import { getEvent, getEventRole, updateEvent } from '../data.js';
@@ -50,6 +51,11 @@ const switchHtml = (id, on, label) => `<button type="button" class="switch" role
 function capText() {
   const { capacity, waitlist } = reg();
   if (!capacity) return ['Unlimited', 'Anyone can register until you close registrations.'];
+  // Spots held back for reserved-spot codes (Vouchers and access codes) aren't open to everyone.
+  const held = Math.min(event.reserved || 0, capacity);
+  if (held) {
+    return [`${capacity} spots`, `${held} of the ${capacity} spots are held for codes. ${waitlist ? 'A waiting list opens' : 'Registration closes'} when the other ${capacity - held} are filled.`];
+  }
   return [`${capacity} spots`, waitlist ? `A waiting list opens when the ${capacity} spots are filled.` : `Registration closes when the ${capacity} spots are filled.`];
 }
 
@@ -74,10 +80,6 @@ function render() {
       <div class="form-row is-static">${icon('checkin', 19, 2)}<span class="row-label">Accept registrations</span>${switchHtml('open', !!reg().open, 'Accept registrations')}</div>
       <button type="button" class="form-row" data-action="spots">${icon('organisations', 19, 2)}<span class="row-label">Volunteer spots</span><span class="row-value">${esc(capLabel)}</span>${icon('chevron', 16)}</button>
     </div><p class="help">${esc(capHelp)}</p></div>
-    <div class="form-card">
-      <div class="form-row is-static is-tall">${icon('organisations', 19, 2)}<span class="ticket-text"><span class="row-label">Group registration</span>
-        <span class="meta">One person can register a group, for example a company team</span></span>${switchHtml('group', !!reg().group, 'Group registration')}</div>
-    </div>
     <div class="stack-6">
       <div class="lbl-row"><span class="lbl">Ticket types</span>
         <button type="button" class="add-btn hit" data-action="add-ticket" aria-label="Add a ticket type">${icon('plus', 16, 2.4)}</button></div>

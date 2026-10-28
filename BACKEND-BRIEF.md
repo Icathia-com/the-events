@@ -10,7 +10,7 @@ Roles:
 - **Volunteer**: anyone signed in. Browses, follows organisations, registers, checks in and out, sees their hours record.
 - **Organisation admin**: a member of an approved organisation with role `admin`. Creates and manages that organisation's events, confirms attendance and hours, issues letters.
 - **Organisation staff**: role `staff`. Can check volunteers in and out and see the volunteer list; cannot edit events.
-- **Network admin**: Theersha. Approves organisations joining; sees everything.
+- **Network admin**: Theersha. Approves organisations joining; sees organisations, events and totals (registrations, attendance, hours), not volunteers' personal details.
 
 ## 2. How to work
 

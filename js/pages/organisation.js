@@ -2,8 +2,8 @@
 // About and the giving link. Letter requests are Phase 3, so they aren't shown.
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, countClaims, ensureUserDoc, followOrg, getMyRole, getOrganisation, listFollowerEvents, listOrgPastEvents,
-  listOrgPublicEvents, unfollowOrg, updateOrganisation,
+  answerPartnerInvite, AREAS, CAUSES, countClaims, ensureUserDoc, followOrg, getMyRole, getOrganisation, listFollowerEvents,
+  listOrgPastEvents, listOrgPublicEvents, listPartnerInvites, unfollowOrg, updateOrganisation,
 } from '../data.js';
 import {
   coverHtml, dateParts, dayStart, dragScroll, esc, fmtTime, gradient, icon, orgLogoHtml, reveal, shortDay, spotsChip, toast,
@@ -66,6 +66,19 @@ function pastRow(e) {
     ${icon('chevron', 16)}</a>`;
 }
 
+// The admin's invitations to partner on other organisations' events (Phase 2). Accepting shows this organisation on
+// the event page.
+let invites = [];
+const loadInvites = async () => { invites = (await listPartnerInvites(orgId)).filter((i) => i.status === 'invited'); };
+
+const invitesHtml = () => !invites.length ? '' : `<div class="stack-6"><div class="lbl">Partner invitations</div>${invites.map((i) => {
+  const start = i.startAt.toDate();
+  return `<article class="glass app-card"><span class="ticket-text"><span class="card-title">${esc(i.eventTitle)}</span>
+      <span class="meta">${esc(`${i.hostName} · ${shortDay(start, now)}, ${fmtTime(start)}`)}</span></span>
+    <div class="sheet-btns"><button type="button" class="ghost-btn is-danger" data-answer="declined" data-event="${esc(i.eventId)}">Decline</button>
+      <button type="button" class="big-btn grow" data-answer="accepted" data-event="${esc(i.eventId)}">Accept</button></div></article>`;
+}).join('')}</div>`;
+
 const pastHtml = () => !past ? '' : `<div class="lbl">Past events</div>
   ${past.length ? `<div class="glass list-card">${past.map(pastRow).join('')}</div>` : '<div class="glass empty-note">No past events.</div>'}`;
 
@@ -115,7 +128,7 @@ function render() {
     ${mine ? `<div class="act-row">
       <a class="act act-short" href="create.html">${icon('plus', 18, 2.4)}New event</a>
       <button type="button" class="act act-short act-square" data-action="edit" aria-label="Edit About and the giving link" aria-pressed="${editing}">${icon('edit', 18, 2)}</button>
-    </div>` : ''}
+    </div>${invitesHtml()}` : ''}
     <div class="stack-6"><div class="lbl">About</div>${about()}</div>
     <div class="stack-6">
       <div class="lbl-row"><span class="lbl">Upcoming events</span>${events.some((e) => e.sample) ? '<span class="sec-sub">Sample events</span>' : ''}</div>
@@ -134,6 +147,21 @@ function render() {
 }
 
 main.addEventListener('click', async (e) => {
+  const answer = e.target.closest('[data-answer]');
+  if (answer) {
+    const invite = invites.find((i) => i.eventId === answer.dataset.event);
+    main.querySelectorAll('[data-answer]').forEach((b) => { b.disabled = true; });
+    try {
+      await answerPartnerInvite(answer.dataset.event, orgId, answer.dataset.answer, user.uid);
+      toast(answer.dataset.answer === 'accepted' ? `Partnering on ${invite?.eventTitle || 'the event'}` : 'Invitation declined');
+    } catch (err) {
+      console.warn(err);
+      toast('Couldn’t save that.');
+    }
+    await loadInvites().catch((err) => console.warn(err));
+    render();
+    return;
+  }
   const target = e.target.closest('[data-action]');
   if (!target) return;
   const action = target.dataset.action;
@@ -178,7 +206,7 @@ main.addEventListener('submit', async (e) => {
   }
 });
 
-await Promise.all([loadEvents(), mine && loadPast().catch((err) => console.warn(err))]);
+await Promise.all([loadEvents(), mine && loadPast().catch((err) => console.warn(err)), mine && loadInvites().catch((err) => console.warn(err))]);
 render();
 dragScroll(document.scrollingElement, 'y');
 reveal();
