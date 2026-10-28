@@ -73,6 +73,10 @@ Jun (`jun.wei@example.com`) starts with no registrations, so he's a good one to 
 - **Hosts**: Manage, then Hosts.
   - Add a co-host or staff member by email, for example `jun.wei@example.com` as co-host. When Jun signs in and opens the event's link, he can manage that event, but no other.
   - Guest speakers (a name) and partner organisations appear under "Hosted by" on the event page.
+- **Invite volunteers**: Manage, then Invite volunteers, or Invite on the event page.
+  - Choose past volunteers, or a past event to invite everyone who attended it.
+  - Invited volunteers see an "Invited" card in "Your events" on Home. They're listed under Volunteers, Invited.
+- **Insights**: Manage, then Insights: registered, waiting, cancelled, spots filled, attendance, and where registrations came from.
 - **Cancel event**: Manage, then Cancel event.
 
 **Scanning needs a camera.** On a laptop:

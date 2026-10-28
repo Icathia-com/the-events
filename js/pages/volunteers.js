@@ -3,14 +3,14 @@
 // the requests, so an admin can move them up.
 import { requireUser } from '../auth.js';
 import {
-  decideRegistration, getEvent, getEventRole, getMyRole, listAttendance, listQuestions, listRegistrations, markAttended, pastEventCounts,
+  decideRegistration, getEvent, getEventRole, getMyRole, listAttendance, listInvites, listQuestions, listRegistrations, markAttended, pastEventCounts,
   questionLabel, ticketFor, unmarkAttended,
 } from '../data.js';
 import { avatarHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, openModal, reveal, shortDay, toast } from '../ui.js';
 
-const TABS = [['going', 'Going'], ['attended', 'Attended'], ['unmarked', 'Not yet marked'], ['pending', 'Waiting for approval']];
+const TABS = [['going', 'Going'], ['attended', 'Attended'], ['unmarked', 'Not yet marked'], ['pending', 'Waiting for approval'], ['invited', 'Invited']];
 const EMPTY = {
-  going: 'No one has registered yet', attended: 'No one marked attended yet', unmarked: 'Everyone is marked', pending: 'No requests waiting',
+  going: 'No one has registered yet', attended: 'No one marked attended yet', unmarked: 'Everyone is marked', pending: 'No requests waiting', invited: 'No one invited yet',
 };
 
 const user = await requireUser();
@@ -31,16 +31,18 @@ const isAdmin = role === 'admin';
 const orgAdmin = isAdmin && (await getMyRole(event.orgId, user.uid).catch(() => null)) === 'admin';
 const q = `?id=${encodeURIComponent(eventId)}`;
 let people = [], past = {}, questions = [];
-let tab = 'going', search = '', searchOpen = false, byName = false;
+const askedTab = new URLSearchParams(location.search).get('tab');
+let tab = TABS.some(([id]) => id === askedTab) ? askedTab : 'going', search = '', searchOpen = false, byName = false;
 const busy = new Set();
 
 async function load() {
-  const [regs, attendance, pastCounts, fresh, qs] = await Promise.all([
+  const [regs, attendance, pastCounts, fresh, qs, invites] = await Promise.all([
     listRegistrations(eventId),
     listAttendance(eventId),
     orgAdmin ? pastEventCounts(event.orgId).catch(() => ({})) : {},
     getEvent(eventId),
     listQuestions(eventId).catch(() => []),
+    listInvites(eventId).catch(() => []),
   ]);
   const att = Object.fromEntries(attendance.map((a) => [a.id, a]));
   event = fresh;
@@ -52,6 +54,11 @@ async function load() {
       email: r.email || '', ticketTypeId: r.ticketTypeId || null, answers: r.answers || {}, code: r.code || '', discount: r.discount || 0,
     }))
     .sort((a, b) => a.registeredAt - b.registeredAt);
+  // The Invited tab (Phase 2): everyone invited, and whether they've registered since.
+  const registered = new Set(regs.filter((r) => ['going', 'pending', 'waitlist'].includes(r.status)).map((r) => r.id));
+  people.push(...invites.map((i) => ({
+    uid: i.id, name: i.name || 'Volunteer', status: 'invited', registeredAt: i.invitedAt?.toDate?.() || new Date(), joined: registered.has(i.id),
+  })));
 }
 
 // A volunteer's registration for the organisation: email, ticket type and answers to the questions.
@@ -78,10 +85,12 @@ const inTab = {
   attended: (p) => p.status === 'going' && attended(p),
   unmarked: (p) => p.status === 'going' && !attended(p),
   pending: (p) => p.status === 'pending' || p.status === 'waitlist',
+  invited: (p) => p.status === 'invited',
 };
 
 function line(p) {
   const d = dateParts(p.registeredAt);
+  if (p.status === 'invited') return `Invited ${d.day} ${d.month.slice(0, 3)}${p.joined ? ' · Registered' : ''}`;
   if (p.status === 'pending' || p.status === 'waitlist') {
     const when = `${shortDay(p.registeredAt).replace(/^(Today|Tomorrow)$/, (w) => w.toLowerCase())}, ${fmtTime(p.registeredAt)}`;
     return p.status === 'pending' ? `Requested ${when}` : `On the waiting list since ${when}`;
@@ -93,6 +102,7 @@ function line(p) {
 
 function actions(p) {
   const off = busy.has(p.uid) ? ' disabled' : '';
+  if (p.status === 'invited') return '';
   if (p.status === 'going') {
     const on = attended(p);
     return `<button type="button" class="mark-btn" data-mark="${esc(p.uid)}" aria-pressed="${on}"
@@ -154,7 +164,7 @@ main.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-tab], [data-action], [data-mark], [data-approve], [data-decline], [data-person]');
   if (!t) return;
   if (t.dataset.tab) { tab = t.dataset.tab; render(); return; }
-  if (t.dataset.person) { const p = people.find((x) => x.uid === t.dataset.person); if (p) showPerson(p); return; }
+  if (t.dataset.person) { const p = people.find((x) => x.uid === t.dataset.person && x.status !== 'invited'); if (p) showPerson(p); return; }
   if (t.dataset.action === 'sort') { byName = !byName; render(); return; }
   if (t.dataset.action === 'search') {
     searchOpen = !searchOpen;

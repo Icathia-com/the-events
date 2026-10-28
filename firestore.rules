@@ -258,6 +258,11 @@ service cloud.firestore {
       }
     }
 
+    // Lets a volunteer find the events they're invited to (a collection group query on their own uid).
+    match /{path=**}/invites/{uid} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     // Lets an invited person find their staff invitations (a collection group query on their own email).
     match /{path=**}/staffInvites/{email} {
       allow read: if signedIn() && request.auth.token.email_verified == true && resource.data.email == request.auth.token.email.lower();
@@ -582,6 +587,20 @@ service cloud.firestore {
           && request.resource.data.at == request.time;
       }
 
+      // Invitations (Phase 2; in the app only, with emails in Phase 3): the event's admins invite past volunteers.
+      // They carry the event's title and time for the volunteer's Home. The invitee and the organisation read them.
+      match /invites/{uid} {
+        allow read: if isSelf(uid) || isEventMember(eventId, get(eventPath(eventId)).data.orgId);
+        allow create: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'eventTitle', 'orgName', 'startAt', 'fromEvent', 'invitedBy', 'invitedAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.name is string && request.resource.data.name.size() <= 100
+          && request.resource.data.eventTitle == get(eventPath(eventId)).data.title
+          && request.resource.data.startAt == get(eventPath(eventId)).data.startAt
+          && request.resource.data.invitedBy == request.auth.uid && request.resource.data.invitedAt == request.time;
+        allow delete: if isSelf(uid) || isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+      }
+
       // Hosts (Phase 2), one per email: co-hosts and event staff. The organisation's admins add and remove them;
       // the organisation, the event's hosts and the person themselves read them.
       match /hosts/{email} {
@@ -635,6 +654,7 @@ service cloud.firestore {
           return (canSee(e) || open) && openForJoining(e, open) && status != 'full'
             && (c == null || getAfter(codePath(eventId, code)).data.used == c.used + 1)
             && (!('discount' in r) || (c != null && c.kind == 'discount' && r.discount == c.amount))
+            && (!('source' in r) || r.source in ['home', 'discover', 'organisation', 'invite', 'link'])
             && (e.get('ticketTypes', []).size() == 0 ? r.ticketTypeId == null : t != null) && typeOpen(t)
             && r.status == status && r.uid == uid
             && r.name is string && r.name.size() > 0 && r.name.size() <= 100
@@ -689,13 +709,13 @@ service cloud.firestore {
         }
 
         allow create: if isSelf(uid)
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'code', 'discount', 'registeredAt', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'code', 'discount', 'source', 'registeredAt', 'createdAt', 'updatedAt'])
           && request.resource.data.createdAt == request.time
           && joinAllowed('none');
 
         allow update: if (isSelf(uid) && (
             (resource.data.status == 'cancelled'
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'code', 'discount', 'registeredAt', 'updatedAt'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'code', 'discount', 'source', 'registeredAt', 'updatedAt'])
               && joinAllowed('cancelled'))
             || cancelAllowed()))
           || decisionAllowed()

@@ -246,9 +246,23 @@ function askQuestions(ticketTypeId, questions) {
   });
 }
 
+// Where this visit came from, recorded on the registration for Insights (Phase 2): an invitation or a shared link
+// (?src=), or the app page the volunteer came from.
+const source = (() => {
+  const src = new URLSearchParams(location.search).get('src');
+  if (src) return src === 'invite' ? 'invite' : 'link';
+  try {
+    const from = new URL(document.referrer);
+    if (from.origin !== location.origin) return 'link';
+    return { '': 'home', 'index.html': 'home', 'discover.html': 'discover', 'organisation.html': 'organisation', 'organisations.html': 'organisation' }[from.pathname.split('/').pop()] || null;
+  } catch {
+    return null;
+  }
+})();
+
 async function join(ticketTypeId, answers = {}) {
   await run(async () => {
-    const status = await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId, { answers, email: user.email || '', code: appliedCode });
+    const status = await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId, { answers, email: user.email || '', code: appliedCode, source });
     if (status === 'full') toast('This event just filled up.');
   }, appliedCode ? 'That code can’t be used any more.' : 'Couldn’t register.');
 }
@@ -272,8 +286,7 @@ const moreButton = (cls) =>
 
 function actions() {
   if (isAdmin) {
-    const soon = (iconName, label) => `<span class="act" aria-disabled="true">${icon(iconName, 20, 2)}<span>${label}</span><span class="soon">Soon</span></span>`;
-    return `<div class="act-row">${soon('invite', 'Invite')}
+    return `<div class="act-row"><a class="act" href="invite.html?id=${encodeURIComponent(eventId)}">${icon('invite', 20, 2)}Invite</a>
       <a class="act" href="announcements.html?id=${encodeURIComponent(eventId)}">${icon('message', 20, 2)}Message</a>
       <a class="act" href="manage.html?id=${encodeURIComponent(eventId)}">${icon('manage', 20, 2)}Manage</a>${moreButton('')}${menu()}</div>
       ${checkinBar()}`;
@@ -406,7 +419,7 @@ function downloadCalendar() {
 }
 
 async function shareLink() {
-  const url = location.href;
+  const url = new URL(`event.html?id=${encodeURIComponent(eventId)}&src=share`, location.href).href;
   if (navigator.share) {
     try { await navigator.share({ title: event.title, url }); } catch (err) { if (err.name !== 'AbortError') toast('Couldn’t share the link.'); }
     return;

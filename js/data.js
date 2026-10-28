@@ -215,7 +215,7 @@ export const removeQuestion = (eventId, id) => deleteDoc(doc(db, 'events', event
 
 // Joins an event with a ticket type (null when the event has none) and the answers to its questions, or joins again
 // after cancelling. The sign-in email goes with the registration, for the organisation. Returns the new status, or 'full'.
-export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {}, email = '', code = null } = {}) {
+export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {}, email = '', code = null, source = null } = {}) {
   return runTransaction(db, async (tx) => {
     const eventRef = doc(db, 'events', eventId);
     const regRef = doc(db, 'events', eventId, 'registrations', uid);
@@ -233,6 +233,7 @@ export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {
     const fields = {
       status, name, ...(email ? { email } : {}), ticketTypeId: type?.id || null, answers,
       ...(code ? { code: code.code, ...(code.kind === 'discount' ? { discount: code.amount } : {}) } : {}),
+      ...(source in SOURCES ? { source } : {}),
       registeredAt: serverTimestamp(), updatedAt: serverTimestamp(),
     };
     // Joining again after cancelling: a code from the earlier registration doesn't carry over.
@@ -628,6 +629,49 @@ export async function getEventRole(event, eventId, user) {
   ]);
   return orgRole || (host === 'cohost' ? 'admin' : host);
 }
+
+// Invitations (Phase 2; in the app only, with emails in Phase 3). Past volunteers are the people whose attendance the
+// organisation confirmed at its past events.
+export async function listPastVolunteers(orgId) {
+  const events = await listOrgPastEvents(orgId);
+  const lists = await Promise.all(events.map((e) => listAttendance(e.id).catch(() => [])));
+  const people = new Map();
+  const withAttendees = events.map((e, i) => {
+    const attendees = lists[i].filter((a) => a.status === 'confirmed').map((a) => ({ uid: a.id, name: a.name || 'Volunteer' }));
+    for (const a of attendees) {
+      const p = people.get(a.uid) || { ...a, count: 0, last: e.startAt };
+      p.count += 1;
+      if (e.startAt.toMillis() > p.last.toMillis()) p.last = e.startAt;
+      people.set(a.uid, p);
+    }
+    return { ...e, attendees };
+  });
+  return { people: [...people.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)), events: withAttendees };
+}
+
+export function inviteVolunteers(eventId, event, people, by) {
+  const batch = writeBatch(db);
+  for (const p of people) {
+    batch.set(doc(db, 'events', eventId, 'invites', p.uid), {
+      uid: p.uid, name: p.name, eventTitle: event.title, orgName: event.orgName, startAt: event.startAt,
+      ...(p.fromEvent ? { fromEvent: p.fromEvent } : {}), invitedBy: by, invitedAt: serverTimestamp(),
+    });
+  }
+  return batch.commit();
+}
+
+export async function listInvites(eventId) {
+  return allWithIds(await getDocs(collection(db, 'events', eventId, 'invites')));
+}
+
+// The volunteer's own invitations, with the event id: [{ eventId, eventTitle, orgName, startAt, ... }].
+export async function myInvites(uid) {
+  const snaps = await getDocs(query(collectionGroup(db, 'invites'), where('uid', '==', uid)));
+  return snaps.docs.map((d) => ({ eventId: d.ref.parent.parent.id, ...d.data() }));
+}
+
+// Where registrations came from (Phase 2), for Insights.
+export const SOURCES = { home: 'Home', discover: 'Discover', organisation: 'Organisation page', invite: 'Invitation', link: 'Shared link' };
 
 // Organisation applications (Phase 2): the applicant creates the organisation, pending, and becomes its admin in the
 // same write. The network admin approves or declines it.

@@ -75,6 +75,9 @@ events/{eventId}/codeHints/{sha256}     kind, amount?: what a code does, fetched
 events/{eventId}/unlocks/{uid}          code, at: an access code that opened a hidden event to this volunteer
 events/{eventId}/registrations/{uid}
   code, discount                        the code registered with, and any discount from it (Phase 2)
+  source                                where the registration came from: home, discover, organisation, invite, link
+events/{eventId}/invites/{uid}          uid, name, eventTitle, orgName, startAt, fromEvent?, invitedBy, invitedAt
+                                        (Phase 2; shown on the volunteer's Home and under Volunteers, Invited)
 events/{eventId}/hosts/{email}          email, role ("cohost" | "staff"), addedBy, addedAt (Phase 2). A co-host has
                                         admin powers for this event only; event staff check in and out
 events/{eventId}/announcements/{id}     text, audience ("going" | "waiting" | "attended"), by, byName, count,

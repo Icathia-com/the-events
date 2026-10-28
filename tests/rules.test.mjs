@@ -1367,3 +1367,54 @@ describe('vouchers and access codes', () => {
     await assertFails(getDoc(doc(dbAs('carol'), 'events/e-hidden')));
   });
 });
+
+describe('invitations and registration sources', () => {
+  const later = new Date(Date.now() + 7 * 86400e3), start = new Date(Date.now() + 6 * 86400e3);
+  const st = serverTimestamp;
+  const invite = (by, uid = 'alice', over = {}) => setDoc(doc(dbAs(by), `events/e-i/invites/${uid}`), {
+    uid, name: 'Alice A.', eventTitle: 'Pantry restock', orgName: 'Open Org', startAt: start, invitedBy: by, invitedAt: st(), ...over,
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
+      'events/e-i': {
+        orgId: 'open', title: 'Pantry restock', visibility: 'public', status: 'scheduled', startAt: start, endAt: later,
+        registration: { open: true, approval: false, capacity: 10, waitlist: false, group: false },
+        counts: { going: 0, pending: 0, waitlist: 0, attended: 0 },
+      },
+    });
+  });
+
+  it('the event\'s admins invite volunteers; staff and volunteers cannot', async () => {
+    await assertSucceeds(invite('mei'));
+    await assertFails(invite('sam'));
+    await assertFails(invite('bob'));
+    await assertFails(invite('mei', 'alice', { invitedBy: 'sam' }));
+    await assertFails(invite('mei', 'alice', { eventTitle: 'Something else' }));
+  });
+
+  it('the invitee finds and reads their invitation; other volunteers cannot', async () => {
+    await seedDocs({ 'events/e-i/invites/alice': { uid: 'alice', name: 'Alice A.', eventTitle: 'Pantry restock', startAt: start, invitedBy: 'mei' } });
+    await assertSucceeds(getDoc(doc(dbAs('alice'), 'events/e-i/invites/alice')));
+    await assertSucceeds(getDocs(query(collectionGroup(dbAs('alice'), 'invites'), where('uid', '==', 'alice'))));
+    await assertFails(getDoc(doc(dbAs('bob'), 'events/e-i/invites/alice')));
+    await assertSucceeds(getDoc(doc(dbAs('sam'), 'events/e-i/invites/alice')));
+  });
+
+  it('a registration records where it came from, from a fixed list', async () => {
+    const join = (source) => {
+      const db = dbAs('alice');
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'events/e-i'), { counts: { going: 1, pending: 0, waitlist: 0, attended: 0 }, countsBy: 'alice' });
+      batch.set(doc(db, 'events/e-i/registrations/alice'), {
+        uid: 'alice', name: 'Alice A.', status: 'going', ticketTypeId: null, answers: {}, source, registeredAt: st(), createdAt: st(), updatedAt: st(),
+      });
+      batch.set(doc(db, 'events/e-i/going/alice'), { name: 'Alice A.', since: st() });
+      return batch.commit();
+    };
+    await assertFails(join('billboard'));
+    await assertSucceeds(join('invite'));
+  });
+});

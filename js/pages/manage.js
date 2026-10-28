@@ -58,10 +58,10 @@ function render() {
       ${isAdmin ? row({ href: `vouchers.html${q}`, iconName: 'voucher', tile: 'vouchers', title: 'Vouchers and access codes', sub: 'Codes for groups, partners or reserved spots' }) : ''}
       ${isAdmin ? row({ href: `questions.html${q}`, iconName: 'doc', tile: 'questions', title: 'Registration questions', sub: 'What to ask volunteers when they sign up' }) : ''}
       ${isAdmin ? row({ href: `announcements.html${q}`, iconName: 'message', tile: 'announce', title: 'Announcements', sub: 'Message everyone who registered' }) : ''}
-      ${row({ iconName: 'insights', tile: 'insights', title: 'Insights', sub: 'Page views, registrations and attendance', soon: true })}
+      ${isAdmin ? row({ href: `insights.html${q}`, iconName: 'insights', tile: 'insights', title: 'Insights', sub: 'Registrations, attendance and where they came from' }) : ''}
     </div>
     <div class="glass mg-card">
-      ${row({ iconName: 'invite', title: 'Invite volunteers', small: true, soon: true })}
+      ${isAdmin ? row({ href: `invite.html${q}`, iconName: 'invite', title: 'Invite volunteers', small: true }) : ''}
       ${row({ href: `checkin.html${q}`, iconName: 'checkin', title: 'Check in volunteers', small: true })}
       ${row({ iconName: 'chat', title: 'Start event chat', small: true, soon: true })}
     </div>

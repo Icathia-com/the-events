@@ -138,6 +138,17 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
   - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
   - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice H: Page views are left out of Insights, as the queue asks. Counting them would mean writing a record on every visit to an event page. The canvas's page-view chart and its range tabs (24H, 7D, 30D, 3M) go with them.
+- Phase 2, slice H: Where registrations came from:
+  - Home, Discover, Organisation page, Invitation, or Shared link. A shared link is any `?src=` other than an invitation, or arriving from another website. "Share event link" now adds `src=share`.
+  - An event opened directly (typed or bookmarked) records nothing.
+  - Registrations from before this, which includes all the sample ones, show as "Not recorded".
+  - "Registered" means going, and "Waiting for approval" includes the waiting list.
+- Phase 2, slice H: Invitations:
+  - Past volunteers are the people whose attendance the organisation confirmed at its 20 most recent past events. Anyone already invited or registered isn't offered again.
+  - Left out until Phase 3, when emails arrive: contacts access, inviting a new email or mobile number, and the done screen's "They get a push notification and an email with a one-tap Register link." The done screen keeps "See invited list" and "Invite more".
+  - An invitation carries the event's title and time, so Home can show it without reading the event. On Home, invitations to upcoming events appear at the end of "Your events" as "Invited" cards.
+  - An invitation doesn't open a followers-only or draft event; an access code does that.
 - Phase 2, slice G: Reserved spots are extra spots for code holders, on top of the event's own. A code with 2 uses lets 2 people in even when the event is full, and the public "spots left" doesn't count them.
   - Holding spots back out of the event's own number would need a running total that the rules can check. That can come later if you'd rather have it that way.
   - A reserved-spot code needs a number of uses, which is its number of spots. Its holders are going straight away, without approval.
@@ -911,3 +922,38 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice H: Invite and Insights.
+
+## 28 Oct 2026: Phase 2, slice H: Invite and Insights
+
+**Done**
+- `invite.html` from design/Invite.dc.html, for the event's admins, opened from Manage and from Invite on the event page:
+  - Search.
+  - People: past volunteers with the organisation, with their number of past events.
+  - Past events: invite everyone who attended.
+  - "Send N invitations", then "N invitations sent" with "See invited list" and "Invite more".
+- Invitations are stored in `events/{id}/invites/{uid}`. They show:
+  - in the Volunteers list's new Invited tab ("Invited 28 Oct · Registered" once they've registered);
+  - as "Invited" cards in "Your events" on the volunteer's Home.
+- `insights.html` from design/Insights.dc.html, for the event's admins: registered, waiting for approval, cancelled, spots filled, attendance with hours added, and where registrations came from.
+- Every registration now records where it came from (`source`).
+- Rules:
+  - Only the event's admins invite, under their own name and with the event's real title and time.
+  - The invitee and the organisation read an invitation, and a volunteer can find their own.
+  - A source must come from the fixed list.
+- Production: a collection group index on `invites.uid`, in `firestore.indexes.json`.
+
+**Tested**
+- Rules tests: 161 of 161 pass (135 rules tests, 26 QR tests), run against the emulator. New tests:
+  - Admins invite; staff, volunteers, someone else's name or a wrong event title are refused.
+  - The invitee reads their invitation directly and by a collection group query; another volunteer can't, and staff can.
+  - A made-up source is refused, and "invite" works.
+- At 390 px against the emulators, with Jun's attendance at last week's visit confirmed first:
+  1. Mei Lin's People tab listed Jun Wei and Mei Lin Tan ("1 past event · last in October"). Past events listed last week's visit ("15 Oct · 2 attended").
+  2. She chose Jun, sent "Send 1 invitation", and saw "1 invitation sent".
+  3. Jun's Home showed the visit at the end of "Your events" with "Invited". He opened it and registered, and his registration's source is "invite".
+  4. The Invited tab showed "Jun Wei · Invited 28 Oct · Registered".
+  5. Insights showed 7 registered, 3 waiting, 0 cancelled, spots filled 70% (7 of 10), attendance 0 of 7, and sources: Invitation 10%, Not recorded 90% (the sample registrations).
+- No console errors.
+
+**Next**
+- The Phase 2 queue is done. See the end-of-block notes below.

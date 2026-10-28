@@ -2,7 +2,7 @@
 import { requireUser } from '../auth.js';
 import {
   AREAS, audiencesFor, CAUSES, claimInvites, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations,
-  listPublicEvents, myAttendance, myMemberships, myRegistrations, syncHours,
+  listPublicEvents, myAttendance, myInvites, myMemberships, myRegistrations, syncHours,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import { scanCheckOut } from '../scanner.js';
@@ -100,12 +100,13 @@ revealEarly($('quick'));
 // Events the user is going to or waiting on, with their registration status: from the public list where they're
 // in it, otherwise read one by one (past events, followers-only ones).
 const listed = new Map(publicEvents.map((e) => [e.id, e]));
-const [followerEvents, regEvents] = await Promise.all([
+const [followerEvents, regEvents, invites] = await Promise.all([
   follows.length ? listFollowerEvents(follows, today).catch(orElse([])) : [],
   Promise.all(regs.map(async (r) => {
     const event = listed.get(r.eventId) || await getEvent(r.eventId).catch(() => null);
     return event && { ...event, regStatus: r.status };
   })).then((list) => list.filter(Boolean)),
+  myInvites(user.uid).catch(() => []),
 ]);
 
 const checkOut = (event) => scanCheckOut(event.id, user.uid, (result) => {
@@ -116,7 +117,24 @@ const checkOut = (event) => scanCheckOut(event.id, user.uid, (result) => {
 // Your events
 
 const upcoming = regEvents.filter((e) => e.endAt.toDate() > now).sort(byStart);
-$('up-count').textContent = String(upcoming.length);
+// Invitations (Phase 2) to upcoming events the user hasn't registered for, after their own events.
+const registeredIds = new Set(regs.map((r) => r.eventId));
+const invited = invites.filter((i) => !registeredIds.has(i.eventId) && i.startAt?.toDate() > now)
+  .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
+$('up-count').textContent = String(upcoming.length + invited.length);
+
+function invitedCard(i) {
+  const start = i.startAt.toDate();
+  return `<div class="glass ue-card">
+    <a class="ue-main" href="event.html?id=${encodeURIComponent(i.eventId)}&src=invite" draggable="false">
+      <span class="ue-text">
+        <span class="ue-title clamp2">${esc(i.eventTitle)}</span>
+        <span class="ue-when">${esc(shortDay(start, now))} · ${fmtTime(start)}</span>
+        <span class="ue-org">${esc(i.orgName || '')}</span>
+        <span class="chip chip-wait">Invited</span>
+      </span>
+    </a></div>`;
+}
 
 function upcomingCard(e) {
   const start = e.startAt.toDate(), end = e.endAt.toDate();
@@ -142,9 +160,9 @@ function upcomingCard(e) {
 }
 
 const upEl = $('upcoming');
-if (upcoming.length) {
+if (upcoming.length || invited.length) {
   upEl.className = 'hscroll';
-  upEl.innerHTML = upcoming.map(upcomingCard).join('');
+  upEl.innerHTML = [...upcoming.map(upcomingCard), ...invited.map(invitedCard)].join('');
   upEl.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-checkin]');
     if (button) showQr(upcoming.find((e) => e.id === button.dataset.checkin));
