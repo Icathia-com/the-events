@@ -119,6 +119,33 @@ export async function getMyRegistration(eventId, uid) {
   return withId(await getDoc(doc(db, 'events', eventId, 'registrations', uid)));
 }
 
+// Announcements (Phase 2, in the app only). Each goes to one audience; the event keeps when each audience last got
+// one (announcedAt), for the unread dot on Home.
+export const AUDIENCES = { going: 'Going', waiting: 'Going and waiting for approval', attended: 'Attended' };
+
+export function postAnnouncement(eventId, fields) {
+  const batch = writeBatch(db);
+  batch.set(doc(collection(db, 'events', eventId, 'announcements')), { ...fields, createdAt: serverTimestamp() });
+  batch.update(doc(db, 'events', eventId), { [`announcedAt.${fields.audience}`]: serverTimestamp(), updatedAt: serverTimestamp() });
+  return batch.commit();
+}
+
+// The audiences a volunteer is in, from their registration and attendance.
+export function audiencesFor(regStatus, attendanceStatus) {
+  return [
+    ...(regStatus === 'going' ? ['going'] : []),
+    ...(['going', 'pending', 'waitlist'].includes(regStatus) ? ['waiting'] : []),
+    ...(attendanceStatus === 'confirmed' ? ['attended'] : []),
+  ];
+}
+
+// Newest first. The organisation's members read them all (audiences null); a volunteer, those for their audiences.
+export async function listAnnouncements(eventId, audiences = null) {
+  const all = collection(db, 'events', eventId, 'announcements');
+  const snaps = await Promise.all((audiences ? audiences.map((a) => query(all, where('audience', '==', a))) : [all]).map((q) => getDocs(q)));
+  return snaps.flatMap(allWithIds).sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+}
+
 // Registration questions (Phase 2): the personal ones under their own ids, custom ones under generated ids.
 export const PERSONAL_QUESTIONS = { mobile: 'Mobile number', emergency: 'Emergency contact', age: 'Age group' };
 export const AGE_GROUPS = ['Under 18', '18 to 24', '25 to 34', '35 to 44', '45 to 54', '55 to 64', '65 and over'];

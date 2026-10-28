@@ -919,6 +919,24 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .ghost-btn { height: 50px; padding: 0 18px; border-radius: 25px; cursor: pointer; font: inherit; font-size: 14.5px; font-weight: 700; color: var(--ink); background: var(--chip-off-bg); border: 1px solid var(--line-strong); }
 .ghost-btn.is-danger { color: var(--danger); border-color: var(--danger-bg); }
 
+/* Announcements (design/Blasts.dc.html), on the event page, and the unread dot on Home */
+.send-btn { height: 40px; padding: 0 18px; border: 0; border-radius: 20px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); background: var(--white); }
+.send-btn:disabled { cursor: default; color: var(--send-off-text); background: var(--send-off-bg); }
+.compose-card { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.compose-card .lbl { padding: 0; }
+.compose-text { width: 100%; min-height: 130px; padding: 12px; border: 0; border-radius: 16px; resize: vertical; font: inherit; font-size: 15px; line-height: 1.5; color: var(--ink); background: var(--field-bg); }
+.form-row.is-soon .switch { cursor: default; }
+.note-card { padding: 4px 16px; }
+.note-row { padding: 12px 0; display: flex; flex-direction: column; gap: 6px; }
+.note-row + .note-row { border-top: 1px solid var(--line); }
+.note-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.note-to { font-size: 13px; font-weight: 700; color: var(--body); }
+.note-text { font-size: 14.5px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sent-card { padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+.sent-ic { width: 40px; height: 40px; flex-shrink: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--confirmed-text); background: var(--confirmed-bg); }
+.ghost-btn.is-small { height: 40px; padding: 0 16px; border-radius: 20px; font-size: 14px; }
+.unread-dot { display: inline-block; width: 9px; height: 9px; margin: 0 6px 1px 0; border-radius: 50%; vertical-align: middle; background: var(--pending); }
+
 /* Registration questions (design/Questions.dc.html), the answers sheet and a volunteer's registration */
 .q-ic { flex-shrink: 0; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: var(--white); }
 .ty-row { width: 100%; min-height: 50px; padding: 0 14px; border: 0; cursor: pointer; display: flex; align-items: center; gap: 12px; font: inherit; font-size: 15px; font-weight: 600; text-align: left; color: var(--ink); background: none; }

@@ -367,6 +367,17 @@ export function countdown(start, now = new Date(), tz = TZ) {
 
 export const hoursText = (h) => `${Number(h.toFixed(1))} ${h === 1 ? 'hour' : 'hours'}`;
 
+// Announcements read on this device (the unread dot on Home): when the volunteer last saw an event's announcements.
+const SEEN = (eventId) => `te.seen.${eventId}`;
+export function markSeen(eventId) {
+  try { localStorage.setItem(SEEN(eventId), String(Date.now())); } catch { /* storage off: the dot stays */ }
+}
+export function hasUnread(event, audiences) {
+  let seen = 0;
+  try { seen = Number(localStorage.getItem(SEEN(event.id))) || 0; } catch { /* storage off */ }
+  return audiences.some((a) => (event.announcedAt?.[a]?.toMillis?.() || 0) > seen);
+}
+
 // What a scan of the check-out code did, for a toast.
 export const checkOutText = ({ status, hours }, orgName) => status === 'confirmed' ? `${hoursText(hours)} confirmed`
   : status === 'claimed' ? `Claim sent to ${orgName}` : 'Claim declined';

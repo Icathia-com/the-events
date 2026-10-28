@@ -1,14 +1,14 @@
 // Home (design/Home.dc.html).
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, claimInvites, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations,
+  AREAS, audiencesFor, CAUSES, claimInvites, ensureUserDoc, getEvent, hoursBetween, listFollowerEvents, listOrganisations,
   listPublicEvents, myAttendance, myMemberships, myRegistrations, syncHours,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import { scanCheckOut } from '../scanner.js';
 import {
   addDays, avatarHtml, checkOutText, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
-  eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, reveal,
+  eventRowHtml, fmtTime, gradient, hasUnread, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, reveal,
   revealEarly, shortDay, toast,
 } from '../ui.js';
 
@@ -128,10 +128,11 @@ function upcomingCard(e) {
     : isToday && !pending
       ? `<button type="button" class="ue-foot is-checkin" data-checkin="${esc(e.id)}">${icon('qr')}Check in</button>`
       : `<a class="ue-foot" href="${eventHref(e)}" draggable="false">${icon('pin', 16, 2)}${esc(AREAS[e.area] || 'Singapore')}, Singapore</a>`;
+  const unread = hasUnread(e, audiencesFor(e.regStatus, attendance[e.id]?.status));
   return `<div class="glass ue-card">
     <a class="ue-main" href="${eventHref(e)}" draggable="false">
       <span class="ue-text">
-        <span class="ue-title clamp2">${esc(e.title)}</span>
+        <span class="ue-title clamp2">${unread ? '<span class="unread-dot" role="img" aria-label="New announcement"></span>' : ''}${esc(e.title)}</span>
         <span class="ue-when">${esc(shortDay(start, now))} · ${fmtTime(start)} – ${fmtTime(end)}</span>
         <span class="ue-org">${esc(e.orgName)}</span>
         <span class="chip ${pending || isToday ? 'chip-wait' : 'chip-ok'}">${esc(pending ? 'Waiting for approval' : countdown(start, now))}</span>

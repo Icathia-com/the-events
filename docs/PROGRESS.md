@@ -138,6 +138,16 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
   - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
   - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice D: Announcements:
+  - The audiences are Going; Going and waiting for approval (pending or on the waiting list); and Attended. The canvas's "Everyone invited" is left out until invitations exist (slice H).
+  - Push notification, Email and SMS are shown with their switches off and a Soon tag. The summary reads "Goes to 9 volunteers in the app."
+  - Left out: "Replies come to your organisation's inbox." (there are no replies), the empty state's "Reminders, changes and thank-yous go to everyone registered, by push notification and email." (not true yet), and the placeholder's "for example…".
+  - Sent announcements can't be edited or deleted on the page. The rules let admins delete them, for later.
+  - The event page shows the organisation's admins and staff every announcement. The admin view's Message button now opens Announcements.
+- Phase 2, slice D: The unread dot:
+  - Which announcements someone has seen is kept on their device, so on a second phone the dot shows again.
+  - The event records when each audience last got an announcement (`announcedAt`). Anyone who can see the event can tell an announcement was sent, but not what it says.
+- Phase 2, slice D (seed): One sample announcement, labelled Sample, to the volunteers going to the Yishun visit, so the dot can be tried.
 - Phase 2, slice C (privacy): A registration and its answers are now read only by the volunteer and the organisation's admins and staff, as the queue asks. The network admin could read registrations before, and section 1 says the network admin "sees everything". Which should hold?
 - Phase 2, slice C (privacy): The sign-in email now goes with every registration (`email`), and the rules check it's the volunteer's own. That makes the canvas's "Email: Required" true. Organisers see it in a volunteer's details; before this, they saw only names.
 - Phase 2, slice C: Questions:
@@ -727,3 +737,30 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice D: Announcements.
+
+## 28 Oct 2026: Phase 2, slice D: Announcements, in the app only
+
+**Done**
+- `announcements.html` from design/Blasts.dc.html (admins only), opened from Manage and from Message on the event page:
+  - The message, and who it goes to, with each group's size: Going, Going and waiting for approval, or Attended.
+  - Push notification, Email and SMS shown with a Soon tag.
+  - Send, then "Sent to N volunteers" with New.
+  - The Sent list, newest first.
+- Stored in `events/{id}/announcements`. Volunteers in the audience see them on the event page under "Announcements", newest first.
+- Home shows an unread dot on that event's "Your events" card until the volunteer opens the event page.
+- Rules: only the organisation's admins post. Only the chosen audience reads an announcement, and the organisation's admins and staff read them all. A volunteer can list only the audiences they're in.
+
+**Tested**
+- Rules tests: 137 of 137 pass (111 rules tests, 26 QR tests), run against the emulator. New tests:
+  - Admins post; staff, volunteers, posting under someone else's name, or an unknown audience are refused.
+  - Each audience reads only its own announcements: going, waiting (pending or going), attended (confirmed attendance). A stranger reads none; staff read all.
+  - Listing works for the volunteer's own audience only.
+- At 390 px against the emulators:
+  1. Aisha's Home showed the dot on the Yishun visit. The event page showed the sample announcement ("Mei Lin Tan · Today · Sample"), and back on Home the dot was gone.
+  2. Mei Lin's Send stayed off until she'd written something. She sent to "Going and waiting for approval (9)" and saw "Sent to 9 volunteers", with both announcements in the Sent list.
+  3. Hari, who is pending, got the dot. His event page showed the new announcement but not the one for going volunteers.
+  4. Jun, who isn't registered, saw no announcements.
+- No console errors.
+
+**Next**
+- Slice E: Hosts.

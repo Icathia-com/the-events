@@ -1070,3 +1070,57 @@ describe('registration questions and answers', () => {
     await assertFails(getDoc(doc(dbAs('root'), 'events/e-q/registrations/alice')));
   });
 });
+
+describe('announcements', () => {
+  const later = new Date(Date.now() + 7 * 86400e3);
+  const st = serverTimestamp;
+  const post = (uid, over = {}) => setDoc(doc(dbAs(uid), `events/e-a/announcements/n-${uid}`), {
+    text: 'Bring a water bottle.', audience: 'going', by: uid, byName: 'Someone', createdAt: st(), ...over,
+  });
+  const read = (uid, id) => getDoc(doc(dbAs(uid), `events/e-a/announcements/${id}`));
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
+      'events/e-a': {
+        orgId: 'open', visibility: 'public', status: 'scheduled', endAt: later,
+        registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false },
+        counts: { going: 1, pending: 1, waitlist: 0, attended: 1 },
+      },
+      'events/e-a/registrations/alice': { uid: 'alice', name: 'Alice A.', status: 'going' },
+      'events/e-a/registrations/bob': { uid: 'bob', name: 'Bob B.', status: 'pending' },
+      'events/e-a/registrations/carol': { uid: 'carol', name: 'Carol C.', status: 'going' },
+      'events/e-a/attendance/carol': { uid: 'carol', name: 'Carol C.', status: 'confirmed', hours: 2 },
+      'events/e-a/announcements/to-going': { text: 'Meet at the void deck.', audience: 'going', by: 'mei', byName: 'Mei', createdAt: new Date() },
+      'events/e-a/announcements/to-waiting': { text: 'Spots may open up.', audience: 'waiting', by: 'mei', byName: 'Mei', createdAt: new Date() },
+      'events/e-a/announcements/to-attended': { text: 'Thank you for coming.', audience: 'attended', by: 'mei', byName: 'Mei', createdAt: new Date() },
+    });
+  });
+
+  it('the event\'s admins post announcements; staff and volunteers cannot', async () => {
+    await assertSucceeds(post('mei'));
+    await assertFails(post('sam'));
+    await assertFails(post('alice'));
+    await assertFails(post('mei', { by: 'sam' }));
+    await assertFails(post('mei', { audience: 'everyone' }));
+  });
+
+  it('only the chosen audience reads an announcement', async () => {
+    await assertSucceeds(read('alice', 'to-going'));
+    await assertFails(read('bob', 'to-going'));
+    await assertSucceeds(read('bob', 'to-waiting'));
+    await assertSucceeds(read('alice', 'to-waiting'));
+    await assertFails(read('alice', 'to-attended'));
+    await assertSucceeds(read('carol', 'to-attended'));
+    await assertFails(read('dan', 'to-waiting'));
+    await assertSucceeds(read('sam', 'to-attended'));
+  });
+
+  it('a volunteer lists only announcements for an audience they are in', async () => {
+    const list = (uid, audience) => getDocs(query(collection(dbAs(uid), 'events/e-a/announcements'), where('audience', '==', audience)));
+    await assertSucceeds(list('alice', 'going'));
+    await assertFails(list('bob', 'going'));
+    await assertFails(getDocs(collection(dbAs('alice'), 'events/e-a/announcements')));
+  });
+});

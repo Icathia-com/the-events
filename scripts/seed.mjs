@@ -201,6 +201,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     written[top] = (written[top] || 0) + 1;
   };
   const stamps = { createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+  // A sample announcement to the volunteers going to the Yishun visit, sent an hour ago (the unread dot on Home).
+  const REMINDER_AT = Timestamp.fromMillis(Date.now() - 3600e3);
 
   for (const [id, o] of Object.entries(ORGS)) {
     put(`organisations/${id}`, {
@@ -234,10 +236,17 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
         attended: attendance.filter(([, , status]) => status === 'confirmed').length,
       },
       hideExactLocation: id in HIDDEN_VENUES, checkInMode: 'standard', checkInLocked: false,
+      ...(id === 'yishun' ? { announcedAt: { going: REMINDER_AT } } : {}),
       createdBy: org === 'silver' ? uidOf('meilin') : 'seed', ...stamps,
     });
     put(`events/${id}/private/codes`, { checkIn: token(), checkOut: token(), rotatedAt: serverTimestamp() });
     if (HIDDEN_VENUES[id]) put(`events/${id}/private/location`, { venue: HIDDEN_VENUES[id] });
+    if (id === 'yishun') {
+      put(`events/${id}/announcements/sample-reminder`, {
+        text: 'Please bring a water bottle. We meet at the void deck at 1:45 PM.', audience: 'going',
+        by: uidOf('meilin'), byName: 'Mei Lin Tan', count: (regs.going || []).length, createdAt: REMINDER_AT,
+      });
+    }
 
     let n = 0;
     for (const status of ['going', 'pending']) {

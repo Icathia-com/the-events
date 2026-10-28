@@ -115,6 +115,8 @@
   --tile-questions: #B04A6A;
   --tile-announce: #C2704F;
   --tile-insights: #3E5A1E;
+  --send-off-bg: rgba(255,255,255,.35);
+  --send-off-text: rgba(255,255,255,.7);
   --qtype-text: #1F4E6E;
   --qtype-options: #5A3E7A;
   --qtype-checkbox: #8A5A1E;

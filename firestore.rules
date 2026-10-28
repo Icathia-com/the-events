@@ -420,7 +420,7 @@ service cloud.firestore {
       allow update: if isOrgAdmin(resource.data.orgId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'cause', 'area',
              'venue', 'meetingPoint', 'bring', 'startAt', 'endAt', 'hours', 'cover', 'visibility', 'status',
-             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'updatedAt'])
+             'registration', 'ticketTypes', 'hideExactLocation', 'checkInMode', 'checkInLocked', 'notifyFollowers', 'announcedAt', 'updatedAt'])
         && (request.resource.data.status == resource.data.status
             || (resource.data.status == 'scheduled' && request.resource.data.status == 'cancelled'))
         && validEvent(request.resource.data)
@@ -454,6 +454,28 @@ service cloud.firestore {
 
         allow read: if canSee(get(eventPath(eventId)).data);
         allow create, update: if isOrgAdmin(get(eventPath(eventId)).data.orgId) && validQuestion(request.resource.data);
+        allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
+      }
+
+      // Announcements (Phase 2, in the app only): the event's admins write them for one audience, and only that
+      // audience reads them: going; going and waiting (pending or on the waiting list); or attended.
+      match /announcements/{announcementId} {
+        function inAudience(audience) {
+          let status = statusBefore(eventId, request.auth.uid);
+          return audience == 'going' ? status == 'going'
+            : audience == 'waiting' ? status in ['going', 'pending', 'waitlist']
+            : audience == 'attended' && attendanceBefore(eventId, request.auth.uid) == 'confirmed';
+        }
+
+        allow read: if isMember(get(eventPath(eventId)).data.orgId) || (signedIn() && inAudience(resource.data.audience));
+        allow create: if isOrgAdmin(get(eventPath(eventId)).data.orgId)
+          && request.resource.data.keys().hasOnly(['text', 'audience', 'by', 'byName', 'count', 'createdAt'])
+          && (!('count' in request.resource.data) || (request.resource.data.count is int && request.resource.data.count >= 0))
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+          && request.resource.data.audience in ['going', 'waiting', 'attended']
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.byName is string && request.resource.data.byName.size() <= 100
+          && request.resource.data.createdAt == request.time;
         allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
       }
 

@@ -1,14 +1,14 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AGE_GROUPS, AREAS, approvalFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue,
-  getMyRegistration, getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, listQuestions, questionLabel, syncHours,
-  ticketFor, typeOpen, unfollowOrg,
+  AGE_GROUPS, AREAS, approvalFor, audiencesFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent,
+  getExactVenue, getMyAttendance, getMyRegistration, getMyRole, getOrganisation, joinEvent, joinStatus, listAnnouncements, listGoing,
+  listQuestions, questionLabel, syncHours, ticketFor, typeOpen, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import {
-  checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml,
-  reveal, shortDay, toast,
+  checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, markSeen, openModal,
+  orgDotHtml, reveal, shortDay, toast,
 } from '../ui.js';
 
 const user = await requireUser();
@@ -41,13 +41,31 @@ async function loadVenue() {
   return (await getExactVenue(eventId).catch(() => '')) || event.venue;
 }
 
+// Announcements (Phase 2): all of them for the organisation, otherwise those for the volunteer's audiences.
+let notes = [];
+async function loadNotes() {
+  if (role) return listAnnouncements(eventId).catch(() => []);
+  const att = reg?.status === 'going' && ended() ? await getMyAttendance(eventId, user.uid).catch(() => null) : null;
+  const audiences = audiencesFor(reg?.status, att?.status);
+  return audiences.length ? listAnnouncements(eventId, audiences).catch(() => []) : [];
+}
+
+function notesHtml() {
+  if (!notes.length) return '';
+  return `<div class="stack-6"><div class="lbl">Announcements</div><div class="glass note-card">${notes.map((n) => {
+    const at = n.createdAt?.toDate?.() || new Date();
+    return `<div class="note-row"><span class="note-text">${esc(n.text)}</span>
+      <span class="meta">${esc(`${n.byName || orgName()} · ${shortDay(at)}, ${fmtTime(at)}`)}${n.sample ? ' · Sample' : ''}</span></div>`;
+  }).join('')}</div></div>`;
+}
+
 async function refresh() {
   [event, reg, going] = await Promise.all([
     getEvent(eventId),
     getMyRegistration(eventId, user.uid).catch(() => null),
     listGoing(eventId).catch(() => []),
   ]);
-  venue = await loadVenue();
+  [venue, notes] = await Promise.all([loadVenue(), loadNotes()]);
   render();
 }
 
@@ -208,7 +226,8 @@ const moreButton = (cls) =>
 function actions() {
   if (isAdmin) {
     const soon = (iconName, label) => `<span class="act" aria-disabled="true">${icon(iconName, 20, 2)}<span>${label}</span><span class="soon">Soon</span></span>`;
-    return `<div class="act-row">${soon('invite', 'Invite')}${soon('message', 'Message')}
+    return `<div class="act-row">${soon('invite', 'Invite')}
+      <a class="act" href="announcements.html?id=${encodeURIComponent(eventId)}">${icon('message', 20, 2)}Message</a>
       <a class="act" href="manage.html?id=${encodeURIComponent(eventId)}">${icon('manage', 20, 2)}Manage</a>${moreButton('')}${menu()}</div>
       ${checkinBar()}`;
   }
@@ -296,6 +315,7 @@ function render() {
       <div class="status-row"><span class="chip ${chipCls}">${esc(chipText)}</span>${needsApproval ? '<span class="meta-note">Approval required</span>' : ''}</div>
     </div>
     ${actions()}
+    ${notesHtml()}
     ${locationCard()}
     ${details()}
     ${event.description ? `<div class="stack-6"><div class="lbl">About this event</div><div class="glass about-card">${esc(event.description)}</div></div>` : ''}
@@ -401,9 +421,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 reg = await getMyRegistration(eventId, user.uid).catch(() => null);
-going = await listGoing(eventId).catch(() => []);
-venue = await loadVenue();
+[going, venue, notes] = await Promise.all([listGoing(eventId).catch(() => []), loadVenue(), loadNotes()]);
 render();
+if (notes.length && !role) markSeen(eventId);
 
 // Opened from the organiser's check-out code (event.html?id=…&checkout=…): confirm this volunteer's hours, or claim them.
 const checkoutCode = new URLSearchParams(location.search).get('checkout');

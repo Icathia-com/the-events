@@ -66,6 +66,10 @@ events/{eventId}
   waitingList: [uid]                    the waiting list in order (Phase 2)
   waiting: { uid: { type, name } }      each waiting person's ticket type id and short name ("Aisha R.")
   movedUp, movedUpAt                    the last person moved up from the waiting list by a cancellation, and when
+  announcedAt: { audience: timestamp }  when each audience last got an announcement (Phase 2, the unread dot)
+events/{eventId}/announcements/{id}     text, audience ("going" | "waiting" | "attended"), by, byName, count,
+                                        createdAt (Phase 2, in the app only; read only by that audience and the
+                                        organisation's members)
 events/{eventId}/private/codes          checkIn, checkOut, rotatedAt
                                         (in place of events.codes; only the organisation's members can read it)
 events/{eventId}/private/location       venue: the exact address when hideExactLocation is true

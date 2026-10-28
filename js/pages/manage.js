@@ -55,7 +55,7 @@ function render() {
       ${isAdmin ? row({ href: `access.html${q}`, iconName: 'ticket', tile: 'access', title: 'Access and registration', sub: 'Visibility, spots, approval, free or paid on site' }) : ''}
       ${row({ iconName: 'voucher', tile: 'vouchers', title: 'Vouchers and access codes', sub: 'Codes for groups, partners or reserved spots', soon: true })}
       ${isAdmin ? row({ href: `questions.html${q}`, iconName: 'doc', tile: 'questions', title: 'Registration questions', sub: 'What to ask volunteers when they sign up' }) : ''}
-      ${row({ iconName: 'message', tile: 'announce', title: 'Announcements', sub: 'Message everyone who registered', soon: true })}
+      ${isAdmin ? row({ href: `announcements.html${q}`, iconName: 'message', tile: 'announce', title: 'Announcements', sub: 'Message everyone who registered' }) : ''}
       ${row({ iconName: 'insights', tile: 'insights', title: 'Insights', sub: 'Page views, registrations and attendance', soon: true })}
     </div>
     <div class="glass mg-card">
