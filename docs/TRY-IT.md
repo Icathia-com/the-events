@@ -33,6 +33,7 @@ Sample people (all made up):
 
 - Mei Lin Tan, admin of Silver Companions: `mei.lin.tan@example.com`
 - Volunteers: `aisha.rahman`, `ben.tan`, `chloe.lim`, `darren.koh`, `esther.ng`, `farid.aziz`, `grace.ong`, `hari.subramaniam`, `ivy.chen` and `jun.wei`, each followed by `@example.com`
+- The sample network admin, who reviews applications to join: `network.admin@example.com`
 
 To be two people at once, for example Mei Lin and a volunteer, use a normal window for one and an InPrivate window (Ctrl+Shift+N) for the other.
 

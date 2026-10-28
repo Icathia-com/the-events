@@ -957,3 +957,41 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - The Phase 2 queue is done. See the end-of-block notes below.
+
+## 28 Oct 2026: end of the Phase 2 block (10:13 to 11:20)
+
+**Done**
+- All eight Phase 2 slices, A to H, were built, tested and committed in about 70 minutes. One local commit each, plus one for the queue. Nothing was pushed or deployed, and the live project wasn't touched.
+
+**Final checks, on the last commit**
+- `npm test` (the emulators started by the test command): 161 of 161 pass (135 rules tests, 26 QR tests).
+- At 390 px against the emulators:
+  - The section 10 acceptance run, end to end (with the visit inside its check-out window).
+  - The slice A check-out window and Past events.
+  - From `/the-events/`: all 23 pages, the service worker, the manifest and the icons.
+  - No console errors.
+- Lighthouse, phone profile, compressed files:
+
+  | Page | Performance | Accessibility |
+  |---|---|---|
+  | Home | 92 | 100 |
+  | Event (Yishun visit) | 94 | 100 |
+  | Organisations | 96 | 100 |
+  | Organisation (Silver Companions) | 95 | 100 |
+  | Profile | 91 | 100 |
+  | Manage (Mei Lin) | 95 | 100 |
+  | Volunteers (Mei Lin) | 91 | 100 |
+
+**Notes**
+- The rules tests in each slice ran against the already-running emulator. The final `npm test` ran the official way.
+- Two deliberate refusals show as a 403 in the browser console, and both pages handle them: opening a pending organisation's link, and opening a hidden event before entering its access code.
+- No OneDrive file-lock errors.
+
+**Next**
+- Theersha's answers on the new "Decisions to confirm" (Phase 2 slices A to H), in particular:
+  - who reads registrations (the network admin or not);
+  - reserved spots as extra spots;
+  - a minimum code length;
+  - group registration.
+- Before the first push: her GitHub address for the commit email, then push and deploy. The rules and indexes have changed a lot and need deploying with the site.
+- Left in Phase 2: event chat (needs live updates) and cover photo upload (needs the paid Firebase plan). Both wait on her go-ahead.
