@@ -223,23 +223,48 @@ export function checkIn(eventId, uid, byUid) {
 
 export const getRegistration = getMyRegistration;
 
-// A volunteer confirms their own hours with the check-out code from the organiser's screen. Returns the hours.
-export function confirmWithCode(eventId, uid, code) {
+// The check-out code confirms hours for a volunteer who was checked in, from 30 minutes before the event ends until
+// 3 hours after. Any other scan of the code, once the event has started, sends a claim instead.
+export const CHECK_OUT_OPENS = 30 * 60e3;
+export const CHECK_OUT_CLOSES = 3 * 3600e3;
+
+// A volunteer scans the check-out code on the organiser's screen. Returns { status, hours }: status is 'confirmed',
+// or 'claimed' (with autoConfirmAt after a check-in), or 'declined' for a claim the organisation already declined.
+// Throws 'not-started' before the event starts.
+export async function checkOutWithCode(eventId, uid, code) {
+  try {
+    return await checkOutTx(eventId, uid, code, true);
+  } catch (err) {
+    // The server's clock decides the window; at its edges, a refused confirmation becomes a claim.
+    if (err.code !== 'permission-denied') throw err;
+    return checkOutTx(eventId, uid, code, false);
+  }
+}
+
+function checkOutTx(eventId, uid, code, mayConfirm) {
   return runTransaction(db, async (tx) => {
     const eventRef = doc(db, 'events', eventId);
     const attRef = doc(db, 'events', eventId, 'attendance', uid);
     const event = (await tx.get(eventRef)).data();
     const reg = (await tx.get(doc(db, 'events', eventId, 'registrations', uid))).data();
     const att = (await tx.get(attRef)).data();
-    if (att?.status === 'confirmed') return att.hours;
-    tx.update(eventRef, { counts: { ...event.counts, attended: (event.counts?.attended || 0) + 1 }, countsBy: uid });
-    const fields = {
-      name: reg.name, status: 'confirmed', hours: event.hours, code, checkedOutAt: serverTimestamp(), checkedOutBy: uid,
-      confirmedAt: serverTimestamp(), confirmedBy: 'code', updatedAt: serverTimestamp(),
-    };
+    if (att?.status === 'confirmed' || att?.status === 'declined') return { status: att.status, hours: att.hours };
+    const now = Date.now(), endsAt = event.endAt.toMillis();
+    if (now < event.startAt.toMillis()) throw Object.assign(new Error('The event hasn’t started'), { code: 'not-started' });
+    if (mayConfirm && att?.checkedInAt && now >= endsAt - CHECK_OUT_OPENS && now <= endsAt + CHECK_OUT_CLOSES) {
+      tx.update(eventRef, { counts: { ...event.counts, attended: (event.counts?.attended || 0) + 1 }, countsBy: uid });
+      tx.update(attRef, {
+        name: reg.name, status: 'confirmed', hours: event.hours, code, checkedOutAt: serverTimestamp(), checkedOutBy: uid,
+        confirmedAt: serverTimestamp(), confirmedBy: 'code', updatedAt: serverTimestamp(),
+      });
+      return { status: 'confirmed', hours: event.hours };
+    }
+    if (att?.status === 'claimed') return { status: 'claimed', hours: att.hours, autoConfirmAt: att.autoConfirmAt };
+    const fields = { name: reg.name, status: 'claimed', hours: event.hours, code, claimedAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    if (att?.checkedInAt) fields.autoConfirmAt = Timestamp.fromMillis(now + WEEK);
     if (att) tx.update(attRef, fields);
     else tx.set(attRef, { uid, ...fields });
-    return event.hours;
+    return { status: 'claimed', hours: event.hours, autoConfirmAt: fields.autoConfirmAt };
   });
 }
 
@@ -494,4 +519,17 @@ export async function listOrgPublicEvents(orgId, from = new Date()) {
 export async function listOrgEvents(orgId) {
   const snaps = await getDocs(query(collection(db, 'events'), where('orgId', '==', orgId), orderBy('startAt')));
   return allWithIds(snaps);
+}
+
+// The organisation's events that have ended, newest first (its members only). Drafts and cancelled events are left out.
+export async function listOrgPastEvents(orgId, n = 20) {
+  const now = Date.now();
+  const snaps = await getDocs(query(collection(db, 'events'), where('orgId', '==', orgId),
+    where('startAt', '<', Timestamp.fromMillis(now)), orderBy('startAt', 'desc'), limit(n)));
+  return allWithIds(snaps).filter((e) => e.endAt.toMillis() < now && e.status !== 'cancelled' && e.visibility !== 'draft');
+}
+
+// How many hours claims are waiting on an event (the organisation's members only).
+export async function countClaims(eventId) {
+  return (await getDocs(query(collection(db, 'events', eventId, 'attendance'), where('status', '==', 'claimed')))).size;
 }

@@ -98,7 +98,8 @@ organisations/{orgId}/staffInvites/{email}
                                         an admin's invite; when that email signs in, it becomes members/{uid}
                                         with role "staff" and the invite is removed
 events/{eventId}/attendance/{uid}
-  code                                  the check-out code the volunteer scanned, when confirmedBy is "code"
+  code                                  the check-out code the volunteer scanned, when confirmedBy is "code", or on a
+                                        claim the scan sent (no check-in, or outside the check-out window)
   confirmedBy                           also "auto": a claim after a check-in that confirmed itself 7 days later
                                         (the hours entry copies it)
 ```

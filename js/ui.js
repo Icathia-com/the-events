@@ -360,3 +360,7 @@ export function countdown(start, now = new Date(), tz = TZ) {
 }
 
 export const hoursText = (h) => `${Number(h.toFixed(1))} ${h === 1 ? 'hour' : 'hours'}`;
+
+// What a scan of the check-out code did, for a toast.
+export const checkOutText = ({ status, hours }, orgName) => status === 'confirmed' ? `${hoursText(hours)} confirmed`
+  : status === 'claimed' ? `Claim sent to ${orgName}` : 'Claim declined';

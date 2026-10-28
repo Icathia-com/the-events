@@ -12,7 +12,7 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 1: `.firebaserc` defaults to `demo-the-events`, and the live project appears only as the alias `live`. A stray `firebase` command therefore hits the emulator-only demo project.
 - Slice 1: People who sign in by email link have no name until they set one on Profile (slice 5). Until then the app shows their email address.
 - Slice 1: `hoursTotal` isn't written at first sign-in. A missing value counts as 0, and the hours slices add it.
-- Slice 2 (security): The check-out code and the exact venue of hidden-location events don't live in the event document, as section 6 has it. They're in `events/{id}/private/codes` and `events/{id}/private/location` instead. Firestore can't hide one field of a document someone may read, so any volunteer could otherwise read the check-out code and confirm their own hours.
+- Slice 2 (security): The check-out code and the exact venue of hidden-location events don't live in the event document, as section 6 has it. They're in `events/{id}/private/codes` and `events/{id}/private/location` instead. Firestore can't hide one field of a document someone may read, so any volunteer could otherwise read the check-out code and confirm their own hours. **Decided 28 Oct: approved.**
 - Slice 2: The Organisations canvas shows a seventh organisation, Bright Steps. The brief lists six, so it isn't seeded.
 - Slice 2: Seeded spot counts come from real seeded registrations among the ten sample volunteers. Some differ from the canvas: the beach clean-up shows 6 going, not 35.
 - Slice 2: Organisation stats (events, volunteers, hours) are seeded with the canvas numbers. Section 6 calls them display only.
@@ -65,10 +65,10 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 7 (production): Two more collection group indexes: attendance by uid and status, and hours entries by orgId. Both are in `firestore.indexes.json`.
 - Slice 8: jsQR's licence is Apache-2.0, not MIT as the brief says. It's still free to use. It loads from jsDelivr, pinned to 1.4.0 with an integrity hash, and only on phones without the built-in barcode reader.
 - Slice 8: Check-in records arrival only; hours are confirmed at check-out. So the canvas's "Checked in · 2 hours added" reads "Checked in", and Express reads "Checks the volunteer in the moment their code is scanned".
-- Slice 8: Check-in staff belong to the organisation and can scan at any of its events, since members are organisation-wide in section 6. The canvas's "for this event only" is left out.
-- Slice 8: Staff are added by email (`organisations/{id}/staffInvites/{email}`) and become staff when that person signs in. The canvas also offers a mobile number, but there's no phone sign-in, so it's email only.
+- Slice 8: Check-in staff belong to the organisation and can scan at any of its events, since members are organisation-wide in section 6. The canvas's "for this event only" is left out. **Decided 28 Oct: approved.**
+- Slice 8: Staff are added by email (`organisations/{id}/staffInvites/{email}`) and become staff when that person signs in. The canvas also offers a mobile number, but there's no phone sign-in, so it's email only. **Decided 28 Oct: approved.**
 - Slice 8: The check-out QR holds a link to the event page with the code. A volunteer can scan it from Home's "Check out" button or with any phone camera.
-- Slice 8: Check-out with the code has no time limit and doesn't need a check-in first, since neither the brief nor the canvas sets one. A volunteer who is going and has the code can confirm their own hours, so a photo of the code passed on would work too; rotating codes (Phase 3) close that gap. The code stays the same for the whole event in Phase 1, as section 6 says, so the canvas's "New code every minute" is left out. The attendance record keeps the code that was scanned (`code`), which the rules check.
+- Slice 8 (**changed 28 Oct in Phase 2 slice A**: the code now confirms hours only after a check-in, from 30 minutes before the end until 3 hours after, and any other scan sends a claim): Check-out with the code has no time limit and doesn't need a check-in first, since neither the brief nor the canvas sets one. A volunteer who is going and has the code can confirm their own hours, so a photo of the code passed on would work too; rotating codes (Phase 3) close that gap. The code stays the same for the whole event in Phase 1, as section 6 says, so the canvas's "New code every minute" is left out. The attendance record keeps the code that was scanned (`code`), which the rules check.
 - Slice 8: Left out: letter requests on Check-out and hours (Phase 3), and the canvas's "Sample scan" button.
 - Slice 8 (production): A collection group index on `staffInvites.email`, so people can find their invites when they sign in. It's in `firestore.indexes.json`.
 - Slice 9: A claim is always for the event's hours, as in the canvas's "Claim 3 hours without a code"; the rules check this.
@@ -88,16 +88,16 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - Period runs from the earliest entry's month to the latest's: "Aug to Oct 2026" for Mei Lin, where the canvas says "Jan to Oct 2026".
   - "Confirmed by" names the person only on their own record ("confirmed by Mei Lin Tan", as on the canvas). Otherwise it says "confirmed by the organiser", because volunteers can't read organisers' profiles.
   - The heading reads "The Events" where the canvas says "Volunteer Network". Share and Download PDF are hidden until Phase 3, along with the letter request card.
-- Slice 9 (seed): The brief lists eight sample events. Two past events from the canvas are added so claims can be tried:
+- Slice 9 (seed): The brief lists eight sample events. Two past events from the canvas are added so claims can be tried (**decided 28 Oct: approved**):
   - The Changi beach clean-up, 17 days before seeding. Mei Lin checked in but wasn't checked out. Farid's claim is past its auto-confirm date. Darren was going and has no check-in.
   - The Yishun visit from Mei Lin's hours record. Aisha checked in but wasn't checked out. Esther was going and has no check-in. Mei Lin's own hours are confirmed.
 - Slice 9 (rules): When a volunteer writes their own attendance (a check-out with the code, or a claim), it must carry the name on their registration. That stops a made-up name appearing in the organiser's lists.
-- Slice 10: Section 10's "check in by scanning the organiser's code" is built as the organiser scanning the volunteer's code. That's how the canvas Check-in screen and the queue have it, and section 7 lets only the organisation record a check-in. The event's own check-in code (`private/codes.checkIn`) is created with each event but not used in Phase 1.
-- Slice 10: Organisers have no list of past events in Phase 1. A past event's claims are on its check-out page, reached by its link (`checkout.html?id=…`). On the canvas a notification leads there, and notifications are Phase 3. A past-events list for admins could come sooner.
+- Slice 10: Section 10's "check in by scanning the organiser's code" is built as the organiser scanning the volunteer's code. That's how the canvas Check-in screen and the queue have it, and section 7 lets only the organisation record a check-in. The event's own check-in code (`private/codes.checkIn`) is created with each event but not used in Phase 1. **Decided 28 Oct: approved.**
+- Slice 10 (**done 28 Oct in Phase 2 slice A**: the organisation page now lists past events for its admins): Organisers have no list of past events in Phase 1. A past event's claims are on its check-out page, reached by its link (`checkout.html?id=…`). On the canvas a notification leads there, and notifications are Phase 3. A past-events list for admins could come sooner.
 - Slice 10: The app icon is an original mark: a Forest calendar card with a cream tick, on Clay. There's a rounded version, a full-bleed version for Android's masks and iOS, and an SVG for the browser tab.
 - Slice 10: The manifest uses Clay `#9A4F33` (the top of the page gradient) for both the theme and the splash background, with standalone display.
 - Slice 10: The service worker fetches the app's own files from the network first, and serves them from its cache only when offline. Firebase traffic never passes through it.
-- Slice 10, for speed:
+- Slice 10, for speed (**decided 28 Oct: approved**):
   - Firestore Lite replaces the full Firestore SDK: 43 KB instead of 184 KB, with the same reads, writes, batches and transactions. Phase 1 has no live listeners or offline data, which are the parts it leaves out.
   - Sign-in starts without Google's pop-up helpers. They load only when someone chooses Google.
   - Manrope is served from `assets/fonts` (the same Google Fonts files, with the OFL licence) instead of the Google Fonts service. Pages no longer wait on two more servers, and opening a page sends no request to Google Fonts.
@@ -105,6 +105,14 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 - Slice 10: Home now loads in two rounds of reads instead of seven. Staff invitations and the hours sync run once Home is showing, so newly confirmed hours update the impact line a moment later.
 - Slice 10: Notifications shows only "Nothing here yet". The canvas's second line ("Reminders, new events from organisations you follow and changes to your registrations appear here.") is left out, because nothing arrives there until Phase 3.
 - Slice 10: Lighthouse was measured on this computer against the emulators, with a local server that compresses files as GitHub Pages does (`npm run serve` doesn't compress). It should be checked again on the live site after deploy.
+- Phase 2, slice A: The check-out code:
+  - Scanned before the event starts, it does nothing and says "This event hasn't started yet."
+  - From the start, a scan without a check-in, or outside 30 minutes before the end to 3 hours after, sends a claim for the event's hours. After a check-in, that claim confirms itself 7 days later, like any claim.
+  - A claim made while the event is still on carries the code, and the rules check it. A claim without the code still waits until the event has ended.
+  - Someone checked in who scanned too early can scan again inside the window, and that confirms their hours.
+  - The server's clock decides the window. If it refuses a confirmation the phone expected, the scan becomes a claim instead.
+- Phase 2, slice A: Past events on the organisation page are shown to its admins only: the 20 most recent that have ended, leaving out drafts and cancelled events. Each shows "N claims waiting" or "No claims" and opens that event's check-out page. The canvas has no drawing of this, so it reuses the Upcoming events list.
+- Phase 2, slice A (production): One more index, events by orgId and startAt newest first, for the past events list. It's in `firestore.indexes.json`.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -574,3 +582,37 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 - A two-hour unattended block, started 10:13 (from Get-Date). No new slice starts after about 11:58.
 - The Phase 2 slices (A to H) are in `docs/QUEUE.md` under "Phase 2 queue". The queue file moved from `QUEUE_1.md` at the root to `docs/QUEUE.md`, the name Theersha now uses, with the Phase 1 queue kept as it was.
+
+## 28 Oct 2026: Phase 2, slice A: Phase 1 follow-ups
+
+**Done**
+- Decisions 1, 2, 4, 5 and 7 from the Phase 1 report are marked decided under "Decisions to confirm". The commit email and npm audit are left as they are.
+- Check-out code (decision 3):
+  - It confirms hours only after a check-in, from 30 minutes before the event ends until 3 hours after.
+  - Any other scan, once the event has started, sends a claim instead.
+  - This covers both ways of scanning: Home's scanner and the claim page, and a phone camera opening the event link.
+  - The toast says "2 hours confirmed", "Claim sent to Silver Companions" or "This event hasn't started yet."
+- Past events (decision 6): the organisation page shows its admins a "Past events" list. Each event shows its waiting claims and opens its check-out page.
+- Subfolder check: the site works served from `/the-events/`, as on GitHub Pages. Nothing needed fixing, because every path was already relative.
+
+**Tested**
+- `npm test`: 120 of 120 pass (94 rules tests, 26 QR tests). New and changed rules tests:
+  - After a check-in, the code confirms inside the window.
+  - It confirms nothing without a check-in, 40 minutes before the end, or 190 minutes after; 170 minutes after works.
+  - Outside those cases, a scan makes a claim: during the event without a check-in, and after the window with one (with its 7-day auto-confirm).
+  - A claim during the event needs the right code, and there's no claim before the event starts.
+- At 390 px against the emulators, through the event link:
+  - Aisha, checked in, 10 minutes before the end: "2 hours confirmed".
+  - Ben, not checked in: "Claim sent to Silver Companions".
+  - Chloe, checked in, an hour before the end: a claim, with its auto-confirm date set.
+  - Darren, before the start: "This event hasn't started yet." Nothing is written.
+- Once the event had ended, Mei Lin's Silver Companions page listed it with "2 claims waiting" and the past Yishun visit with "No claims". The row opened `checkout.html?id=yishun`, which showed both claims.
+- Served from `http://127.0.0.1:8002/the-events/` (a local server that serves only under that folder):
+  - Signing out sends you to `/the-events/signin.html`, and the email link lands on `/the-events/index.html`.
+  - The service worker's scope is `/the-events/`.
+  - The manifest's start_url is `/the-events/index.html`, and all four icons load.
+  - All 14 pages open with no errors, and no link on Home, the organisation page or the event page leaves the folder.
+- No console errors.
+
+**Next**
+- Slice B: Access and registration.

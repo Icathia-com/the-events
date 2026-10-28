@@ -408,17 +408,25 @@ describe('the organisation\'s decisions, attendance and the hours ledger', () =>
 describe('check-in, check-out and staff', () => {
   const counts = (over = {}) => ({ going: 1, pending: 0, waitlist: 0, attended: 0, ...over });
   const st = serverTimestamp;
+  const min = 60e3;
+  // By default the event ends in 10 minutes, inside the check-out window (30 minutes before the end to 3 hours after).
+  const e8 = (endsIn = 10 * min) => ({
+    orgId: 'open', orgName: 'Open Org', title: 'Pantry restock', visibility: 'public', status: 'scheduled',
+    startAt: new Date(Date.now() + endsIn - 2 * 60 * min), endAt: new Date(Date.now() + endsIn), hours: 2, counts: counts(),
+    registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false },
+  });
+  const checkedIn = { uid: 'alice', name: 'Alice A.', status: 'checked_in', hours: 2, checkedInAt: new Date(), checkedInBy: 'sam', updatedAt: new Date() };
+  // Any other scan of the code makes a claim, carrying the code.
+  const scanClaim = (over = {}) => setDoc(doc(dbAs('alice'), 'events/e8/attendance/alice'), {
+    uid: 'alice', name: 'Alice A.', status: 'claimed', hours: 2, code: 'out-12345678', claimedAt: st(), updatedAt: st(), ...over,
+  });
 
   beforeEach(async () => {
     await orgFixtures();
     await seedDocs({
       'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
       'organisations/open/members/sue': { uid: 'sue', role: 'staff' },
-      'events/e8': {
-        orgId: 'open', orgName: 'Open Org', title: 'Pantry restock', visibility: 'public', status: 'scheduled',
-        startAt: new Date(), endAt: new Date(Date.now() + 2 * 3600e3), hours: 2, counts: counts(),
-        registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false },
-      },
+      'events/e8': e8(),
       'events/e8/registrations/alice': { uid: 'alice', name: 'Alice A.', status: 'going' },
       'events/e8/private/codes': { checkIn: 'in-12345678', checkOut: 'out-12345678' },
     });
@@ -441,19 +449,43 @@ describe('check-in, check-out and staff', () => {
     }));
   });
 
-  it('a volunteer confirms their own hours with the check-out code', async () => {
-    await assertSucceeds(checkOut('alice'));
+  it('after a check-in, the check-out code confirms the volunteer\'s hours and keeps the check-in record', async () => {
+    await seedDocs({ 'events/e8/attendance/alice': checkedIn });
+    await assertSucceeds(checkOut('alice', { update: true }));
   });
 
   it('the wrong code, different hours, or someone else\'s attendance is refused', async () => {
-    await assertFails(checkOut('alice', { code: 'guess-1234' }));
-    await assertFails(checkOut('alice', { hours: 5 }));
-    await assertFails(checkOut('bob', { who: 'alice' }));
+    await seedDocs({ 'events/e8/attendance/alice': checkedIn });
+    await assertFails(checkOut('alice', { update: true, code: 'guess-1234' }));
+    await assertFails(checkOut('alice', { update: true, hours: 5 }));
+    await assertFails(checkOut('bob', { update: true, who: 'alice' }));
   });
 
-  it('after a check-in, the check-out keeps the organisation\'s check-in record', async () => {
-    await seedDocs({ 'events/e8/attendance/alice': { uid: 'alice', name: 'Alice A.', status: 'checked_in', hours: 2, checkedInAt: new Date(), checkedInBy: 'sam', updatedAt: new Date() } });
+  it('the code confirms nothing without a check-in, or outside 30 minutes before the end to 3 hours after', async () => {
+    await assertFails(checkOut('alice'));
+    await seedDocs({ 'events/e8': e8(40 * min), 'events/e8/attendance/alice': checkedIn });
+    await assertFails(checkOut('alice', { update: true }));
+    await seedDocs({ 'events/e8': e8(-190 * min) });
+    await assertFails(checkOut('alice', { update: true }));
+    await seedDocs({ 'events/e8': e8(-170 * min) });
     await assertSucceeds(checkOut('alice', { update: true }));
+  });
+
+  it('any other scan of the code, once the event has started, makes a claim', async () => {
+    await seedDocs({ 'events/e8': e8(40 * min) });
+    await assertSucceeds(scanClaim());
+    await seedDocs({ 'events/e8': e8(-190 * min), 'events/e8/attendance/alice': checkedIn });
+    await assertSucceeds(updateDoc(doc(dbAs('alice'), 'events/e8/attendance/alice'), {
+      status: 'claimed', code: 'out-12345678', claimedAt: st(), autoConfirmAt: new Date(Date.now() + 7 * 86400e3), updatedAt: st(),
+    }));
+  });
+
+  it('a claim during the event needs the right code, and none before the event starts', async () => {
+    await seedDocs({ 'events/e8': e8(40 * min) });
+    await assertFails(scanClaim({ code: 'guess-1234' }));
+    await assertFails(scanClaim({ code: null }));
+    await seedDocs({ 'events/e8': e8(150 * min) });
+    await assertFails(scanClaim());
   });
 
   it('admins invite staff by email; staff and volunteers cannot', async () => {

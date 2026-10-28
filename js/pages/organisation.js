@@ -2,8 +2,8 @@
 // About and the giving link. Letter requests are Phase 3, so they aren't shown.
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, ensureUserDoc, followOrg, getMyRole, getOrganisation, listFollowerEvents, listOrgPublicEvents,
-  unfollowOrg, updateOrganisation,
+  AREAS, CAUSES, countClaims, ensureUserDoc, followOrg, getMyRole, getOrganisation, listFollowerEvents, listOrgPastEvents,
+  listOrgPublicEvents, unfollowOrg, updateOrganisation,
 } from '../data.js';
 import {
   coverHtml, dateParts, dayStart, dragScroll, esc, fmtTime, gradient, icon, orgLogoHtml, reveal, shortDay, spotsChip, toast,
@@ -47,6 +47,27 @@ function eventRow(e) {
       <span class="ev-meta"><span>${esc(`${shortDay(start, now)}, ${fmtTime(start)}`)}</span>${spotsChip(e)}</span></span>
     ${icon('chevron', 16)}</a>`;
 }
+
+// The admin's past events, each with its waiting claims, linking to its check-out and hours page.
+let past = null;
+async function loadPast() {
+  const list = await listOrgPastEvents(orgId);
+  const counts = await Promise.all(list.map((e) => countClaims(e.id).catch(() => 0)));
+  past = list.map((e, i) => ({ ...e, claims: counts[i] }));
+}
+
+function pastRow(e) {
+  const start = e.startAt.toDate();
+  const n = e.claims;
+  return `<a class="ev-row" href="checkout.html?id=${encodeURIComponent(e.id)}" draggable="false">${coverHtml(e, 64, 14, 9)}
+    <span class="ev-text"><span class="ev-title clamp2">${esc(e.title)}</span>
+      <span class="ev-meta"><span>${esc(`${shortDay(start, now)}, ${fmtTime(start)}`)}</span>${n
+        ? `<span class="chip chip-wait">${n} ${n === 1 ? 'claim' : 'claims'} waiting</span>` : '<span>No claims</span>'}</span></span>
+    ${icon('chevron', 16)}</a>`;
+}
+
+const pastHtml = () => !past ? '' : `<div class="lbl">Past events</div>
+  ${past.length ? `<div class="glass list-card">${past.map(pastRow).join('')}</div>` : '<div class="glass empty-note">No past events.</div>'}`;
 
 function about() {
   if (editing) {
@@ -100,6 +121,7 @@ function render() {
       <div class="lbl-row"><span class="lbl">Upcoming events</span>${events.some((e) => e.sample) ? '<span class="sec-sub">Sample events</span>' : ''}</div>
       ${events.length ? `<div class="glass list-card">${events.map(eventRow).join('')}</div>` : '<div class="glass empty-note">No upcoming events.</div>'}
     </div>
+    ${mine ? `<div class="stack-6" id="past">${pastHtml()}</div>` : ''}
     ${(org.impact || []).length ? `<div class="stack-6"><div class="lbl">Past impact</div><div class="glass impact-card">
       ${org.impact.map((i) => `<div class="impact-row"><span class="impact-ic" style="background:${gradient(org.logoColors)}">${icon('check', 18, 2)}</span>
         <span class="detail-text"><span class="detail-value">${esc(i.title)}</span><span class="meta">${esc(i.line)}</span></span></div>`).join('')}</div></div>` : ''}
@@ -156,7 +178,7 @@ main.addEventListener('submit', async (e) => {
   }
 });
 
-await loadEvents();
+await Promise.all([loadEvents(), mine && loadPast().catch((err) => console.warn(err))]);
 render();
 dragScroll(document.scrollingElement, 'y');
 reveal();

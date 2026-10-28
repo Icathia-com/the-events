@@ -1,11 +1,11 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, cancelRegistration, confirmWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue, getMyRegistration,
+  AREAS, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue, getMyRegistration,
   getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, syncHours, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
-import { coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml, reveal, toast } from '../ui.js';
+import { checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
@@ -304,18 +304,18 @@ going = await listGoing(eventId).catch(() => []);
 venue = await loadVenue();
 render();
 
-// Opened from the organiser's check-out code (event.html?id=…&checkout=…): confirm this volunteer's hours.
+// Opened from the organiser's check-out code (event.html?id=…&checkout=…): confirm this volunteer's hours, or claim them.
 const checkoutCode = new URLSearchParams(location.search).get('checkout');
 if (checkoutCode) {
   history.replaceState(null, '', `event.html?id=${encodeURIComponent(eventId)}`);
   if (reg?.status === 'going') {
     try {
-      const hours = await confirmWithCode(eventId, user.uid, checkoutCode);
-      await syncHours(user.uid).catch(() => 0);
-      toast(`${hoursText(hours)} confirmed`);
+      const result = await checkOutWithCode(eventId, user.uid, checkoutCode);
+      if (result.status === 'confirmed') await syncHours(user.uid).catch(() => 0);
+      toast(checkOutText(result, event.orgName));
     } catch (err) {
-      console.warn(err);
-      toast('That check-out code didn’t work.');
+      if (err.code === 'not-started') toast('This event hasn’t started yet.');
+      else { console.warn(err); toast('That check-out code didn’t work.'); }
     }
   } else {
     toast('Check-out is for volunteers who are going.');

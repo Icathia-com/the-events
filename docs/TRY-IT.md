@@ -57,6 +57,10 @@ Jun (`jun.wei@example.com`) starts with no registrations, so he's a good one to 
   - Choose Standard or Express, and lock the setting for staff.
   - Add staff by email. For example, add `ben.tan@example.com`; when Ben signs in, he can open Check-in for the Yishun visit.
 - **Check-out and hours**: the event's check-out code (with Show full screen), Confirm all, or Confirm for one person.
+  - A volunteer's scan of the check-out code confirms their hours only if they were checked in, and only from 30 minutes before the event ends until 3 hours after.
+  - Any other scan sends a claim, which Mei Lin confirms or declines on the same page.
+  - The sample events don't end at the time you're trying this, so scanning straight after checking in sends a claim.
+- **Past events**: on Silver Companions' organisation page, Mei Lin sees its past events with the number of claims waiting. Each one opens that event's check-out page.
 - **Cancel event**: Manage, then Cancel event.
 
 **Scanning needs a camera.** On a laptop:
@@ -74,7 +78,7 @@ The sample data includes two past events.
 - **Aisha** (`aisha.rahman@example.com`) was checked in at last week's Yishun visit but not checked out.
   1. Her Home shows "Claim 2 hours for Befriending visit: Yishun seniors". She claims without a code.
   2. Her Hours record shows the claim waiting.
-  3. Mei Lin confirms or declines it on that event's check-out page: http://127.0.0.1:8000/checkout.html?id=past-yishun. Past events aren't listed anywhere for organisers yet; see "Decisions to confirm" in `docs/PROGRESS.md`.
+  3. Mei Lin confirms or declines it on that event's check-out page. To get there, she opens Silver Companions' organisation page and chooses the visit under Past events.
   4. After Mei Lin confirms, Aisha's Hours record shows the visit with a reference number.
 - **Esther** (`esther.ng@example.com`) was going to the same visit but never checked in. Her claim waits for Mei Lin.
 - **Mei Lin** has her own claim card on Home, for the Changi beach clean-up. This is the example drawn on the canvas.

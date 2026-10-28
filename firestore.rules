@@ -436,34 +436,44 @@ service cloud.firestore {
 
         allow delete: if isMember(get(eventPath(eventId)).data.orgId) && attendedMoves();
 
-        // A volunteer who is going confirms their own hours by presenting the event's check-out code (section 7).
-        // A check-in recorded by the organisation is kept as it was.
+        function checkOutCode() {
+          return get(/databases/$(database)/documents/events/$(eventId)/private/codes).data.checkOut;
+        }
+
+        // A volunteer who is going confirms their own hours by presenting the event's check-out code (section 7), but
+        // only after the organisation checked them in, and only from 30 minutes before the end until 3 hours after.
+        // The check-in is kept as it was.
         function checkOutByCode() {
           let a = request.resource.data;
+          let e = get(eventPath(eventId)).data;
           return isSelf(uid) && statusBefore(eventId, uid) == 'going'
+            && 'checkedInAt' in resource.data
+            && request.time >= e.endAt - duration.value(30, 'm') && request.time <= e.endAt + duration.value(3, 'h')
             && validAttendance(a)
             && a.name == get(regPath(eventId, uid)).data.name
             && a.status == 'confirmed' && a.confirmedBy == 'code'
             && a.confirmedAt == request.time && a.checkedOutAt == request.time && a.checkedOutBy == uid
-            && a.hours == get(eventPath(eventId)).data.hours
-            && a.code == get(/databases/$(database)/documents/events/$(eventId)/private/codes).data.checkOut
+            && a.hours == e.hours
+            && a.code == checkOutCode()
             && attendedMoves();
         }
 
-        allow create: if checkOutByCode();
         allow update: if checkOutByCode()
           && resource.data.status in ['checked_in', 'claimed']
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(['name', 'status', 'hours', 'code', 'checkedOutAt', 'checkedOutBy', 'confirmedAt', 'confirmedBy', 'updatedAt']);
 
-        // After the event ends, a volunteer who was going claims its hours without the code (section 7). A claim made
+        // After the event ends, a volunteer who was going claims its hours without the code (section 7). Any other
+        // scan of the check-out code, once the event has started, makes a claim too, carrying the code. A claim made
         // after the organisation checked them in confirms itself 7 days later (autoConfirmAt) unless the organisation
         // decides first; the client's clock sets autoConfirmAt, so it gets an hour either way.
         function claimByVolunteer() {
           let a = request.resource.data;
           let e = get(eventPath(eventId)).data;
           return isSelf(uid) && statusBefore(eventId, uid) == 'going'
-            && request.time > e.endAt
+            && ('code' in a
+              ? a.code == checkOutCode() && request.time >= e.startAt
+              : request.time > e.endAt)
             && validAttendance(a)
             && a.name == get(regPath(eventId, uid)).data.name
             && a.status == 'claimed' && a.claimedAt == request.time && a.hours == e.hours
@@ -476,11 +486,11 @@ service cloud.firestore {
         }
 
         allow create: if claimByVolunteer()
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'status', 'hours', 'claimedAt', 'updatedAt']);
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'status', 'hours', 'code', 'claimedAt', 'updatedAt']);
         allow update: if claimByVolunteer()
           && resource.data.status == 'checked_in'
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['name', 'status', 'hours', 'claimedAt', 'autoConfirmAt', 'updatedAt']);
+               .hasOnly(['name', 'status', 'hours', 'code', 'claimedAt', 'autoConfirmAt', 'updatedAt']);
 
         // Phase 1 auto-confirm (section 8): the volunteer's own app confirms the claim once autoConfirmAt has passed,
         // and no sooner than 7 days after the claim by the server's clock. The attended count moves with it.

@@ -7,7 +7,7 @@ import {
 import { qrSvg } from '../qr.js';
 import { scanCheckOut } from '../scanner.js';
 import {
-  addDays, avatarHtml, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
+  addDays, avatarHtml, checkOutText, countdown, coverHtml, dateParts, dayHeading, dayKey, dayStart, daysFromToday, dragScroll, esc,
   eventRowHtml, fmtTime, gradient, hourOf, hoursText, icon, initials, openModal, renderBottomBar, renderEventFab, reveal,
   revealEarly, shortDay, toast,
 } from '../ui.js';
@@ -108,8 +108,8 @@ const [followerEvents, regEvents] = await Promise.all([
   })).then((list) => list.filter(Boolean)),
 ]);
 
-const checkOut = (event) => scanCheckOut(event.id, user.uid, (hours) => {
-  toast(`${hoursText(hours)} confirmed`);
+const checkOut = (event) => scanCheckOut(event.id, user.uid, (result) => {
+  toast(checkOutText(result, event.orgName));
   setTimeout(() => location.reload(), 1200);
 });
 

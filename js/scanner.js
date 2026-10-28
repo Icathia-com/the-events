@@ -1,6 +1,6 @@
 // Camera QR scanner (design/Check-In.dc.html): BarcodeDetector where the browser has it, otherwise jsQR
 // (Apache-2.0), loaded from jsDelivr only when needed, pinned and integrity-checked.
-import { confirmWithCode, syncHours } from './data.js';
+import { checkOutWithCode, syncHours } from './data.js';
 import { esc, icon } from './ui.js';
 
 const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
@@ -131,8 +131,9 @@ export function openScanner({ title, chip = '', footer = '', onText }) {
 }
 
 // The volunteer's check-out: the organiser's code is a link to the event page with the code
-// (event.html?id=…&checkout=…). Confirms the volunteer's hours, adds the ledger entry, closes, then onConfirmed(hours).
-export function scanCheckOut(eventId, uid, onConfirmed) {
+// (event.html?id=…&checkout=…). Confirms the volunteer's hours and adds the ledger entry, or sends a claim
+// (checkOutWithCode), closes, then onDone({ status, hours }).
+export function scanCheckOut(eventId, uid, onDone) {
   const say = (text) => scanner.showResult(`<div class="scan-card"><span class="vol-name">${esc(text)}</span></div>`);
   const scanner = openScanner({
     title: 'Scan the check-out code',
@@ -143,11 +144,12 @@ export function scanCheckOut(eventId, uid, onConfirmed) {
       if (!code) { say('Not a check-out code'); return; }
       if (link.searchParams.get('id') !== eventId) { say('This code is for another event'); return; }
       try {
-        const hours = await confirmWithCode(eventId, uid, code);
-        await syncHours(uid).catch(() => 0);
+        const result = await checkOutWithCode(eventId, uid, code);
+        if (result.status === 'confirmed') await syncHours(uid).catch(() => 0);
         scanner.close();
-        onConfirmed(hours);
+        onDone(result);
       } catch (err) {
+        if (err.code === 'not-started') { say('This event hasn’t started yet'); return; }
         console.warn(err);
         say('That check-out code didn’t work');
       }
