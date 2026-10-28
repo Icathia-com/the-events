@@ -119,9 +119,25 @@ export async function getMyRegistration(eventId, uid) {
   return withId(await getDoc(doc(db, 'events', eventId, 'registrations', uid)));
 }
 
-// Joins an event with a ticket type (null when the event has none), or joins again after cancelling. Returns the
-// new status, or 'full'.
-export function joinEvent(eventId, uid, name, ticketTypeId = null) {
+// Registration questions (Phase 2): the personal ones under their own ids, custom ones under generated ids.
+export const PERSONAL_QUESTIONS = { mobile: 'Mobile number', emergency: 'Emergency contact', age: 'Age group' };
+export const AGE_GROUPS = ['Under 18', '18 to 24', '25 to 34', '35 to 44', '45 to 54', '55 to 64', '65 and over'];
+export const QUESTION_TYPES = {
+  text: 'Text', options: 'Options', checkbox: 'Checkbox', link: 'Link', mobile: 'Mobile number',
+  instagram: 'Instagram', telegram: 'Telegram', linkedin: 'LinkedIn', company: 'Company or school', terms: 'Terms to agree',
+};
+export const questionLabel = (q) => (q.id in PERSONAL_QUESTIONS ? PERSONAL_QUESTIONS[q.id] : q.text);
+
+export async function listQuestions(eventId) {
+  return allWithIds(await getDocs(collection(db, 'events', eventId, 'questions'))).sort((a, b) => a.order - b.order);
+}
+export const setQuestion = (eventId, id, fields) =>
+  setDoc(doc(db, 'events', eventId, 'questions', id), { ...fields, updatedAt: serverTimestamp() });
+export const removeQuestion = (eventId, id) => deleteDoc(doc(db, 'events', eventId, 'questions', id));
+
+// Joins an event with a ticket type (null when the event has none) and the answers to its questions, or joins again
+// after cancelling. The sign-in email goes with the registration, for the organisation. Returns the new status, or 'full'.
+export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {}, email = '' } = {}) {
   return runTransaction(db, async (tx) => {
     const eventRef = doc(db, 'events', eventId);
     const regRef = doc(db, 'events', eventId, 'registrations', uid);
@@ -134,7 +150,10 @@ export function joinEvent(eventId, uid, name, ticketTypeId = null) {
     const status = joinStatus(event, type);
     if (status === 'full') return 'full';
     tx.update(eventRef, followFields(event, uid, before, status, type?.id, name));
-    const fields = { status, name, ticketTypeId: type?.id || null, registeredAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    const fields = {
+      status, name, ...(email ? { email } : {}), ticketTypeId: type?.id || null, answers,
+      registeredAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    };
     if (regSnap.exists()) tx.update(regRef, fields);
     else tx.set(regRef, { uid, answers: {}, createdAt: serverTimestamp(), ...fields });
     if (status === 'going') tx.set(doc(db, 'events', eventId, 'going', uid), { name: shortName(name), since: serverTimestamp() });

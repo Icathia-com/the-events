@@ -1,8 +1,9 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AREAS, approvalFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue,
-  getMyRegistration, getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, syncHours, ticketFor, typeOpen, unfollowOrg,
+  AGE_GROUPS, AREAS, approvalFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue,
+  getMyRegistration, getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, listQuestions, questionLabel, syncHours,
+  ticketFor, typeOpen, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
 import {
@@ -94,8 +95,10 @@ function joinButton() {
       : { label: 'Registration closed', cls: 'is-closed', disabled: true };
   }
   const all = (s) => open.every((c) => c.status === s);
-  return { label: all('waitlist') ? 'Join waiting list' : all('pending') ? 'Request to join' : 'Register', cls: '', disabled: false };
+  return { label: joinLabel(all('waitlist') ? 'waitlist' : all('pending') ? 'pending' : 'going'), cls: '', disabled: false };
 }
+
+const joinLabel = (status) => (status === 'waitlist' ? 'Join waiting list' : status === 'pending' ? 'Request to join' : 'Register');
 
 // Ticket types (Phase 2) and what joining each gives now; one choice with no type when the event has none.
 const types = () => event.ticketTypes || [];
@@ -124,13 +127,64 @@ function pickTicket() {
     const row = e.target.closest('[data-ticket]');
     if (!row) return;
     sheet.close();
-    join(row.dataset.ticket);
+    startJoin(row.dataset.ticket);
   });
 }
 
-async function join(ticketTypeId) {
+// Registration questions (Phase 2), read once the page is up; asked in a sheet before joining.
+const questionsReady = listQuestions(eventId).catch(() => []);
+
+async function startJoin(ticketTypeId) {
+  const questions = await questionsReady;
+  if (questions.length) askQuestions(ticketTypeId, questions);
+  else await join(ticketTypeId);
+}
+
+function questionField(q) {
+  const name = esc(q.id), req = q.required ? ' required' : '';
+  const label = `<span class="ans-label">${esc(questionLabel(q))}${q.required ? '' : '<span class="ans-opt">Optional</span>'}</span>`;
+  const input = (type, extra = '') => `<label class="ans">${label}<input class="field-flat" type="${type}" name="${name}" maxlength="300"${extra}${req}></label>`;
+  if (q.type === 'age') {
+    return `<label class="ans">${label}<select class="field-flat" name="${name}"${req}><option value=""></option>
+      ${AGE_GROUPS.map((g) => `<option>${esc(g)}</option>`).join('')}</select></label>`;
+  }
+  if (q.type === 'options') {
+    return `<fieldset class="ans"><legend class="ans-label">${esc(q.text)}${q.required ? '' : '<span class="ans-opt">Optional</span>'}</legend>
+      ${(q.options || []).map((o) => `<label class="ans-choice"><input type="radio" name="${name}" value="${esc(o)}"${req}>${esc(o)}</label>`).join('')}</fieldset>`;
+  }
+  if (q.type === 'checkbox') return `<label class="ans-choice"><input type="checkbox" name="${name}"${req}>${esc(q.text)}</label>`;
+  if (q.type === 'terms') {
+    const terms = /^https:\/\/\S+$/.test(q.text) ? `<a href="${esc(q.text)}" target="_blank" rel="noopener noreferrer">${esc(q.text)}</a>` : esc(q.text);
+    return `<div class="ans"><span class="ans-label">Terms</span><p class="ans-terms">${terms}</p>
+      <label class="ans-choice"><input type="checkbox" name="${name}"${req}>I agree</label></div>`;
+  }
+  if (q.type === 'mobile') return input('tel', ' inputmode="tel" autocomplete="tel"');
+  if (q.type === 'link' || q.type === 'linkedin') return input('url', ' inputmode="url"');
+  if (q.type === 'emergency') return input('text', ' placeholder="Name and mobile number"');
+  return input('text');
+}
+
+function askQuestions(ticketTypeId, questions) {
+  const sheet = openModal({ title: 'Registration questions', body: `<form class="ans-form" id="answers">
+    ${questions.map(questionField).join('')}
+    <button type="submit" class="big-btn">${esc(joinLabel(choices().find((c) => (c.t?.id || null) === ticketTypeId)?.status))}</button></form>` });
+  sheet.element.querySelector('#answers').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const answers = {};
+    for (const q of questions) {
+      if (q.type === 'checkbox' || q.type === 'terms') answers[q.id] = form.get(q.id) === 'on';
+      else if (String(form.get(q.id) || '').trim()) answers[q.id] = String(form.get(q.id)).trim().slice(0, 300);
+    }
+    sheet.close();
+    join(ticketTypeId, answers);
+  });
+}
+
+async function join(ticketTypeId, answers = {}) {
   await run(async () => {
-    if (await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId) === 'full') toast('This event just filled up.');
+    const status = await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId, { answers, email: user.email || '' });
+    if (status === 'full') toast('This event just filled up.');
   }, 'Couldn’t register.');
 }
 
@@ -324,7 +378,7 @@ main.addEventListener('click', async (e) => {
   }
   if (action === 'join' && !busy) {
     if (types().length > 1) pickTicket();
-    else await join(types()[0]?.id || null);
+    else await startJoin(types()[0]?.id || null);
   }
   if (action === 'follow') {
     const on = follows.has(event.orgId);

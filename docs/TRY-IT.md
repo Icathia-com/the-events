@@ -65,6 +65,7 @@ Jun (`jun.wei@example.com`) starts with no registrations, so he's a good one to 
   - Here she sets visibility, accepting registrations, volunteer spots and the waiting list, and ticket types.
   - Each ticket type has its own price (free, or paid on site), approval, spots and registration dates.
   - To see the waiting list move: set the Yishun visit to 7 spots, so it's full. Jun joins the waiting list, choosing a ticket type if there's more than one. When Aisha cancels, Jun moves up.
+- **Registration questions**: Manage, then Registration questions. Tap Mobile number, Emergency contact or Age group to switch it between Off, Optional and Required, or add your own questions. Volunteers answer them in a sheet when they register. Mei Lin sees the answers when she taps a volunteer in the Volunteers list.
 - **Cancel event**: Manage, then Cancel event.
 
 **Scanning needs a camera.** On a laptop:

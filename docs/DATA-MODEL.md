@@ -80,6 +80,12 @@ organisations/{orgId}/members/{uid}
 events/{eventId}/registrations/{uid}
   uid                                   lets people find their own registrations with a collection group query
   movedUpAt                             when a cancellation moved this person up from the waiting list (Phase 2)
+  email                                 the volunteer's sign-in email, for the organisation (Phase 2)
+  answers: { questionId: value }        text, or true/false for checkbox and terms questions (Phase 2)
+events/{eventId}/questions/{id}         type, text, options?, required, order (Phase 2). Mobile number, emergency
+                                        contact and age group use the ids mobile, emergency and age; custom ones are
+                                        text, options, checkbox, link, mobile, instagram, telegram, linkedin, company
+                                        or terms
 events/{eventId}/going/{uid}            name ("Aisha R."), since: who's going, readable with the event; one per going registration
 
 users/{uid}/hours/{eventId}             the entry id is the event id: one entry per confirmed attendance

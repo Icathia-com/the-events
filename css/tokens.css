@@ -115,6 +115,16 @@
   --tile-questions: #B04A6A;
   --tile-announce: #C2704F;
   --tile-insights: #3E5A1E;
+  --qtype-text: #1F4E6E;
+  --qtype-options: #5A3E7A;
+  --qtype-checkbox: #8A5A1E;
+  --qtype-link: #2E5C44;
+  --qtype-mobile: #C2704F;
+  --qtype-instagram: #B04A6A;
+  --qtype-telegram: #1F4E6E;
+  --qtype-linkedin: #1F4E6E;
+  --qtype-company: #4A3F38;
+  --qtype-terms: #A32D2D;
 
   /* Area cards on Discover (canvas) */
   --area-north: linear-gradient(135deg, #2E5C44, #5FA37B);

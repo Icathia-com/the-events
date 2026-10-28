@@ -438,8 +438,29 @@ service cloud.firestore {
           ? request.resource.data.countsBy == request.auth.uid && movesUp(resource.data, request.resource.data, eventId)
           : oneChange(resource.data, request.resource.data, eventId, request.resource.data.countsBy));
 
+      // Registration questions (Phase 2): the personal ones (mobile, emergency, age) under their own ids, custom ones
+      // under any other id. Anyone who can see the event reads them; the organisation's admins set them.
+      match /questions/{questionId} {
+        function validQuestion(q) {
+          return q.keys().hasOnly(['type', 'text', 'options', 'required', 'order', 'updatedAt'])
+            && (questionId in ['mobile', 'emergency', 'age']
+              ? q.type == questionId
+              : q.type in ['text', 'options', 'checkbox', 'link', 'mobile', 'instagram', 'telegram', 'linkedin', 'company', 'terms']
+                && q.text is string && q.text.size() > 0 && q.text.size() <= 2000)
+            && q.required is bool && q.order is number
+            && (!('options' in q) || (q.options is list && q.options.size() <= 20))
+            && q.updatedAt == request.time;
+        }
+
+        allow read: if canSee(get(eventPath(eventId)).data);
+        allow create, update: if isOrgAdmin(get(eventPath(eventId)).data.orgId) && validQuestion(request.resource.data);
+        allow delete: if isOrgAdmin(get(eventPath(eventId)).data.orgId);
+      }
+
+      // A registration, with its answers to the questions, is read only by the volunteer and the organisation's
+      // admins and staff.
       match /registrations/{uid} {
-        allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId) || isNetworkAdmin();
+        allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId);
 
         // Joining, or joining again after cancelling. The event decides the status, and the counts and the
         // who's-going entry change in the same write.
@@ -452,7 +473,8 @@ service cloud.firestore {
             && (e.get('ticketTypes', []).size() == 0 ? r.ticketTypeId == null : t != null) && typeOpen(t)
             && r.status == status && r.uid == uid
             && r.name is string && r.name.size() > 0 && r.name.size() <= 100
-            && r.answers.size() == 0
+            && r.answers is map && r.answers.size() <= 30
+            && (!('email' in r) || r.email == request.auth.token.email)
             && r.registeredAt == request.time && r.updatedAt == request.time
             && countsStep(e.counts, getAfter(eventPath(eventId)).data.counts, before, status)
             && existsAfter(goingPath(eventId, uid)) == (status == 'going');
@@ -502,13 +524,13 @@ service cloud.firestore {
         }
 
         allow create: if isSelf(uid)
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'status', 'ticketTypeId', 'answers', 'registeredAt', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'registeredAt', 'createdAt', 'updatedAt'])
           && request.resource.data.createdAt == request.time
           && joinAllowed('none');
 
         allow update: if (isSelf(uid) && (
             (resource.data.status == 'cancelled'
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'ticketTypeId', 'registeredAt', 'updatedAt'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'registeredAt', 'updatedAt'])
               && joinAllowed('cancelled'))
             || cancelAllowed()))
           || decisionAllowed()

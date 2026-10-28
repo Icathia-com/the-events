@@ -3,9 +3,10 @@
 // the requests, so an admin can move them up.
 import { requireUser } from '../auth.js';
 import {
-  decideRegistration, getEvent, getMyRole, listAttendance, listRegistrations, markAttended, pastEventCounts, unmarkAttended,
+  decideRegistration, getEvent, getMyRole, listAttendance, listQuestions, listRegistrations, markAttended, pastEventCounts,
+  questionLabel, ticketFor, unmarkAttended,
 } from '../data.js';
-import { avatarHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, reveal, shortDay, toast } from '../ui.js';
+import { avatarHtml, dateParts, dragScroll, esc, fmtTime, hoursText, icon, openModal, reveal, shortDay, toast } from '../ui.js';
 
 const TABS = [['going', 'Going'], ['attended', 'Attended'], ['unmarked', 'Not yet marked'], ['pending', 'Waiting for approval']];
 const EMPTY = {
@@ -27,23 +28,45 @@ if (!event || !role) {
 
 const isAdmin = role === 'admin';
 const q = `?id=${encodeURIComponent(eventId)}`;
-let people = [], past = {};
+let people = [], past = {}, questions = [];
 let tab = 'going', search = '', searchOpen = false, byName = false;
 const busy = new Set();
 
 async function load() {
-  const [regs, attendance, pastCounts, fresh] = await Promise.all([
+  const [regs, attendance, pastCounts, fresh, qs] = await Promise.all([
     listRegistrations(eventId),
     listAttendance(eventId),
     isAdmin ? pastEventCounts(event.orgId).catch(() => ({})) : {},
     getEvent(eventId),
+    listQuestions(eventId).catch(() => []),
   ]);
   const att = Object.fromEntries(attendance.map((a) => [a.id, a]));
   event = fresh;
   past = pastCounts;
+  questions = qs;
   people = regs.filter((r) => ['going', 'pending', 'waitlist'].includes(r.status))
-    .map((r) => ({ uid: r.id, name: r.name || 'Volunteer', status: r.status, registeredAt: r.registeredAt?.toDate?.() || new Date(), att: att[r.id] }))
+    .map((r) => ({
+      uid: r.id, name: r.name || 'Volunteer', status: r.status, registeredAt: r.registeredAt?.toDate?.() || new Date(), att: att[r.id],
+      email: r.email || '', ticketTypeId: r.ticketTypeId || null, answers: r.answers || {},
+    }))
     .sort((a, b) => a.registeredAt - b.registeredAt);
+}
+
+// A volunteer's registration for the organisation: email, ticket type and answers to the questions.
+function showPerson(p) {
+  const answer = (q) => {
+    const a = p.answers[q.id];
+    if (q.type === 'checkbox' || q.type === 'terms') return a ? (q.type === 'terms' ? 'Agreed' : 'Yes') : 'No';
+    return a ? String(a) : 'No answer';
+  };
+  const type = ticketFor(event, p.ticketTypeId);
+  const rows = [
+    ['Email', p.email || 'Not given'],
+    ...(type ? [['Ticket', type.name]] : []),
+    ...questions.map((q) => [q.type === 'terms' ? 'Terms' : questionLabel(q), answer(q)]),
+  ];
+  openModal({ title: p.name, body: `<div class="detail-card is-flat">${rows.map(([label, value]) => `<div class="detail-row">
+    <span class="detail-text"><span class="detail-label">${esc(label)}</span><span class="detail-value">${esc(value)}</span></span></div>`).join('')}</div>` });
 }
 
 const attended = (p) => p.att?.status === 'confirmed';
@@ -103,8 +126,9 @@ function render() {
     `<button type="button" class="vol-tab" role="tab" data-tab="${id}" aria-selected="${tab === id}">${label} <span class="vol-badge">${people.filter(inTab[id]).length}</span></button>`).join('');
   $('list').innerHTML = rows.length
     ? `<div class="glass list-card">${rows.map((p) => `<div class="vol-row">
+        <button type="button" class="vol-open" data-person="${esc(p.uid)}" aria-label="${esc(`Registration details: ${p.name}`)}">
         ${avatarHtml({ uid: p.uid, name: p.name }, { size: 40, href: null })}
-        <span class="vol-text"><span class="vol-name ellipsis">${esc(p.name)}</span><span class="vol-line">${esc(line(p))}</span></span>
+        <span class="vol-text"><span class="vol-name ellipsis">${esc(p.name)}</span><span class="vol-line">${esc(line(p))}</span></span></button>
         ${actions(p)}</div>`).join('')}</div>`
     : `<div class="glass empty-state"><span class="empty-ic">${icon('organisations', 26, 2)}</span>
         <span class="empty-title">${query ? 'No names match.' : EMPTY[tab]}</span></div>`;
@@ -124,9 +148,10 @@ async function act(uid, task, failure) {
 }
 
 main.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-tab], [data-action], [data-mark], [data-approve], [data-decline]');
+  const t = e.target.closest('[data-tab], [data-action], [data-mark], [data-approve], [data-decline], [data-person]');
   if (!t) return;
   if (t.dataset.tab) { tab = t.dataset.tab; render(); return; }
+  if (t.dataset.person) { const p = people.find((x) => x.uid === t.dataset.person); if (p) showPerson(p); return; }
   if (t.dataset.action === 'sort') { byName = !byName; render(); return; }
   if (t.dataset.action === 'search') {
     searchOpen = !searchOpen;

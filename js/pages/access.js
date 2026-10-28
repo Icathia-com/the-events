@@ -84,7 +84,8 @@ function render() {
         <button type="button" class="add-btn hit" data-action="add-ticket" aria-label="Add a ticket type">${icon('plus', 16, 2.4)}</button></div>
       <div class="form-card">${types().map(ticketRow).join('')}</div>
     </div>
-    <div class="form-card">${soon('voucher', 'Vouchers and access codes')}${soon('doc', 'Registration questions')}</div>`;
+    <div class="form-card">${soon('voucher', 'Vouchers and access codes')}
+      <a class="form-row" href="questions.html${q}">${icon('doc', 19, 2)}<span class="row-label">Registration questions</span>${icon('chevron', 16)}</a></div>`;
 }
 
 function visibilitySheet() {

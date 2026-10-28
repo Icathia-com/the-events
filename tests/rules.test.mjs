@@ -1001,3 +1001,72 @@ describe('ticket types and the waiting list', () => {
     await assertSucceeds(leave({ waitingList: ['carol'], waiting: { carol: entry('carol') } }));
   });
 });
+
+describe('registration questions and answers', () => {
+  const later = new Date(Date.now() + 7 * 86400e3);
+  const st = serverTimestamp;
+  const ev = (over = {}) => ({
+    orgId: 'open', visibility: 'public', status: 'scheduled', endAt: later,
+    registration: { open: true, approval: false, capacity: 10, waitlist: true, group: false },
+    counts: { going: 0, pending: 0, waitlist: 0, attended: 0 }, ...over,
+  });
+  const question = (over = {}) => ({ type: 'options', text: 'Have you volunteered with seniors before?', options: ['Yes', 'No'], required: true, order: 1, updatedAt: st(), ...over });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/open/members/sam': { uid: 'sam', role: 'staff' },
+      'events/e-q': ev(),
+      'events/e-draft': ev({ visibility: 'draft' }),
+      'events/e-draft/questions/q1': { type: 'text', text: 'Shirt size?', required: false, order: 1 },
+      'events/e-q/registrations/alice': {
+        uid: 'alice', name: 'Alice A.', email: 'alice@example.com', status: 'going', ticketTypeId: null,
+        answers: { mobile: '9123 4567', q1: 'Yes' },
+      },
+    });
+  });
+
+  it('the organisation\'s admins set the questions; staff and volunteers cannot', async () => {
+    await assertSucceeds(setDoc(doc(dbAs('mei'), 'events/e-q/questions/q1'), question()));
+    await assertSucceeds(setDoc(doc(dbAs('mei'), 'events/e-q/questions/mobile'), { type: 'mobile', required: true, order: 0, updatedAt: st() }));
+    await assertFails(setDoc(doc(dbAs('sam'), 'events/e-q/questions/q2'), question()));
+    await assertFails(setDoc(doc(dbAs('alice'), 'events/e-q/questions/q2'), question()));
+  });
+
+  it('a personal question keeps its own type, and a custom one needs a known type and its text', async () => {
+    await assertFails(setDoc(doc(dbAs('mei'), 'events/e-q/questions/mobile'), { type: 'text', text: 'Hi', required: true, order: 0, updatedAt: st() }));
+    await assertFails(setDoc(doc(dbAs('mei'), 'events/e-q/questions/q3'), question({ type: 'upload' })));
+    await assertFails(setDoc(doc(dbAs('mei'), 'events/e-q/questions/q3'), question({ text: '' })));
+  });
+
+  it('questions are read by anyone who can see the event, and nobody else', async () => {
+    await seedDocs({ 'events/e-q/questions/q1': { type: 'text', text: 'Shirt size?', required: false, order: 1 } });
+    await assertSucceeds(getDoc(doc(dbAs('bob'), 'events/e-q/questions/q1')));
+    await assertFails(getDoc(doc(dbAs('bob'), 'events/e-draft/questions/q1')));
+    await assertSucceeds(getDoc(doc(dbAs('sam'), 'events/e-draft/questions/q1')));
+  });
+
+  it('a volunteer registers with their answers, and only with their own email', async () => {
+    const register = (email) => {
+      const db = testEnv.authenticatedContext('bob', { email: 'bob@example.com' }).firestore();
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'events/e-q'), { counts: { going: 1, pending: 0, waitlist: 0, attended: 0 }, countsBy: 'bob' });
+      batch.set(doc(db, 'events/e-q/registrations/bob'), {
+        uid: 'bob', name: 'Bob B.', email, status: 'going', ticketTypeId: null, answers: { mobile: '9876 5432', q1: 'No' },
+        registeredAt: st(), createdAt: st(), updatedAt: st(),
+      });
+      batch.set(doc(db, 'events/e-q/going/bob'), { name: 'Bob B.', since: st() });
+      return batch.commit();
+    };
+    await assertFails(register('someone@example.com'));
+    await assertSucceeds(register('bob@example.com'));
+  });
+
+  it('answers are read only by the volunteer and the organisation\'s admins and staff', async () => {
+    await assertSucceeds(getDoc(doc(dbAs('alice'), 'events/e-q/registrations/alice')));
+    await assertSucceeds(getDoc(doc(dbAs('mei'), 'events/e-q/registrations/alice')));
+    await assertSucceeds(getDoc(doc(dbAs('sam'), 'events/e-q/registrations/alice')));
+    await assertFails(getDoc(doc(dbAs('bob'), 'events/e-q/registrations/alice')));
+    await assertFails(getDoc(doc(dbAs('root'), 'events/e-q/registrations/alice')));
+  });
+});

@@ -138,6 +138,20 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
   - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
   - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice C (privacy): A registration and its answers are now read only by the volunteer and the organisation's admins and staff, as the queue asks. The network admin could read registrations before, and section 1 says the network admin "sees everything". Which should hold?
+- Phase 2, slice C (privacy): The sign-in email now goes with every registration (`email`), and the rules check it's the volunteer's own. That makes the canvas's "Email: Required" true. Organisers see it in a volunteer's details; before this, they saw only names.
+- Phase 2, slice C: Questions:
+  - They're in `events/{id}/questions`, as in section 6. Mobile number, Emergency contact and Age group are stored under those ids; "Off" means the question isn't there.
+  - Age groups: Under 18, 18 to 24, 25 to 34, 35 to 44, 45 to 54, 55 to 64, 65 and over. The canvas doesn't list them.
+  - Emergency contact is one field ("Name and mobile number").
+  - Terms to agree shows the terms with an "I agree" box. When the terms are a web address, they show as a link.
+  - Questions can be added and removed, but not edited or reordered; the canvas has neither. A removed question's answers stay stored but aren't shown.
+  - Prefilled questions use the names' capitals ("What is your Instagram?"), where the canvas lowercases them.
+  - Left out: "Tap a row to make it off, optional or required."
+- Phase 2, slice C: Answering:
+  - The volunteer's sheet, "Registration questions", isn't on the canvas. It opens after the ticket choice, and its button says what joining gives.
+  - The browser checks the required answers. The rules can't go through each question, so they only cap a registration at 30 answers; a changed app could skip a required question.
+  - Answers can't be changed after registering, short of cancelling and registering again.
 - Phase 2, slice B: The event page's "Choose a ticket" sheet isn't on the canvas. It lists each type with its price ("Free", or "S$5, paid at the event") and what joining gives: Instant registration, Requires approval, Waiting list, Full, Opens …, or Registration closed. Once someone has registered, the details card shows their type's on-site amount.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
@@ -682,3 +696,34 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice C: Registration questions.
+
+## 28 Oct 2026: Phase 2, slice C: Registration questions
+
+**Done**
+- `questions.html` from design/Questions.dc.html, opened from Manage and from Access and registration (admins only):
+  - Name and Email as on the canvas.
+  - Mobile number, Emergency contact and Age group, each Off, Optional or Required (tap to change).
+  - Custom questions of the canvas's ten types: Text, Options, Checkbox, Link, Mobile number, Instagram, Telegram, LinkedIn, Company or school, and Terms to agree. Each can be required, and can be removed.
+- Registering asks the questions in a sheet, after the ticket choice when there's one. The answers and the sign-in email are stored on the registration.
+- Volunteers list: tapping a volunteer opens their details for admins and staff: email, ticket type and each answer.
+- Rules:
+  - Admins set an event's questions, and anyone who can see the event reads them.
+  - A registration carries up to 30 answers, and only the volunteer's own email.
+  - Registrations, with their answers, are read only by the volunteer and the organisation's admins and staff.
+
+**Tested**
+- Rules tests: 134 of 134 pass (108 rules tests, 26 QR tests), run against the emulator. New tests:
+  - Admins set questions; staff and volunteers can't.
+  - Personal questions keep their own type, and custom ones need a known type and text.
+  - Questions of a draft event can't be read by volunteers.
+  - A volunteer registers with answers, and can't give someone else's email.
+  - Answers are read by the volunteer, an admin and staff, and refused for another volunteer and for the network admin.
+- At 390 px against the emulators:
+  1. Mei Lin set Mobile number to Required, and Emergency contact and Age group to Optional. She added "Have you volunteered with seniors before?" (Yes, No; required) and terms given as a link (required).
+  2. Jun's "Request to join" opened the questions. Submitting with nothing filled in kept the sheet open.
+  3. He answered and was "Pending approval". His registration holds his email and four answers.
+  4. Mei Lin tapped Jun under Waiting for approval and saw his email, mobile number, "Emergency contact: No answer", age group, "Yes" and "Terms: Agreed".
+- No console errors.
+
+**Next**
+- Slice D: Announcements.
