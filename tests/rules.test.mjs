@@ -766,10 +766,10 @@ describe('registrations: joining and cancelling', () => {
   });
 
   // Joins the way the app does: the registration, the counts and the who's-going entry in one write.
-  function join(uid, eventId, { status, counts: next, going = status === 'going', who = uid, moveCounts = true }) {
+  function join(uid, eventId, { status, counts: next, going = status === 'going', who = uid, moveCounts = true, extra = {} }) {
     const db = dbAs(uid);
     const batch = writeBatch(db);
-    if (moveCounts) batch.update(doc(db, 'events', eventId), { counts: next, countsBy: who });
+    if (moveCounts) batch.update(doc(db, 'events', eventId), { counts: next, countsBy: who, ...extra });
     batch.set(doc(db, `events/${eventId}/registrations/${who}`), regDoc(who, status));
     if (going) batch.set(doc(db, `events/${eventId}/going/${who}`), { name: 'Alice A.', since: serverTimestamp() });
     return batch.commit();
@@ -795,9 +795,11 @@ describe('registrations: joining and cancelling', () => {
     await assertSucceeds(join('alice', 'e-appr', { status: 'pending', counts: counts({ pending: 1 }) }));
   });
 
-  it('a full event only takes people on its waiting list', async () => {
+  it('a full event only takes people on its waiting list, added to the end of it', async () => {
+    const queue = { waitingList: ['alice'], waiting: { alice: { type: null, name: 'Alice A.' } } };
     await assertFails(join('alice', 'e-full', { status: 'going', counts: counts({ going: 2 }) }));
-    await assertSucceeds(join('alice', 'e-full', { status: 'waitlist', counts: counts({ going: 1, waitlist: 1 }) }));
+    await assertFails(join('alice', 'e-full', { status: 'waitlist', counts: counts({ going: 1, waitlist: 1 }) }));
+    await assertSucceeds(join('alice', 'e-full', { status: 'waitlist', counts: counts({ going: 1, waitlist: 1 }), extra: queue }));
   });
 
   it('a full event without a waiting list takes nobody', async () => {
@@ -868,5 +870,134 @@ describe('registrations: joining and cancelling', () => {
     await assertFails(getDoc(doc(dbAs('carol'), 'events/e-open/private/location')));
     await assertFails(getDoc(doc(dbAs('alice'), 'events/e-open/private/codes')));
     await assertSucceeds(getDoc(doc(dbAs('mei'), 'events/e-open/private/codes')));
+  });
+});
+
+describe('ticket types and the waiting list', () => {
+  const later = new Date(Date.now() + 7 * 86400e3), earlier = new Date(Date.now() - 86400e3);
+  const settings = (over = {}) => ({ open: true, approval: false, capacity: 10, waitlist: true, group: false, ...over });
+  const counts = (over = {}) => ({ going: 0, pending: 0, waitlist: 0, attended: 0, ...over });
+  const st = serverTimestamp;
+  const TYPES = [
+    { id: 'std', name: 'Standard', paid: false, approval: false, capacity: 2 },
+    { id: 'lead', name: 'Team lead', paid: true, amountOnSite: 5, approval: true },
+    { id: 'soon', name: 'Late shift', paid: false, approval: false, opensAt: later },
+    { id: 'gone', name: 'Early bird', paid: false, approval: false, closesAt: earlier },
+  ];
+  const ev = (over = {}) => ({ orgId: 'open', visibility: 'public', status: 'scheduled', endAt: later, registration: settings(), counts: counts(), ...over });
+  const reg = (uid, status, ticketTypeId = null) => ({ uid, name: `${uid} A.`, status, ticketTypeId, answers: {}, registeredAt: new Date(), createdAt: new Date(), updatedAt: new Date() });
+  const entry = (uid, type = null) => ({ type, name: `${uid} A.` });
+
+  // Bob and Carol wait, in that order, for a full event Alice is going to.
+  const queued = (over = {}) => ev({
+    registration: settings({ capacity: 1 }), counts: counts({ going: 1, waitlist: 2 }),
+    waitingList: ['bob', 'carol'], waiting: { bob: entry('bob'), carol: entry('carol') }, ...over,
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'events/e-t': ev({ ticketTypes: TYPES, typeCounts: { std: 0 } }),
+      'events/e-q': queued(),
+      'events/e-q/registrations/alice': reg('alice', 'going'),
+      'events/e-q/registrations/bob': reg('bob', 'waitlist'),
+      'events/e-q/registrations/carol': reg('carol', 'waitlist'),
+      'events/e-q/going/alice': { name: 'alice A.' },
+    });
+  });
+
+  function joinType(uid, ticketTypeId, { status, event = {} }) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'events/e-t'), { countsBy: uid, ...event });
+    batch.set(doc(db, `events/e-t/registrations/${uid}`), {
+      uid, name: `${uid} A.`, status, ticketTypeId, answers: {}, registeredAt: st(), createdAt: st(), updatedAt: st(),
+    });
+    if (status === 'going') batch.set(doc(db, `events/e-t/going/${uid}`), { name: `${uid} A.`, since: st() });
+    return batch.commit();
+  }
+  const goingStd = (n) => ({ counts: counts({ going: 1 }), typeCounts: { std: n } });
+
+  // Alice cancels and her write moves `who` up to `status`.
+  function cancelAndMoveUp(by, who, { status = 'going', event = {} } = {}) {
+    const db = dbAs(by);
+    const batch = writeBatch(db);
+    const rest = ['bob', 'carol'].filter((u) => u !== who);
+    batch.update(doc(db, 'events/e-q'), {
+      counts: counts({ going: status === 'going' ? 1 : 0, pending: status === 'pending' ? 1 : 0, waitlist: 1 }), countsBy: by,
+      waitingList: rest, waiting: Object.fromEntries(rest.map((u) => [u, entry(u)])), movedUp: who, movedUpAt: st(), ...event,
+    });
+    batch.update(doc(db, `events/e-q/registrations/${by}`), { status: 'cancelled', updatedAt: st() });
+    batch.delete(doc(db, `events/e-q/going/${by}`));
+    batch.update(doc(db, `events/e-q/registrations/${who}`), { status, movedUpAt: st(), updatedAt: st() });
+    if (status === 'going') batch.set(doc(db, `events/e-q/going/${who}`), { name: `${who} A.`, since: st() });
+    return batch.commit();
+  }
+
+  it('with ticket types, a registration names one of them', async () => {
+    await assertFails(joinType('alice', null, { status: 'going', event: goingStd(1) }));
+    await assertFails(joinType('alice', 'vip', { status: 'going', event: goingStd(1) }));
+    await assertSucceeds(joinType('alice', 'std', { status: 'going', event: goingStd(1) }));
+  });
+
+  it('each type has its own approval, and its going count moves with it', async () => {
+    await assertFails(joinType('alice', 'lead', { status: 'going', event: { counts: counts({ going: 1 }) } }));
+    await assertSucceeds(joinType('alice', 'lead', { status: 'pending', event: { counts: counts({ pending: 1 }) } }));
+    await assertFails(joinType('bob', 'std', { status: 'going', event: { counts: counts({ going: 1, pending: 1 }) } }));
+  });
+
+  it('a type with its spots filled takes nobody, even with spots left in the event', async () => {
+    await seedDocs({ 'events/e-t': ev({ ticketTypes: TYPES, typeCounts: { std: 2 }, counts: counts({ going: 2 }) }) });
+    await assertFails(joinType('alice', 'std', { status: 'going', event: { counts: counts({ going: 3 }), typeCounts: { std: 3 } } }));
+  });
+
+  it('a type takes registrations only between its opening and closing dates', async () => {
+    await assertFails(joinType('alice', 'soon', { status: 'going', event: { counts: counts({ going: 1 }) } }));
+    await assertFails(joinType('alice', 'gone', { status: 'going', event: { counts: counts({ going: 1 }) } }));
+  });
+
+  it('while people wait, newcomers join the end of the waiting list, even if a spot is free', async () => {
+    await seedDocs({ 'events/e-q': queued({ registration: settings({ capacity: 5 }) }) });
+    const db = dbAs('dan');
+    const asGoing = writeBatch(db);
+    asGoing.update(doc(db, 'events/e-q'), { counts: counts({ going: 2, waitlist: 2 }), countsBy: 'dan' });
+    asGoing.set(doc(db, 'events/e-q/registrations/dan'), { ...reg('dan', 'going'), registeredAt: st(), createdAt: st(), updatedAt: st() });
+    asGoing.set(doc(db, 'events/e-q/going/dan'), { name: 'dan A.', since: st() });
+    await assertFails(asGoing.commit());
+    const asWaiting = writeBatch(db);
+    asWaiting.update(doc(db, 'events/e-q'), {
+      counts: counts({ going: 1, waitlist: 3 }), countsBy: 'dan',
+      waitingList: ['bob', 'carol', 'dan'], waiting: { bob: entry('bob'), carol: entry('carol'), dan: entry('dan') },
+    });
+    asWaiting.set(doc(db, 'events/e-q/registrations/dan'), { ...reg('dan', 'waitlist'), registeredAt: st(), createdAt: st(), updatedAt: st() });
+    await assertSucceeds(asWaiting.commit());
+  });
+
+  it('when someone going cancels, the first person on the waiting list moves up in the same write', async () => {
+    await assertSucceeds(cancelAndMoveUp('alice', 'bob'));
+  });
+
+  it('only the first person moves up, only with a going volunteer\'s cancellation', async () => {
+    await assertFails(cancelAndMoveUp('alice', 'carol'));
+    await seedDocs({ 'events/e-q/registrations/alice': reg('alice', 'pending') });
+    await assertFails(cancelAndMoveUp('alice', 'bob'));
+  });
+
+  it('someone waiting moves up to pending when the event needs approval', async () => {
+    await seedDocs({ 'events/e-q': queued({ registration: settings({ capacity: 1, approval: true }) }) });
+    await assertFails(cancelAndMoveUp('alice', 'bob'));
+    await assertSucceeds(cancelAndMoveUp('alice', 'bob', { status: 'pending' }));
+  });
+
+  it('leaving the waiting list takes the person out of it', async () => {
+    const leave = (event) => {
+      const db = dbAs('bob');
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'events/e-q'), { counts: counts({ going: 1, waitlist: 1 }), countsBy: 'bob', ...event });
+      batch.update(doc(db, 'events/e-q/registrations/bob'), { status: 'cancelled', updatedAt: st() });
+      return batch.commit();
+    };
+    await assertFails(leave({}));
+    await assertSucceeds(leave({ waitingList: ['carol'], waiting: { carol: entry('carol') } }));
   });
 });

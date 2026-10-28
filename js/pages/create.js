@@ -193,9 +193,18 @@ async function save() {
     startAt: Timestamp.fromDate(startAt), endAt: Timestamp.fromDate(endAt), hours,
     cover: { colors: colors(), label: label() }, visibility: s.vis,
     registration: { ...(existing?.registration || { open: true, waitlist: true, group: false }), approval: s.appr, capacity: s.cap ? Number(s.cap) : null },
-    ticketTypes: s.paid ? [{ id: 'standard', name: 'Standard', description: '', paid: true, amountOnSite: Number(s.price), approval: s.appr }] : [],
+    ticketTypes: ticketTypes(),
     notifyFollowers: s.notify,
   };
+  // Ticket types from Access and registration are kept. With one type, the form's price and approval update it;
+  // with several, they're set per type there.
+  function ticketTypes() {
+    const list = existing?.ticketTypes || [];
+    if (list.length > 1) return list;
+    if (!list.length && !s.paid) return [];
+    const { amountOnSite: _old, ...type } = list[0] || { id: 'standard', name: 'Standard', description: '' };
+    return [{ ...type, paid: s.paid, ...(s.paid ? { amountOnSite: Number(s.price) } : {}), approval: s.appr }];
+  }
   $('save').disabled = true;
   try {
     if (existing) {

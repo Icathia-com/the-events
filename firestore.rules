@@ -271,11 +271,105 @@ service cloud.firestore {
         && next.attended == old.attended + step('confirmed', attBefore, attAfter);
     }
 
-    // What joining gives: the waiting list when full (if it has one), pending when approval is on, otherwise going.
-    function joinStatus(e) {
-      return e.registration.capacity != null && e.counts.going >= e.registration.capacity
-        ? (e.registration.waitlist == true ? 'waitlist' : 'full')
-        : (e.registration.approval == true ? 'pending' : 'going');
+    // Ticket types (Phase 2), looked up by id in the event's list of up to 10.
+    function ticketAt(types, i, id) {
+      return types.size() > i && types[i].id == id;
+    }
+
+    function ticketFor(e, id) {
+      let t = e.get('ticketTypes', []);
+      return ticketAt(t, 0, id) ? t[0] : ticketAt(t, 1, id) ? t[1] : ticketAt(t, 2, id) ? t[2]
+        : ticketAt(t, 3, id) ? t[3] : ticketAt(t, 4, id) ? t[4] : ticketAt(t, 5, id) ? t[5]
+        : ticketAt(t, 6, id) ? t[6] : ticketAt(t, 7, id) ? t[7] : ticketAt(t, 8, id) ? t[8]
+        : ticketAt(t, 9, id) ? t[9] : null;
+    }
+
+    // A ticket type's own spots, counted in typeCounts (going per type).
+    function typeFull(e, t) {
+      return t != null && t.get('capacity', null) != null && e.get('typeCounts', {}).get(t.id, 0) >= t.capacity;
+    }
+
+    function typeOpen(t) {
+      return t == null || ((!('opensAt' in t) || t.opensAt <= request.time) && (!('closesAt' in t) || t.closesAt > request.time));
+    }
+
+    function approvalFor(e, t) {
+      return t != null ? t.get('approval', false) == true : e.registration.approval == true;
+    }
+
+    // What joining gives: the waiting list when full, or while people are waiting (if it has one); pending when the
+    // ticket type (or, without types, the event) needs approval; otherwise going.
+    function joinStatus(e, t) {
+      return (e.registration.capacity != null && e.counts.going >= e.registration.capacity)
+          || (e.registration.waitlist == true && e.get('waitingList', []).size() > 0)
+        ? (e.registration.waitlist == true && !typeFull(e, t) ? 'waitlist' : 'full')
+        : (typeFull(e, t) ? 'full' : (approvalFor(e, t) ? 'pending' : 'going'));
+    }
+
+    function typeOfReg(eventId, uid) {
+      return existsAfter(regPath(eventId, uid)) ? getAfter(regPath(eventId, uid)).data.get('ticketTypeId', null) : null;
+    }
+
+    // The ticket type counts moved by d1 for type t1 and d2 for type t2; a null type has no count.
+    function typeMoved(o, n, t, d) {
+      return t == null || n.get(t, 0) == o.get(t, 0) + d;
+    }
+
+    function typeCountsMove(old, next, t1, d1, t2, d2) {
+      let o = old.get('typeCounts', {});
+      let n = next.get('typeCounts', {});
+      return t1 == t2
+        ? (t1 == null || d1 + d2 == 0 ? n == o : n.diff(o).affectedKeys().hasOnly([t1]) && n.get(t1, 0) == o.get(t1, 0) + d1 + d2)
+        : n.diff(o).affectedKeys().hasOnly([t1, t2]) && typeMoved(o, n, t1, d1) && typeMoved(o, n, t2, d2);
+    }
+
+    // The waiting list, in order (waitingList, uids), with each person's ticket type and short name (waiting).
+    // Joining it adds the person at the end; leaving it takes them out.
+    function waitingFollows(old, next, eventId, p, before, after) {
+      let ol = old.get('waitingList', []);
+      let nl = next.get('waitingList', []);
+      let om = old.get('waiting', {});
+      let nm = next.get('waiting', {});
+      return after == 'waitlist' && before != 'waitlist'
+        ? nl == ol.concat([p]) && nm.diff(om).affectedKeys().hasOnly([p]) && (p in nm) && !(p in om)
+          && nm[p].keys().hasOnly(['type', 'name']) && nm[p].type == typeOfReg(eventId, p)
+          && nm[p].name is string && nm[p].name.size() <= 40
+        : (before == 'waitlist' && after != 'waitlist'
+          ? nl == ol.removeAll([p]) && nm.diff(om).affectedKeys().hasOnly([p]) && !(p in nm)
+          : nl == ol && nm == om);
+    }
+
+    // One person's registration or attendance changed: everything on the event follows that change.
+    function oneChange(old, next, eventId, p) {
+      let before = statusBefore(eventId, p);
+      let after = statusAfter(eventId, p);
+      return countsFollow(old.counts, next.counts, eventId, p)
+        && typeCountsMove(old, next, typeOfReg(eventId, p), step('going', before, after), null, 0)
+        && waitingFollows(old, next, eventId, p, before, after)
+        && next.get('movedUp', null) == old.get('movedUp', null)
+        && next.get('movedUpAt', null) == old.get('movedUpAt', null);
+    }
+
+    // Someone who was going (countsBy) cancels, and the first person on the waiting list (movedUp) moves up to going,
+    // or to pending when their ticket type needs approval, in the same write.
+    function movesUp(old, next, eventId) {
+      let a = next.countsBy;
+      let b = next.movedUp;
+      let ol = old.get('waitingList', []);
+      let bAfter = statusAfter(eventId, b);
+      let up = bAfter == 'going' ? 1 : 0;
+      return a != b && ol.size() > 0 && ol[0] == b
+        && statusBefore(eventId, a) == 'going' && statusAfter(eventId, a) == 'cancelled'
+        && statusBefore(eventId, b) == 'waitlist' && bAfter in ['going', 'pending']
+        && next.get('waitingList', []) == ol.removeAll([b])
+        && next.get('waiting', {}).diff(old.get('waiting', {})).affectedKeys().hasOnly([b])
+        && !(b in next.get('waiting', {}))
+        && next.counts.keys().hasOnly(['going', 'pending', 'waitlist', 'attended'])
+        && next.counts.going == old.counts.going - 1 + up
+        && next.counts.pending == old.counts.pending + (bAfter == 'pending' ? 1 : 0)
+        && next.counts.waitlist == old.counts.waitlist - 1
+        && next.counts.attended == old.counts.attended
+        && typeCountsMove(old, next, typeOfReg(eventId, a), -1, typeOfReg(eventId, b), up);
     }
 
     function openForJoining(e) {
@@ -332,12 +426,17 @@ service cloud.firestore {
         && validEvent(request.resource.data)
         && request.resource.data.updatedAt == request.time;
 
-      // The counts move only with one person's registration or attendance, changed in the same write; countsBy names
-      // that person. Volunteers move them for themselves, the organisation's members for anyone.
+      // The counts, the ticket type counts and the waiting list move only with one person's registration or
+      // attendance, changed in the same write; countsBy names that person. Volunteers move them for themselves, the
+      // organisation's members for anyone. When someone who is going cancels, their write can also move the first
+      // person on the waiting list up (movedUp, movedUpAt), and then everything follows both changes.
       allow update: if signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['counts', 'countsBy'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['counts', 'countsBy', 'typeCounts', 'waitingList', 'waiting', 'movedUp', 'movedUpAt'])
         && (request.resource.data.countsBy == request.auth.uid || isMember(resource.data.orgId))
-        && countsFollow(resource.data.counts, request.resource.data.counts, eventId, request.resource.data.countsBy);
+        && (request.resource.data.get('movedUpAt', null) == request.time
+          ? request.resource.data.countsBy == request.auth.uid && movesUp(resource.data, request.resource.data, eventId)
+          : oneChange(resource.data, request.resource.data, eventId, request.resource.data.countsBy));
 
       match /registrations/{uid} {
         allow read: if isSelf(uid) || isMember(get(eventPath(eventId)).data.orgId) || isNetworkAdmin();
@@ -347,11 +446,13 @@ service cloud.firestore {
         function joinAllowed(before) {
           let e = get(eventPath(eventId)).data;
           let r = request.resource.data;
-          let status = joinStatus(e);
+          let t = e.get('ticketTypes', []).size() == 0 ? null : ticketFor(e, r.ticketTypeId);
+          let status = joinStatus(e, t);
           return canSee(e) && openForJoining(e) && status != 'full'
+            && (e.get('ticketTypes', []).size() == 0 ? r.ticketTypeId == null : t != null) && typeOpen(t)
             && r.status == status && r.uid == uid
             && r.name is string && r.name.size() > 0 && r.name.size() <= 100
-            && r.ticketTypeId == null && r.answers.size() == 0
+            && r.answers.size() == 0
             && r.registeredAt == request.time && r.updatedAt == request.time
             && countsStep(e.counts, getAfter(eventPath(eventId)).data.counts, before, status)
             && existsAfter(goingPath(eventId, uid)) == (status == 'going');
@@ -359,14 +460,32 @@ service cloud.firestore {
 
         function cancelAllowed() {
           let e = get(eventPath(eventId)).data;
+          let next = getAfter(eventPath(eventId)).data;
           let r = request.resource.data;
           return resource.data.status in ['going', 'pending', 'waitlist']
             && e.endAt > request.time
             && r.status == 'cancelled'
             && r.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
             && r.updatedAt == request.time
-            && countsStep(e.counts, getAfter(eventPath(eventId)).data.counts, resource.data.status, 'cancelled')
+            && (next.get('movedUpAt', null) == request.time
+              || countsStep(e.counts, next.counts, resource.data.status, 'cancelled'))
             && !existsAfter(goingPath(eventId, uid));
+        }
+
+        // The first person on the waiting list, moved up by the cancelling volunteer's write (see movesUp): to
+        // going, or to pending when their ticket type (or the event) needs approval, within their type's spots.
+        function moveUpAllowed() {
+          let e = get(eventPath(eventId)).data;
+          let next = getAfter(eventPath(eventId)).data;
+          let r = request.resource.data;
+          let t = e.get('ticketTypes', []).size() == 0 ? null : ticketFor(e, resource.data.get('ticketTypeId', null));
+          return signedIn() && next.get('movedUp', null) == uid && next.get('movedUpAt', null) == request.time
+            && resource.data.status == 'waitlist'
+            && r.status == (approvalFor(e, t) ? 'pending' : 'going')
+            && r.diff(resource.data).affectedKeys().hasOnly(['status', 'movedUpAt', 'updatedAt'])
+            && r.movedUpAt == request.time && r.updatedAt == request.time
+            && (t == null || t.get('capacity', null) == null || next.get('typeCounts', {}).get(t.id, 0) <= t.capacity)
+            && existsAfter(goingPath(eventId, uid)) == (r.status == 'going');
         }
 
         // The organisation's admins decide: going, declined or the waiting list.
@@ -389,17 +508,20 @@ service cloud.firestore {
 
         allow update: if (isSelf(uid) && (
             (resource.data.status == 'cancelled'
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'registeredAt', 'updatedAt'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'ticketTypeId', 'registeredAt', 'updatedAt'])
               && joinAllowed('cancelled'))
             || cancelAllowed()))
-          || decisionAllowed();
+          || decisionAllowed()
+          || (!isSelf(uid) && moveUpAllowed());
       }
 
       // Who's going: a first name per approved volunteer, readable by anyone who can see the event. Written by the
-      // volunteer, or by an admin approving them.
+      // volunteer, by an admin approving them, or by the cancelling volunteer whose write moves them up.
       match /going/{uid} {
         allow read: if canSee(get(eventPath(eventId)).data);
-        allow create: if (isSelf(uid) || isOrgAdmin(get(eventPath(eventId)).data.orgId))
+        allow create: if (isSelf(uid) || isOrgAdmin(get(eventPath(eventId)).data.orgId)
+            || (getAfter(eventPath(eventId)).data.get('movedUp', null) == uid
+              && getAfter(eventPath(eventId)).data.get('movedUpAt', null) == request.time))
           && statusAfter(eventId, uid) == 'going'
           && request.resource.data.keys().hasOnly(['name', 'since'])
           && request.resource.data.name is string && request.resource.data.name.size() <= 40

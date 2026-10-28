@@ -113,6 +113,32 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The server's clock decides the window. If it refuses a confirmation the phone expected, the scan becomes a claim instead.
 - Phase 2, slice A: Past events on the organisation page are shown to its admins only: the 20 most recent that have ended, leaving out drafts and cancelled events. Each shows "N claims waiting" or "No claims" and opens that event's check-out page. The canvas has no drawing of this, so it reuses the Upcoming events list.
 - Phase 2, slice A (production): One more index, events by orgId and startAt newest first, for the past events list. It's in `firestore.indexes.json`.
+- Phase 2, slice B: Ticket types:
+  - They stay a list on the event, as in section 6. The rules look a type up by its id, up to the brief's 10 types.
+  - Each type's going count is kept on the event (`typeCounts`), and the rules check it like the other counts.
+  - With ticket types, each type's own approval setting decides. Without them, the event's setting does. The event's `registration.approval` is kept as "every type needs approval", for the places that show "Approval required".
+  - An event made without ticket types shows one "Standard" type on Access and registration, using the event's approval setting. It becomes a real type once saved. Registrations made before then count towards the event's spots, but not towards a type's.
+  - Registration dates are whole days in Singapore: a type opens at the start of its first day and closes at the end of its last.
+  - Deleting a type leaves its registrations as they are.
+  - The create and edit form keeps the types set here. With one type, the form's price and approval update it. With several, the form leaves them alone.
+- Phase 2, slice B (security and privacy): The waiting list is kept on the event, in order (`waitingList`), with each person's ticket type and short name (`waiting`). It's readable by anyone who can see the event, the same as the first names in who's going. That's what lets the rules check that the person moved up is first in line, and lets the cancelling volunteer's app move them up without reading anyone's registration.
+- Phase 2, slice B: Moving up:
+  - When someone going cancels, the first person waiting moves up to going. When their ticket type needs approval, they move to pending instead.
+  - This happens only if their type still has a spot. Otherwise nobody moves up, and the organiser approves from the waiting list as before.
+  - The rules allow moving up but can't force it, so a changed app could skip it. Even then nobody jumps the queue: while anyone is waiting, newcomers join the end of the list, even if a spot is free.
+  - Raising the spots doesn't move anyone up. The organiser approves them under Waiting for approval.
+- Phase 2, slice B: Group registration is saved (`registration.group`) but doesn't change registering yet. The canvas doesn't show how a group signs up: how many people, their names, or how they're checked in.
+- Phase 2, slice B: Left out of Access and registration:
+  - "Choose who can find this event. Anyone with the direct link can always open it." A followers-only event can't be opened from a link by people who don't follow the organisation.
+  - "Followers are notified." and "Nothing is sent.", since notifications are Phase 3.
+  - "Registration closes when the spots are filled. Only approved volunteers count towards the limit."
+  - The name placeholder's "for example Standard or Team lead".
+  - "No online payment. The organisation collects this in person, for example a materials fee."
+- Phase 2, slice B: How the page works:
+  - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
+  - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
+  - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice B: The event page's "Choose a ticket" sheet isn't on the canvas. It lists each type with its price ("Free", or "S$5, paid at the event") and what joining gives: Instant registration, Requires approval, Waiting list, Full, Opens …, or Registration closed. Once someone has registered, the details card shows their type's on-site amount.
 
 ## 28 Oct 2026: toolchain check (no app code yet)
 
@@ -616,3 +642,43 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice B: Access and registration.
+
+## 28 Oct 2026: Phase 2, slice B: Access and registration
+
+**Done**
+- `access.html` from design/Access.dc.html, opened from Manage (admins only). It covers:
+  - visibility, in a sheet;
+  - Accept registrations;
+  - volunteer spots, with Limit spots and Waiting list when full;
+  - group registration;
+  - ticket types. Each has a name, a description, Free or Paid on site with an amount, Require approval, its own spots, and registration open and close dates.
+- Waiting list: when someone going cancels, the first person waiting moves up in the same transaction. They go to going, or to pending if their ticket type needs approval. Who's going and the counts move with it.
+- Event page:
+  - With more than one ticket type, Register opens "Choose a ticket", which shows each type's price and state.
+  - On-site amounts read "S$5, paid at the event". Each type's approval, spots and dates decide what joining gives.
+- Rules:
+  - A registration must name one of the event's types.
+  - Each type's approval, spots and dates are enforced.
+  - Type counts move with every registration change, and the waiting list stays in order.
+  - Only the first person waiting can be moved up, and only by a going volunteer's cancellation in the same write.
+- The create and edit form keeps the ticket types set on Access and registration.
+
+**Tested**
+- Rules tests: 129 of 129 pass (103 rules tests, 26 QR tests), run against the emulator. New tests:
+  - A registration names one of the event's types; a missing or unknown type is refused.
+  - Approval per type: going is refused for a type that needs approval, and pending works.
+  - The type count has to move with a going registration.
+  - A type with its spots filled takes nobody, even with spots left in the event.
+  - Types not yet open, or already closed, take nobody.
+  - While people wait, a newcomer can't take a free spot, only the end of the waiting list.
+  - Joining the waiting list has to add the person to it, and leaving has to take them out.
+  - A going volunteer's cancellation moves the first person up. Moving up the second person, or moving up through a pending volunteer's cancellation, is refused.
+  - With approval, the person moves up to pending, not going.
+- At 390 px against the emulators:
+  1. Mei Lin opened Access and registration from Manage. She turned off approval on Standard, added "Team lead" (S$5 on site, approval, 2 spots), and set the Yishun visit to 7 spots, which its 7 going volunteers fill.
+  2. Jun saw "Join waiting list", and the ticket sheet offered "Standard: Free · Waiting list" and "Team lead: S$5, paid at the event · Waiting list". He picked Standard and was put on the waiting list.
+  3. Aisha cancelled. Jun moved up to going in the same write: the waiting list emptied, the counts stayed at 7 going, Standard's count went to 1, and Jun appeared in who's going. His page then showed "Registered".
+- The section 10 acceptance run still passes end to end, with the visit moved into its check-out window first. No console errors.
+
+**Next**
+- Slice C: Registration questions.

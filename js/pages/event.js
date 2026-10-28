@@ -1,11 +1,14 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AREAS, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue, getMyRegistration,
-  getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, syncHours, unfollowOrg,
+  AREAS, approvalFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent, getExactVenue,
+  getMyRegistration, getMyRole, getOrganisation, joinEvent, joinStatus, listGoing, syncHours, ticketFor, typeOpen, unfollowOrg,
 } from '../data.js';
 import { qrSvg } from '../qr.js';
-import { checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml, reveal, toast } from '../ui.js';
+import {
+  checkOutText, coverHtml, dateParts, daysFromToday, dragScroll, esc, fmtTime, hoursText, icon, initials, openModal, orgDotHtml,
+  reveal, shortDay, toast,
+} from '../ui.js';
 
 const user = await requireUser();
 const main = document.querySelector('main');
@@ -85,9 +88,50 @@ function joinButton() {
   if (event.status === 'cancelled') return { label: 'Cancelled', cls: 'is-closed', disabled: true };
   if (ended()) return { label: 'Ended', cls: 'is-closed', disabled: true };
   if (!registrationOpen()) return { label: 'Registration closed', cls: 'is-closed', disabled: true };
-  const next = joinStatus(event);
-  if (next === 'full') return { label: 'Full', cls: 'is-closed', disabled: true };
-  return { label: next === 'waitlist' ? 'Join waiting list' : next === 'pending' ? 'Request to join' : 'Register', cls: '', disabled: false };
+  const open = choices().filter((c) => c.status !== 'full' && c.status !== 'closed');
+  if (!open.length) {
+    return choices().some((c) => c.status === 'full') ? { label: 'Full', cls: 'is-closed', disabled: true }
+      : { label: 'Registration closed', cls: 'is-closed', disabled: true };
+  }
+  const all = (s) => open.every((c) => c.status === s);
+  return { label: all('waitlist') ? 'Join waiting list' : all('pending') ? 'Request to join' : 'Register', cls: '', disabled: false };
+}
+
+// Ticket types (Phase 2) and what joining each gives now; one choice with no type when the event has none.
+const types = () => event.ticketTypes || [];
+const choices = () => (types().length ? types() : [null])
+  .map((t) => ({ t, status: typeOpen(t) ? joinStatus(event, t) : 'closed' }));
+const priceText = (t) => (t?.paid ? `S$${Number(t.amountOnSite || 0).toLocaleString('en-SG')}, paid at the event` : 'Free');
+
+function choiceLine({ t, status }) {
+  if (status === 'closed') {
+    const opens = t.opensAt && t.opensAt.toMillis() > Date.now() ? t.opensAt.toDate() : null;
+    return opens ? `Opens ${shortDay(opens)}` : 'Registration closed';
+  }
+  return { full: 'Full', waitlist: 'Waiting list', pending: 'Requires approval', going: 'Instant registration' }[status];
+}
+
+// More than one ticket type: the volunteer picks one in a sheet, then joins with it.
+function pickTicket() {
+  const sheet = openModal({ title: 'Choose a ticket', body: `<div class="radio-card">${choices().map((c) => {
+    const off = c.status === 'full' || c.status === 'closed';
+    return `<button type="button" class="radio-row" data-ticket="${esc(c.t.id)}"${off ? ' disabled' : ''}>
+      <span class="radio-text"><span class="radio-title">${esc(c.t.name)}</span>
+        ${c.t.description ? `<span class="meta">${esc(c.t.description)}</span>` : ''}
+        <span class="meta">${esc(`${priceText(c.t)} · ${choiceLine(c)}`)}</span></span></button>`;
+  }).join('')}</div>` });
+  sheet.element.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-ticket]');
+    if (!row) return;
+    sheet.close();
+    join(row.dataset.ticket);
+  });
+}
+
+async function join(ticketTypeId) {
+  await run(async () => {
+    if (await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId) === 'full') toast('This event just filled up.');
+  }, 'Couldn’t register.');
 }
 
 const menuItem = (action, label, iconName, sep = false) =>
@@ -133,7 +177,11 @@ function locationCard() {
 }
 
 function details() {
+  // The on-site amount: of the volunteer's own ticket type once registered, otherwise of the event's only type.
+  const mine = reg && ACTIVE.includes(reg.status) ? ticketFor(event, reg.ticketTypeId) : null;
+  const shown = mine || (types().length === 1 ? types()[0] : null);
   const rows = [
+    ['dollar', mine && types().length > 1 ? mine.name : 'Price', shown?.paid ? priceText(shown) : ''],
     ['pin', 'Meeting point', event.meetingPoint],
     ['bag', 'What to bring', event.bring],
     ['clock', 'Volunteer hours', event.hours ? `${hoursText(event.hours)} counted after the organisation confirms you attended` : ''],
@@ -178,7 +226,7 @@ function hostedBy() {
 
 function render() {
   const [chipText, chipCls] = statusChip();
-  const needsApproval = event.registration?.approval && !ACTIVE.includes(reg?.status) && !isAdmin;
+  const needsApproval = choices().every((c) => approvalFor(event, c.t)) && !ACTIVE.includes(reg?.status) && !isAdmin;
   document.title = `${event.title} · The Events`;
   main.innerHTML = `
     <div class="top-row">
@@ -275,9 +323,8 @@ main.addEventListener('click', async (e) => {
     await run(async () => { await cancelRegistration(eventId, user.uid); toast('Registration cancelled'); }, 'Couldn’t cancel the registration.');
   }
   if (action === 'join' && !busy) {
-    await run(async () => {
-      if (await joinEvent(eventId, user.uid, profile.name || user.email) === 'full') toast('This event just filled up.');
-    }, 'Couldn’t register.');
+    if (types().length > 1) pickTicket();
+    else await join(types()[0]?.id || null);
   }
   if (action === 'follow') {
     const on = follows.has(event.orgId);

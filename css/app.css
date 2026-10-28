@@ -899,6 +899,26 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .pending-card .claim-line { font-size: 12.5px; }
 .pending-card .sec-link { flex-shrink: 0; color: var(--forest); }
 
+/* Access and registration (design/Access.dc.html) */
+.help { margin: 0; padding: 0 20px 4px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.form-row.is-tall { min-height: 64px; padding-top: 10px; padding-bottom: 10px; }
+.form-row.is-ticket { min-height: 64px; }
+.form-row.is-soon { opacity: .55; }
+.ticket-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ticket-line { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.ticket-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--confirmed); }
+.ticket-dot.is-wait { background: var(--pending); }
+.add-btn { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--ink); background: var(--glass-bg); }
+.form-card.is-flat { border-color: transparent; box-shadow: none; background: var(--field-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.seg-row { display: flex; gap: 8px; }
+.seg-btn { flex: 1; height: 44px; border-radius: 14px; cursor: pointer; font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); background: var(--chip-off-bg); border: 1px solid var(--line-strong); }
+.seg-btn[aria-pressed="true"] { color: var(--white); background: var(--forest); border-color: var(--forest); }
+.amount-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sheet-btns { display: flex; gap: 8px; }
+.sheet-btns .big-btn { margin-top: 0; height: 50px; border-radius: 25px; font-size: 15px; }
+.ghost-btn { height: 50px; padding: 0 18px; border-radius: 25px; cursor: pointer; font: inherit; font-size: 14.5px; font-weight: 700; color: var(--ink); background: var(--chip-off-bg); border: 1px solid var(--line-strong); }
+.ghost-btn.is-danger { color: var(--danger); border-color: var(--danger-bg); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
   .btn:active, .tab:active .lens, .fab:active, .qa:active, .ue-foot:active, .act:active, .reg-btn:active, .big-btn:active { transform: none; }

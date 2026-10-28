@@ -61,6 +61,10 @@ Jun (`jun.wei@example.com`) starts with no registrations, so he's a good one to 
   - Any other scan sends a claim, which Mei Lin confirms or declines on the same page.
   - The sample events don't end at the time you're trying this, so scanning straight after checking in sends a claim.
 - **Past events**: on Silver Companions' organisation page, Mei Lin sees its past events with the number of claims waiting. Each one opens that event's check-out page.
+- **Access and registration**: Manage, then Access and registration.
+  - Here she sets visibility, accepting registrations, volunteer spots and the waiting list, and ticket types.
+  - Each ticket type has its own price (free, or paid on site), approval, spots and registration dates.
+  - To see the waiting list move: set the Yishun visit to 7 spots, so it's full. Jun joins the waiting list, choosing a ticket type if there's more than one. When Aisha cancels, Jun moves up.
 - **Cancel event**: Manage, then Cancel event.
 
 **Scanning needs a camera.** On a laptop:

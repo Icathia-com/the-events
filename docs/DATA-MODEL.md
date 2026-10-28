@@ -60,6 +60,12 @@ Made while building Phase 1; the reasons are under "Decisions to confirm" in `do
 events/{eventId}
   notifyFollowers: boolean              the form's "Notify followers"; nothing is sent until Phase 3
   ticketTypes                           a paid event has one "Standard" ticket with amountOnSite; free events have none
+                                        until types are added on Access and registration (Phase 2). Each type: id,
+                                        name, description, paid, amountOnSite?, approval, capacity?, opensAt?, closesAt?
+  typeCounts: { typeId: number }        going registrations per ticket type (Phase 2), moved with the counts
+  waitingList: [uid]                    the waiting list in order (Phase 2)
+  waiting: { uid: { type, name } }      each waiting person's ticket type id and short name ("Aisha R.")
+  movedUp, movedUpAt                    the last person moved up from the waiting list by a cancellation, and when
 events/{eventId}/private/codes          checkIn, checkOut, rotatedAt
                                         (in place of events.codes; only the organisation's members can read it)
 events/{eventId}/private/location       venue: the exact address when hideExactLocation is true
@@ -73,6 +79,7 @@ organisations/{orgId}/members/{uid}
 
 events/{eventId}/registrations/{uid}
   uid                                   lets people find their own registrations with a collection group query
+  movedUpAt                             when a cancellation moved this person up from the waiting list (Phase 2)
 events/{eventId}/going/{uid}            name ("Aisha R."), since: who's going, readable with the event; one per going registration
 
 users/{uid}/hours/{eventId}             the entry id is the event id: one entry per confirmed attendance

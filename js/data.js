@@ -72,11 +72,22 @@ export function shortName(name) {
   return `${first} ${words.at(-1)[0].toUpperCase()}.`.slice(0, 40);
 }
 
-// What joining gives right now; the rules apply the same test.
-export function joinStatus(event) {
-  const { capacity, waitlist, approval } = event.registration || {};
-  if (capacity != null && (event.counts?.going || 0) >= capacity) return waitlist ? 'waitlist' : 'full';
-  return approval ? 'pending' : 'going';
+// Ticket types (Phase 2): each has its own approval, spots (counted in event.typeCounts) and registration dates.
+export const ticketFor = (event, id) => (event.ticketTypes || []).find((t) => t.id === id) || null;
+export const approvalFor = (event, type) => (type ? !!type.approval : !!event.registration?.approval);
+export const typeFull = (event, type) => type?.capacity != null && (event.typeCounts?.[type.id] || 0) >= type.capacity;
+export function typeOpen(type, now = Date.now()) {
+  return !type || ((!type.opensAt || type.opensAt.toMillis() <= now) && (!type.closesAt || type.closesAt.toMillis() > now));
+}
+
+// What joining gives right now, with the chosen ticket type; the rules apply the same test. While people are on the
+// waiting list, newcomers join the end of it, even if a spot is free.
+export function joinStatus(event, type = null) {
+  const { capacity, waitlist } = event.registration || {};
+  const full = capacity != null && (event.counts?.going || 0) >= capacity;
+  if (full || (waitlist && event.waitingList?.length)) return waitlist && !typeFull(event, type) ? 'waitlist' : 'full';
+  if (typeFull(event, type)) return 'full';
+  return approvalFor(event, type) ? 'pending' : 'going';
 }
 
 const COUNTED = ['going', 'pending', 'waitlist'];
@@ -87,12 +98,30 @@ function stepCounts(counts, before, after) {
   return next;
 }
 
+// The event fields that follow one registration's change from `before` to `after`: the counts, the ticket type's
+// going count, and the waiting list (in order, with each person's type and short name).
+function followFields(event, uid, before, after, typeId, name) {
+  const fields = { counts: stepCounts(event.counts, before, after), countsBy: uid };
+  const d = (after === 'going' ? 1 : 0) - (before === 'going' ? 1 : 0);
+  if (typeId && d) fields.typeCounts = { ...event.typeCounts, [typeId]: (event.typeCounts?.[typeId] || 0) + d };
+  if (after === 'waitlist' && before !== 'waitlist') {
+    fields.waitingList = [...(event.waitingList || []), uid];
+    fields.waiting = { ...event.waiting, [uid]: { type: typeId || null, name: shortName(name) } };
+  } else if (before === 'waitlist' && after !== 'waitlist') {
+    fields.waitingList = (event.waitingList || []).filter((u) => u !== uid);
+    const { [uid]: _gone, ...rest } = event.waiting || {};
+    fields.waiting = rest;
+  }
+  return fields;
+}
+
 export async function getMyRegistration(eventId, uid) {
   return withId(await getDoc(doc(db, 'events', eventId, 'registrations', uid)));
 }
 
-// Joins an event, or joins again after cancelling. Returns the new status.
-export function joinEvent(eventId, uid, name) {
+// Joins an event with a ticket type (null when the event has none), or joins again after cancelling. Returns the
+// new status, or 'full'.
+export function joinEvent(eventId, uid, name, ticketTypeId = null) {
   return runTransaction(db, async (tx) => {
     const eventRef = doc(db, 'events', eventId);
     const regRef = doc(db, 'events', eventId, 'registrations', uid);
@@ -101,27 +130,50 @@ export function joinEvent(eventId, uid, name) {
     const before = regSnap.exists() ? regSnap.data().status : 'none';
     if (before !== 'none' && before !== 'cancelled') return before;
 
-    const status = joinStatus(event);
+    const type = ticketFor(event, ticketTypeId);
+    const status = joinStatus(event, type);
     if (status === 'full') return 'full';
-    tx.update(eventRef, { counts: stepCounts(event.counts, before, status), countsBy: uid });
-    const fields = { status, name, registeredAt: serverTimestamp(), updatedAt: serverTimestamp() };
+    tx.update(eventRef, followFields(event, uid, before, status, type?.id, name));
+    const fields = { status, name, ticketTypeId: type?.id || null, registeredAt: serverTimestamp(), updatedAt: serverTimestamp() };
     if (regSnap.exists()) tx.update(regRef, fields);
-    else tx.set(regRef, { uid, ticketTypeId: null, answers: {}, createdAt: serverTimestamp(), ...fields });
+    else tx.set(regRef, { uid, answers: {}, createdAt: serverTimestamp(), ...fields });
     if (status === 'going') tx.set(doc(db, 'events', eventId, 'going', uid), { name: shortName(name), since: serverTimestamp() });
     return status;
   });
 }
 
+// Cancels the volunteer's registration. When they were going, the first person on the waiting list moves up in the
+// same write: to going, or to pending when their ticket type needs approval, if their type has a spot.
 export function cancelRegistration(eventId, uid) {
   return runTransaction(db, async (tx) => {
     const eventRef = doc(db, 'events', eventId);
     const regRef = doc(db, 'events', eventId, 'registrations', uid);
     const event = (await tx.get(eventRef)).data();
     const regSnap = await tx.get(regRef);
-    const before = regSnap.exists() ? regSnap.data().status : 'none';
+    const reg = regSnap.data();
+    const before = reg?.status || 'none';
     if (!COUNTED.includes(before)) return before;
 
-    tx.update(eventRef, { counts: stepCounts(event.counts, before, 'cancelled'), countsBy: uid });
+    const fields = followFields(event, uid, before, 'cancelled', reg.ticketTypeId, reg.name);
+    const next = before === 'going' ? event.waitingList?.[0] : null;
+    const entry = next && next !== uid ? event.waiting?.[next] : null;
+    if (entry) {
+      const type = ticketFor(event, entry.type);
+      const status = approvalFor(event, type) ? 'pending' : 'going';
+      const typeCounts = { ...(fields.typeCounts || event.typeCounts) };
+      if (type && status === 'going') typeCounts[type.id] = (typeCounts[type.id] || 0) + 1;
+      if (!type?.capacity || (typeCounts[type.id] || 0) <= type.capacity) {
+        const { [next]: _up, ...waiting } = event.waiting;
+        Object.assign(fields, {
+          counts: stepCounts(fields.counts, 'waitlist', status), waitingList: event.waitingList.slice(1), waiting,
+          movedUp: next, movedUpAt: serverTimestamp(),
+        });
+        if (type && status === 'going') fields.typeCounts = typeCounts;
+        tx.update(doc(db, 'events', eventId, 'registrations', next), { status, movedUpAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        if (status === 'going') tx.set(doc(db, 'events', eventId, 'going', next), { name: entry.name, since: serverTimestamp() });
+      }
+    }
+    tx.update(eventRef, fields);
     tx.update(regRef, { status: 'cancelled', updatedAt: serverTimestamp() });
     if (before === 'going') tx.delete(doc(db, 'events', eventId, 'going', uid));
     return 'cancelled';
@@ -145,9 +197,10 @@ export function decideRegistration(eventId, uid, status, adminUid) {
     const event = (await tx.get(eventRef)).data();
     const reg = (await tx.get(regRef)).data();
     const capacity = event.registration?.capacity;
-    if (status === 'going' && reg.status !== 'going' && capacity != null && (event.counts?.going || 0) >= capacity) return false;
+    const full = capacity != null && (event.counts?.going || 0) >= capacity;
+    if (status === 'going' && reg.status !== 'going' && (full || typeFull(event, ticketFor(event, reg.ticketTypeId)))) return false;
 
-    tx.update(eventRef, { counts: stepCounts(event.counts, reg.status, status), countsBy: uid });
+    tx.update(eventRef, followFields(event, uid, reg.status, status, reg.ticketTypeId, reg.name));
     tx.update(regRef, { status, decidedAt: serverTimestamp(), decidedBy: adminUid, updatedAt: serverTimestamp() });
     const goingRef = doc(db, 'events', eventId, 'going', uid);
     if (status === 'going') tx.set(goingRef, { name: shortName(reg.name), since: serverTimestamp() });
