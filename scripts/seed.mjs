@@ -141,6 +141,8 @@ const PEOPLE = [
   ['ivy', 'Ivy Chen', ['harvest', 'paws']],
   ['jun', 'Jun Wei', ['harvest', 'paws']],
   ['meilin', 'Mei Lin Tan', ['silver', 'shore', 'readers']],
+  // The sample network admin (Phase 2), who reviews applications to join; the real one is set by hand.
+  ['netadmin', 'Network Admin', []],
 ];
 const uidOf = (key) => `sample-${key}`;
 // Same as shortName in js/data.js: "Aisha Rahman" shows as "Aisha R." in who's going.
@@ -276,9 +278,20 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
       name, email: emailOf(name), photoUrl: '', follows,
       bio: meilin ? 'Weekend volunteer, mostly with seniors and the occasional beach clean-up. Happy to pair up with first-timers.' : '',
       joinedAt: meilin ? at('2025-03-15') : daysAgo(40 + i * 23),
-      ...(meilin ? { hoursTotal: LEDGER.reduce((sum, e) => sum + e[4], 0) } : {}), ...stamps,
+      ...(meilin ? { hoursTotal: LEDGER.reduce((sum, e) => sum + e[4], 0) } : {}), ...(key === 'netadmin' ? { networkAdmin: true } : {}), ...stamps,
     });
   });
+
+  // A sample application to join the network (Phase 2): Grace applies for Bright Steps, the seventh organisation on
+  // the Organisations canvas, which isn't one of the brief's six.
+  put('organisations/bright-steps', {
+    name: 'Bright Steps', tagline: 'Mentoring for young people in the east', causes: ['children', 'education'], area: 'east',
+    timezone: 'Asia/Singapore', logoColors: ['#1F4E6E', '#5B9BC2'], givingUrl: '', email: 'hello@brightsteps.example',
+    address: 'Tampines Street 21, sample block', website: 'brightsteps.example',
+    about: 'We pair volunteer mentors with teenagers for weekly study and life-skills sessions.',
+    status: 'pending', stats: { events: 0, volunteers: 0, hours: 0 }, createdBy: uidOf('grace'), createdAt: daysAgo(2), updatedAt: daysAgo(2),
+  });
+  put(`organisations/bright-steps/members/${uidOf('grace')}`, { uid: uidOf('grace'), role: 'admin', name: 'Grace Ong', addedAt: daysAgo(2) });
 
   for (const [id, title, org, day, hours, confirmedBy, ref, label] of LEDGER) {
     const date = at(day, '10:00');
@@ -305,4 +318,5 @@ const existing = ((await res.json()).error || []).length;
 console.log('Sample data loaded into the emulator (Firestore was cleared first):');
 for (const [what, count] of Object.entries(written)) console.log(`  ${what}: ${count}`);
 console.log(`  sign-in accounts: ${PEOPLE.length - existing} created, ${existing} already there`);
-console.log('Mei Lin Tan (Silver Companions admin) signs in as mei.lin.tan@example.com; volunteers as e.g. aisha.rahman@example.com.');
+console.log('Mei Lin Tan (Silver Companions admin) signs in as mei.lin.tan@example.com; volunteers as e.g. aisha.rahman@example.com;');
+console.log('the sample network admin as network.admin@example.com.');

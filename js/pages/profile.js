@@ -1,6 +1,6 @@
 // Profile (design/Profile.dc.html). Notification settings arrive with notifications in Phase 3, so they aren't shown.
 import { requireUser, signOut } from '../auth.js';
-import { ensureUserDoc, listHours, listOrganisations, listOrgEvents, myMemberships, syncHours, updateProfile } from '../data.js';
+import { ensureUserDoc, getOrganisation, listHours, listOrganisations, listOrgEvents, myMemberships, syncHours, updateProfile } from '../data.js';
 import { avatarHtml, coverHtml, coverLabel, dateParts, dragScroll, esc, icon, reveal, toast } from '../ui.js';
 
 const user = await requireUser();
@@ -25,10 +25,14 @@ const adminOrgs = memberships.filter((m) => m.role === 'admin');
 const hosted = (await Promise.all(adminOrgs.map((m) => listOrgEvents(m.orgId).catch(orElse([])))))
   .flat().filter((e) => e.createdBy === user.uid).length;
 const totalHours = ledger.reduce((sum, h) => sum + (Number(h.hours) || 0), 0);
+// Applications to join the network (Phase 2): organisations this person admins that aren't approved.
+const applications = (await Promise.all(adminOrgs.filter((m) => !orgs[m.orgId])
+  .map((m) => getOrganisation(m.orgId).catch(() => null)))).filter(Boolean);
+const APPLICATION = { pending: ['Waiting for review', 'chip-wait'], declined: ['Declined', 'chip-muted'], suspended: ['Suspended', 'chip-muted'] };
 let editing = false;
 
 function roleLine() {
-  const admin = memberships.find((m) => m.role === 'admin'), staff = memberships.find((m) => m.role === 'staff');
+  const admin = memberships.find((m) => m.role === 'admin' && orgs[m.orgId]), staff = memberships.find((m) => m.role === 'staff');
   if (admin) return `Volunteer · Admin at ${orgs[admin.orgId]?.name || 'your organisation'}`;
   if (staff) return `Volunteer · Staff at ${orgs[staff.orgId]?.name || 'your organisation'}`;
   return 'Volunteer';
@@ -74,10 +78,14 @@ function render() {
       <span class="hours-ic">${icon('clock', 22, 2)}</span>
       <span class="card-title">${Number(totalHours.toFixed(1))} volunteer ${totalHours === 1 ? 'hour' : 'hours'}</span>${icon('chevron', 16)}
     </a>
+    ${applications.map((o) => `<div class="glass summary-card"><span class="hours-ic is-wait">${icon('organisations', 20, 2)}</span>
+      <span class="ticket-text"><span class="card-title">${esc(o.name)}</span><span class="meta">Application to join the network</span></span>
+      <span class="chip ${(APPLICATION[o.status] || APPLICATION.pending)[1]}">${(APPLICATION[o.status] || APPLICATION.pending)[0]}</span></div>`).join('')}
     <div class="sec"><h2>Past events</h2>${ledger.some((h) => h.sample) ? '<span class="sec-sub">Sample</span>' : ''}</div>
     ${ledger.length ? `<div class="glass list-card">${ledger.map(pastRow).join('')}</div>` : '<div class="glass empty-note">No past events yet.</div>'}
     <div class="glass link-rows">
       ${member ? `<a class="link-row" href="organisation.html?id=${encodeURIComponent(member.id)}">${icon('organisations', 19, 2)}<span>Your organisation: ${esc(member.name)}</span>${icon('chevron', 16)}</a>` : ''}
+      ${profile.networkAdmin ? `<a class="link-row" href="admin.html">${icon('checkin', 19, 2)}<span>Organisation applications</span>${icon('chevron', 16)}</a>` : ''}
       <button type="button" class="link-row is-danger" data-action="sign-out">${icon('signOut', 19, 2)}<span>Sign out</span></button>
     </div>`;
 }

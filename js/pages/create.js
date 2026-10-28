@@ -22,8 +22,11 @@ if (editId) {
     org = await getOrganisation(existing.orgId).catch(() => null);
   }
 } else {
-  const admin = (await myMemberships(user.uid).catch(() => [])).find((m) => m.role === 'admin');
-  if (admin) org = await getOrganisation(admin.orgId).catch(() => null);
+  // The first approved organisation this person admins; one still waiting for review can't post events.
+  for (const m of (await myMemberships(user.uid).catch(() => [])).filter((x) => x.role === 'admin')) {
+    const o = await getOrganisation(m.orgId).catch(() => null);
+    if (o?.status === 'approved') { org = o; break; }
+  }
 }
 
 const back = (fallback) => `<a class="ib" href="${fallback}" data-action="back" aria-label="Back">${icon('back', 20)}</a>`;

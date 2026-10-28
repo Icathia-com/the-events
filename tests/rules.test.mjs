@@ -1202,3 +1202,69 @@ describe('event hosts', () => {
     await assertFails(getDoc(doc(as('lee', 'lee@example.com'), 'events/e-h/hosts/sid@example.com')));
   });
 });
+
+describe('organisation applications', () => {
+  const st = serverTimestamp;
+  const profile = (over = {}) => ({
+    name: 'Bright Steps', tagline: 'Mentoring for young people', about: 'We pair mentors with teenagers.', causes: ['children'],
+    area: 'east', timezone: 'Asia/Singapore', logoColors: ['#1F4E6E', '#5B9BC2'], givingUrl: '', email: 'hello@example.com',
+    address: '', website: '', status: 'pending', stats: { events: 0, volunteers: 0, hours: 0 }, createdBy: 'alice',
+    createdAt: st(), updatedAt: st(), ...over,
+  });
+  function apply(uid, orgId, { org = {}, member = {}, withMember = true } = {}) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.set(doc(db, `organisations/${orgId}`), profile({ createdBy: uid, ...org }));
+    if (withMember) batch.set(doc(db, `organisations/${orgId}/members/${uid}`), { uid, role: 'admin', name: 'Alice A.', addedAt: st(), ...member });
+    return batch.commit();
+  }
+  const newEvent = (uid, orgId, orgName) => setDoc(doc(dbAs(uid), `events/new-${orgId}`), {
+    orgId, orgName, title: 'First event', description: '', cause: 'food', area: 'central', venue: '', meetingPoint: '', bring: '',
+    startAt: new Date(Date.now() + 86400e3), endAt: new Date(Date.now() + 90000e3), hours: 1, cover: { colors: ['#111111', '#222222'], label: 'FIRST' },
+    visibility: 'public', status: 'scheduled', registration: { open: true, approval: false, capacity: null, waitlist: false, group: false },
+    ticketTypes: [], counts: { going: 0, pending: 0, waitlist: 0, attended: 0 }, createdBy: uid, createdAt: st(), updatedAt: st(),
+  });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'organisations/pend': { ...profile({ createdBy: 'pat' }), name: 'Pending Org', createdAt: new Date(), updatedAt: new Date() },
+      'organisations/pend/members/pat': { uid: 'pat', role: 'admin', name: 'Pat P.' },
+    });
+  });
+
+  it('anyone signed in applies: a pending organisation with themselves as its admin', async () => {
+    await assertSucceeds(apply('alice', 'bright-steps'));
+  });
+
+  it('an application can\'t start approved, or without its applicant as admin', async () => {
+    await assertFails(apply('alice', 'bright-1', { org: { status: 'approved' } }));
+    await assertFails(apply('alice', 'bright-2', { withMember: false }));
+    await assertFails(apply('alice', 'bright-3', { member: { role: 'staff' } }));
+  });
+
+  it('nobody makes themselves admin of an organisation that already exists', async () => {
+    await assertFails(setDoc(doc(dbAs('bob'), 'organisations/pend/members/bob'), { uid: 'bob', role: 'admin', name: 'Bob', addedAt: st() }));
+    await assertFails(setDoc(doc(dbAs('bob'), 'organisations/open/members/bob'), { uid: 'bob', role: 'admin', name: 'Bob', addedAt: st() }));
+  });
+
+  it('a pending organisation is seen only by its own members and the network admin', async () => {
+    await assertSucceeds(getDoc(doc(dbAs('pat'), 'organisations/pend')));
+    await assertSucceeds(getDoc(doc(dbAs('root'), 'organisations/pend')));
+    await assertFails(getDoc(doc(dbAs('bob'), 'organisations/pend')));
+  });
+
+  it('only the network admin approves or declines', async () => {
+    const decide = (uid, status, over = {}) => updateDoc(doc(dbAs(uid), 'organisations/pend'), { status, decidedBy: uid, updatedAt: st(), ...over });
+    await assertFails(decide('pat', 'approved', { approvedAt: st() }));
+    await assertFails(decide('mei', 'approved', { approvedAt: st() }));
+    await assertSucceeds(decide('root', 'approved', { approvedAt: st() }));
+    await seedDocs({ 'organisations/pend': { ...profile({ createdBy: 'pat' }), createdAt: new Date(), updatedAt: new Date() } });
+    await assertSucceeds(decide('root', 'declined'));
+  });
+
+  it('a pending organisation\'s admin can\'t create events yet', async () => {
+    await assertFails(newEvent('pat', 'pend', 'Pending Org'));
+    await assertSucceeds(newEvent('mei', 'open', 'Open Org'));
+  });
+});

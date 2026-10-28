@@ -138,6 +138,14 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
   - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
   - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice F: Applications:
+  - A declined application gets the status "declined". Section 6 lists only pending, approved and suspended. The applicant's Profile shows "Declined"; nothing else changes.
+  - The organisation's id is made from its name and four random letters, for example `kampong-kitchens-x7k2`. Its two logo colours are picked from a fixed set by its name.
+  - An organisation waiting for review can't post events: the rules check the organisation is approved. Home's "+ Event" and the create page count only approved organisations.
+  - The apply page isn't on the canvas, which only has the "Run a non-profit?" card and its button. It asks for what the queue lists, in one glass form, and ends on "Application sent".
+  - The network admin's page is `admin.html`, linked from their Profile ("Organisation applications"). Each card shows the profile, the contact details, and who applied and when.
+  - The applicant isn't told about the decision until notifications (Phase 3). They see it on their Profile.
+- Phase 2, slice F (seed): A sample network admin, `network.admin@example.com`, since the real one is set by hand in the console. Also a sample application from Grace Ong for Bright Steps, the seventh organisation on the Organisations canvas.
 - Phase 2, slice E (security): Hosts are kept per event, by email (`events/{id}/hosts/{email}`). The rules recognise a co-host or event staff member by their verified sign-in email, so nothing is claimed at sign-in (unlike organisation staff in slice 8).
 - Phase 2, slice E: What each host can do:
   - A co-host has the organisation's admin powers for that one event: edit it (including Access and registration, questions, check-in options and cancelling), approve and decline, send announcements, and check in and out.
@@ -812,3 +820,38 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice F: Organisation applications.
+
+## 28 Oct 2026: Phase 2, slice F: Organisation applications
+
+**Done**
+- Organisations tab: the canvas's "Run a non-profit?" card with Apply to join, now shown.
+- `apply.html`: name, tagline, causes, area, contact details (email, address, website), about, and the giving link.
+  - Sending creates the organisation with status pending, and makes the applicant its admin in the same write.
+  - The page ends on "Application sent".
+- `admin.html` for the network admin, linked from their Profile: the pending applications, each with Approve and Decline.
+- Profile: the applicant sees their application, "Waiting for review" or "Declined". Once it's approved, it becomes "Admin at …" like any organisation they run.
+- Pending organisations stay invisible to everyone but their own members and the network admin, and can't post events.
+- Rules:
+  - Anyone signed in can apply, only as pending, and only with themselves as admin.
+  - Nobody can make themselves admin of an organisation that already exists.
+  - Only a network admin changes the status.
+  - Events need an approved organisation.
+
+**Tested**
+- Rules tests: 149 of 149 pass (123 rules tests, 26 QR tests), run against the emulator. New tests:
+  - An application succeeds; it's refused when it starts approved, has no admin, or makes the applicant staff.
+  - Making yourself admin of an existing organisation, pending or approved, is refused.
+  - A pending organisation is read by its admin and the network admin, and refused for anyone else.
+  - Approving is refused for the organisation's own admin and for another organisation's admin; the network admin approves and declines.
+  - A pending organisation's admin can't create an event, and an approved one's can.
+- At 390 px against the emulators:
+  1. Jun applied for "Kampong Kitchens" and saw "Application sent". His Profile read "Waiting for review".
+  2. While pending, Jun had no "+ Event" button, and the create page refused him. Aisha didn't see the pending organisations, and opening Bright Steps' link told her "This organisation isn't available."
+  3. The network admin opened Organisation applications from Profile and saw Bright Steps and Kampong Kitchens. They approved one, declined the other, and the page then read "No applications waiting".
+  4. Jun's Profile then read "Admin at Kampong Kitchens", and he could open the create form. Aisha saw Kampong Kitchens, and Grace's Profile showed Bright Steps "Declined".
+
+**Notes**
+- Opening a pending organisation's link as someone else logs a refused read (403) in the browser console. That's the rule hiding it, and the page itself just says the organisation isn't available. It's the same kind of deliberate refusal as the wrong check-out code in the slice 8 test.
+
+**Next**
+- Slice G: Vouchers and access codes.

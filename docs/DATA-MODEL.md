@@ -81,6 +81,8 @@ events/{eventId}/private/location       venue: the exact address when hideExactL
 
 organisations/{orgId}
   approvedAt                            shown as "Approved member of the network since"
+  status: "declined"                    as well as section 6's three: an application the network admin declined (Phase 2)
+  createdBy, decidedBy                  who applied (Phase 2), and the network admin who approved or declined
   impact: [{ title, line }]             Past impact on the organisation page
 organisations/{orgId}/members/{uid}
   uid                                   lets people find their own memberships with a collection group query

@@ -52,7 +52,7 @@ const [profile, memberships, regs, attendance, hoursThisYear, publicEvents, orgL
 ]);
 const follows = profile.follows || [];
 const orgs = Object.fromEntries(orgList.map((o) => [o.id, o]));
-const isAdmin = memberships.some((m) => m.role === 'admin');
+const isAdmin = memberships.some((m) => m.role === 'admin' && orgs[m.orgId]); // an approved organisation's admin
 
 // Header
 

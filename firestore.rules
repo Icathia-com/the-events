@@ -62,7 +62,7 @@ service cloud.firestore {
     // Event hosts (Phase 2): people added to one event by email, as co-host or staff. A co-host has the
     // organisation's admin powers for that event only; event staff check volunteers in and out and see the list.
     function hostPath(eventId) {
-      return /databases/$(database)/documents/events/$(eventId)/hosts/$(request.auth.token.email);
+      return /databases/$(database)/documents/events/$(eventId)/hosts/$(request.auth.token.email.lower());
     }
 
     function hostRole(eventId) {
@@ -191,6 +191,27 @@ service cloud.firestore {
     match /organisations/{orgId} {
       allow read: if signedIn() && (resource.data.status == 'approved' || isMember(orgId) || isNetworkAdmin());
 
+      // Applying to join (Phase 2): anyone signed in creates an organisation, pending, with themselves as its admin
+      // in the same write. Only the network admin changes its status.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'tagline', 'about', 'causes', 'area', 'timezone', 'logoColors',
+             'givingUrl', 'email', 'address', 'website', 'status', 'stats', 'createdBy', 'createdAt', 'updatedAt'])
+        && validOrgProfile(request.resource.data)
+        && request.resource.data.area in ['north', 'northeast', 'east', 'central', 'west', 'islandwide']
+        && request.resource.data.causes.hasOnly(['food', 'elderly', 'children', 'environment', 'animals', 'education'])
+        && request.resource.data.timezone == 'Asia/Singapore'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.stats == { 'events': 0, 'volunteers': 0, 'hours': 0 }
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/organisations/$(orgId)/members/$(request.auth.uid)).data.role == 'admin';
+
+      allow update: if isNetworkAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedAt', 'decidedBy', 'updatedAt'])
+        && request.resource.data.status in ['approved', 'declined', 'suspended'] && request.resource.data.status != resource.data.status
+        && request.resource.data.decidedBy == request.auth.uid && request.resource.data.updatedAt == request.time
+        && (request.resource.data.status != 'approved' || request.resource.data.approvedAt == request.time);
+
       allow update: if isOrgAdmin(orgId)
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['name', 'tagline', 'about', 'causes', 'area', 'logoColors', 'givingUrl', 'email', 'address', 'website', 'updatedAt'])
@@ -210,6 +231,16 @@ service cloud.firestore {
           && request.resource.data.name is string && request.resource.data.name.size() <= 100
           && request.resource.data.addedAt == request.time;
         allow delete: if isOrgAdmin(orgId) && resource.data.role == 'staff';
+
+        // The applicant becomes the admin of the organisation they apply for, in the same write that creates it.
+        allow create: if isSelf(uid)
+          && !exists(/databases/$(database)/documents/organisations/$(orgId))
+          && getAfter(/databases/$(database)/documents/organisations/$(orgId)).data.createdBy == uid
+          && getAfter(/databases/$(database)/documents/organisations/$(orgId)).data.status == 'pending'
+          && request.resource.data.keys().hasOnly(['uid', 'role', 'name', 'addedAt'])
+          && request.resource.data.uid == uid && request.resource.data.role == 'admin'
+          && request.resource.data.name is string && request.resource.data.name.size() <= 100
+          && request.resource.data.addedAt == request.time;
       }
 
       // Staff invitations, by email: made and withdrawn by admins, read and accepted by the person invited.
@@ -433,6 +464,7 @@ service cloud.firestore {
         && request.resource.data.status == 'scheduled'
         && request.resource.data.counts == { 'going': 0, 'pending': 0, 'waitlist': 0, 'attended': 0 }
         && request.resource.data.orgName == get(/databases/$(database)/documents/organisations/$(request.resource.data.orgId)).data.name
+        && get(/databases/$(database)/documents/organisations/$(request.resource.data.orgId)).data.status == 'approved'
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
@@ -482,7 +514,7 @@ service cloud.firestore {
       // the organisation, the event's hosts and the person themselves read them.
       match /hosts/{email} {
         allow read: if isEventMember(eventId, get(eventPath(eventId)).data.orgId)
-          || (signedIn() && request.auth.token.get('email', null) == email);
+          || (signedIn() && request.auth.token.get('email', '').lower() == email);
         allow create, update: if isOrgAdmin(get(eventPath(eventId)).data.orgId)
           && request.resource.data.keys().hasOnly(['email', 'role', 'addedBy', 'addedAt'])
           && request.resource.data.email == email && email.matches('[^@ ]+@[^@ ]+')

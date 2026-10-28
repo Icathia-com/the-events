@@ -80,6 +80,13 @@ Jun (`jun.wei@example.com`) starts with no registrations, so he's a good one to 
 
 Without a camera, use "Mark attendance by hand" and the Confirm buttons on the check-out page instead.
 
+## Applying to join
+
+- Any volunteer can apply on the Organisations tab: "Run a non-profit?", then Apply to join.
+- The new organisation is hidden from everyone else, and its Profile card reads "Waiting for review".
+- The sample network admin (`network.admin@example.com`) opens Profile, then Organisation applications, and approves or declines each one. Grace Ong's sample application for Bright Steps is waiting there.
+- Once approved, the applicant is the organisation's admin and can create events.
+
 ## Claims
 
 The sample data includes two past events.

@@ -557,6 +557,10 @@ export async function getMyRole(orgId, uid) {
   return (await getDoc(doc(db, 'organisations', orgId, 'members', uid))).data()?.role || null;
 }
 
+export async function getMember(orgId, uid) {
+  return (await getDoc(doc(db, 'organisations', orgId, 'members', uid))).data() || null;
+}
+
 // The user's role for one event: their organisation role, or else their host role on the event (Phase 2). A co-host
 // acts as an admin for that event only, and event staff as staff.
 export async function getEventRole(event, eventId, user) {
@@ -567,6 +571,33 @@ export async function getEventRole(event, eventId, user) {
   ]);
   return orgRole || (host === 'cohost' ? 'admin' : host);
 }
+
+// Organisation applications (Phase 2): the applicant creates the organisation, pending, and becomes its admin in the
+// same write. The network admin approves or declines it.
+const LOGO_COLOURS = [['#1F4E6E', '#5B9BC2'], ['#2E5C44', '#5FA37B'], ['#B04A6A', '#E58AA8'], ['#8A4A12', '#E8945A'], ['#5A3E7A', '#9C7BC4']];
+
+export async function applyOrganisation(uid, applicantName, fields) {
+  const slug = fields.name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'org';
+  const orgId = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  const colours = LOGO_COLOURS[[...fields.name].reduce((sum, c) => sum + c.charCodeAt(0), 0) % LOGO_COLOURS.length];
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'organisations', orgId), {
+    ...fields, timezone: 'Asia/Singapore', logoColors: colours, status: 'pending', stats: { events: 0, volunteers: 0, hours: 0 },
+    createdBy: uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  batch.set(doc(db, 'organisations', orgId, 'members', uid), { uid, role: 'admin', name: applicantName.slice(0, 100), addedAt: serverTimestamp() });
+  await batch.commit();
+  return orgId;
+}
+
+export async function listApplications() {
+  const snaps = await getDocs(query(collection(db, 'organisations'), where('status', '==', 'pending')));
+  return allWithIds(snaps).sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+}
+
+export const decideApplication = (orgId, status, uid) => updateDoc(doc(db, 'organisations', orgId), {
+  status, decidedBy: uid, updatedAt: serverTimestamp(), ...(status === 'approved' ? { approvedAt: serverTimestamp() } : {}),
+});
 
 // Event hosts (Phase 2): co-hosts and staff, one per email. Guest speakers and partner organisations are kept on the
 // event itself (speakers, partners), because they're shown on the event page.
