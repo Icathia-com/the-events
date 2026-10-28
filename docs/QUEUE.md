@@ -1,4 +1,4 @@
-# Work queue: Phase 1 of The Events
+# Work queue for The Events
 
 Written 28 Oct 2026. Claude Code works through this file top to bottom, one slice at a time, without waiting for Theersha between slices. It is meant to fill several hours of unattended work. BACKEND-BRIEF.md stays the source of truth; this file only sets the order and the definition of done.
 
@@ -20,7 +20,7 @@ Written 28 Oct 2026. Claude Code works through this file top to bottom, one slic
 
 Everything else continues automatically.
 
-## Slices
+## Phase 1 queue (done)
 
 ### Slice 1: Foundation and sign-in
 As in the session prompt: repo layout, tokens.css, app.css basics, firebase.js with emulator switching, signin.html (email link and Google), users/{uid} creation, users rules and tests, emulator config with a demo- project ID. Design reference: none for sign-in. Use the Clay and Forest tokens, one glass card, the app name "The Events", an email field and two buttons, and no hint text.
@@ -79,3 +79,54 @@ As in the session prompt: repo layout, tokens.css, app.css basics, firebase.js w
 - Run the section 10 acceptance checks end to end in the emulator and fix what fails. Run Lighthouse at mobile size and get performance and accessibility to 90 or above.
 - Write docs/TRY-IT.md: plain-English steps for Theersha to start the emulators, seed the data, and try every flow as a volunteer and as Mei Lin.
 - Then stop. Report what's done, what's in "Decisions to confirm", and anything that failed.
+
+## Phase 2 queue
+
+Added 28 Oct 2026. Same rules as above. Commits are named "Phase 2, slice <letter>: <name>". Resume from the first slice PROGRESS.md doesn't show as done.
+
+Time-boxed blocks: note the start time in PROGRESS.md and check the time between slices. After about 1 hour 45 minutes of a two-hour block, don't start a new slice. When time is up, finish the current slice or undo its unfinished changes, so nothing is left half-done.
+
+Not in this queue: event chat (needs live updates) and cover photo upload (needs the paid Firebase plan). Never push, deploy, run firebase login, touch the live project, or install anything globally.
+
+### Slice A: Phase 1 follow-ups
+Skip anything PROGRESS.md already shows as done.
+- Decisions 1, 2, 4, 5 and 7 from the Phase 1 report are approved; mark them decided.
+- 3: the check-out code confirms hours only if the volunteer was checked in, and only from 30 minutes before the event's end until 3 hours after. Any other scan creates a claim. Rules tests for both cases.
+- 6: a "Past events" section on the organiser's view of their own organisation page, with the count of pending claims, each linking to its checkout.html.
+- Check the site works when served from a /the-events/ subfolder: links, manifest start_url, service worker scope, icons. Fix what breaks.
+- Leave npm audit and the commit email as they are. Theersha gives her GitHub address before the first push.
+
+### Slice B: Access and registration (design/Access.dc.html)
+- access.html: visibility, accept registrations, volunteer spots with a waiting list, group registration, ticket types (Free or Paid on site with an amount; per-type approval, spots, opens and closes).
+- When someone cancels, the first person on the waiting list moves up automatically (in a transaction).
+- The event page lets volunteers pick a ticket type when there's more than one, and shows on-site amounts as "S$X, paid at the event".
+- Rules tests.
+
+### Slice C: Registration questions (design/Questions.dc.html)
+- Per-event settings: mobile, emergency contact and age group, each Off, Optional or Required, plus custom questions of the types on the design.
+- Registering asks them in a sheet. Answers are stored on the registration and shown to the organisation's admins and staff when they tap a volunteer in the Volunteers list.
+- Rules: answers are readable only by that volunteer and that organisation's admins and staff. Tests.
+
+### Slice D: Announcements, in-app only (design/Blasts.dc.html)
+- Compose and choose the audience. Stored in events/{id}/announcements.
+- Volunteers in the audience see them on the event page, newest first, and an unread dot on that event's card on Home.
+- Show push, email and SMS as disabled options with a "Soon" tag.
+- Rules: only the event's admins write; only the chosen audience reads. Tests.
+
+### Slice E: Hosts (design/Hosts.dc.html)
+- Add people to an event by email as co-host (edit, approve, announce), staff (check in and out) or guest speaker (shown on the event page only). Partner organisations shown on the event page.
+- Rules: event co-hosts get admin powers for that event only. Tests.
+
+### Slice F: Organisation applications
+- apply.html ("Apply to join" on the Organisations tab): name, tagline, causes, area, contact details, about, giving link. Creates the organisation with status pending and the applicant as its admin.
+- admin.html for the network admin: pending applications with Approve and Decline.
+- Applicants see their application's status on their Profile. Pending organisations stay invisible to everyone else.
+- Rules: only a networkAdmin can change status. Tests.
+
+### Slice G: Vouchers and access codes (design/Vouchers.dc.html)
+- The four kinds on the design (reserved spots, skip approval, unlock a hidden event, discount on the on-site fee), with a use limit and an expiry date. Volunteers enter a code on the event page.
+- Volunteers must never be able to list or read codes: validate them inside the rules with get(). Tests, including guessing and reusing past the limit.
+
+### Slice H: Invite and Insights (design/Invite.dc.html, design/Insights.dc.html)
+- Invite past volunteers, or everyone who attended a past event. This creates invited records shown in the Volunteers "Invited" tab and as an "Invited" card on the volunteer's Home. No emails until Phase 3.
+- Insights: registered, waiting, cancelled, spots filled, attendance, and where registrations came from (record the source: Home, Discover, organisation page, invite, or a shared link with ?src=). Leave page-view counts out and note it as a decision.

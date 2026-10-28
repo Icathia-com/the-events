@@ -2,7 +2,7 @@
 
 Running log for The Events. Newest session at the bottom. Each entry covers what was done, what was tested and what's next.
 
-Work order: `QUEUE_1.md` (repo root), one slice at a time. Visual reference: `design/`, the approved canvas screens.
+Work order: `docs/QUEUE.md` (moved there from `QUEUE_1.md` at the repo root on 28 Oct), one slice at a time. Visual reference: `design/`, the approved canvas screens.
 
 ## Decisions to confirm
 
@@ -569,3 +569,8 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - the decisions above;
   - pushing to GitHub and deploying (the rules and indexes need deploying with the site);
   - a Lighthouse check on the live site.
+
+## 28 Oct 2026: Phase 2 block, started 10:13
+
+- A two-hour unattended block, started 10:13 (from Get-Date). No new slice starts after about 11:58.
+- The Phase 2 slices (A to H) are in `docs/QUEUE.md` under "Phase 2 queue". The queue file moved from `QUEUE_1.md` at the root to `docs/QUEUE.md`, the name Theersha now uses, with the Phase 1 queue kept as it was.
