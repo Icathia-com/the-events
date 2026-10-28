@@ -919,6 +919,20 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .ghost-btn { height: 50px; padding: 0 18px; border-radius: 25px; cursor: pointer; font: inherit; font-size: 14.5px; font-weight: 700; color: var(--ink); background: var(--chip-off-bg); border: 1px solid var(--line-strong); }
 .ghost-btn.is-danger { color: var(--danger); border-color: var(--danger-bg); }
 
+/* Vouchers and access codes (design/Vouchers.dc.html), and entering a code on the event page */
+.code-link { align-self: flex-start; margin-top: -4px; }
+.code-line { margin-top: -4px; padding: 0 4px; display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--body); }
+.staff-add.is-flat { padding: 0; }
+.kind-card { width: 100%; padding: 10px 12px; border-radius: 14px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; text-align: left; font: inherit; color: var(--ink); background: var(--chip-off-bg); border: 1px solid var(--line); }
+.kind-card[aria-checked="true"] { border-color: var(--forest); background: var(--kind-on-bg); }
+.kind-card .radio-ring { width: 22px; height: 22px; }
+.kind-list { display: flex; flex-direction: column; gap: 8px; }
+.inline-field { display: flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.inline-field .field-flat { flex: 1; min-width: 0; }
+.code-ic { width: 38px; height: 38px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--white); }
+.code-name { font-size: 15px; font-weight: 800; letter-spacing: .04em; color: var(--ink); }
+.code-used { flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: var(--body); }
+
 /* Applying to join, and the network admin's applications (Phase 2) */
 .stack-12 { display: flex; flex-direction: column; gap: 12px; }
 .apply-card, .app-card { padding: 16px; display: flex; flex-direction: column; gap: 8px; }

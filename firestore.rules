@@ -350,10 +350,30 @@ service cloud.firestore {
     // What joining gives: the waiting list when full, or while people are waiting (if it has one); pending when the
     // ticket type (or, without types, the event) needs approval; otherwise going.
     function joinStatus(e, t) {
+      return joinStatusWith(e, t, approvalFor(e, t));
+    }
+
+    function joinStatusWith(e, t, approval) {
       return (e.registration.capacity != null && e.counts.going >= e.registration.capacity)
           || (e.registration.waitlist == true && e.get('waitingList', []).size() > 0)
         ? (e.registration.waitlist == true && !typeFull(e, t) ? 'waitlist' : 'full')
-        : (typeFull(e, t) ? 'full' : (approvalFor(e, t) ? 'pending' : 'going'));
+        : (typeFull(e, t) ? 'full' : (approval ? 'pending' : 'going'));
+    }
+
+    // Vouchers and access codes (Phase 2), events/{id}/codes/{CODE}. Only the event's admins read them. A volunteer
+    // presents a code in the same write as their registration (or unlock), and that write uses one of its uses.
+    function codePath(eventId, code) {
+      return /databases/$(database)/documents/events/$(eventId)/codes/$(code);
+    }
+
+    function unlocked(eventId) {
+      return signedIn() && exists(/databases/$(database)/documents/events/$(eventId)/unlocks/$(request.auth.uid));
+    }
+
+    // What joining gives with a code: a reserved spot is going, even past the event's spots; skip approval is
+    // joining without approval; a discount or an unlock leaves it as it is.
+    function codeStatus(e, t, kind) {
+      return kind == 'reserve' ? 'going' : kind == 'skip' ? joinStatusWith(e, t, false) : joinStatus(e, t);
     }
 
     function typeOfReg(eventId, uid) {
@@ -422,8 +442,8 @@ service cloud.firestore {
         && typeCountsMove(old, next, typeOfReg(eventId, a), -1, typeOfReg(eventId, b), up);
     }
 
-    function openForJoining(e) {
-      return e.status == 'scheduled' && e.visibility != 'draft' && e.registration.open == true && e.endAt > request.time
+    function openForJoining(e, unlockedHere) {
+      return e.status == 'scheduled' && (e.visibility != 'draft' || unlockedHere) && e.registration.open == true && e.endAt > request.time
         && (!('opensAt' in e.registration) || e.registration.opensAt <= request.time)
         && (!('closesAt' in e.registration) || e.registration.closesAt > request.time);
     }
@@ -452,7 +472,7 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow read: if canSee(resource.data) || isEventMember(eventId, resource.data.orgId);
+      allow read: if canSee(resource.data) || isEventMember(eventId, resource.data.orgId) || unlocked(eventId);
 
       // The organisation's admins create its events: scheduled, nobody registered yet, under its real name.
       allow create: if isOrgAdmin(request.resource.data.orgId)
@@ -505,9 +525,61 @@ service cloud.firestore {
             && q.updatedAt == request.time;
         }
 
-        allow read: if canSee(get(eventPath(eventId)).data) || isEventMember(eventId, get(eventPath(eventId)).data.orgId);
+        allow read: if canSee(get(eventPath(eventId)).data) || isEventMember(eventId, get(eventPath(eventId)).data.orgId) || unlocked(eventId);
         allow create, update: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId) && validQuestion(request.resource.data);
         allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+      }
+
+      // The codes themselves: only the event's admins read, make and delete them. A volunteer's write can only add
+      // one use, while the code has uses left and hasn't expired, and only when the same write presents it on their
+      // registration (joining with it) or their unlock.
+      match /codes/{codeId} {
+        allow read: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+        allow create: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
+          && codeId.matches('[A-Z0-9]{3,20}')
+          && request.resource.data.keys().hasOnly(['kind', 'amount', 'uses', 'used', 'expiresAt', 'createdBy', 'createdAt'])
+          && request.resource.data.kind in ['reserve', 'skip', 'unlock', 'discount']
+          && request.resource.data.used == 0
+          && (request.resource.data.uses == null || (request.resource.data.uses is int && request.resource.data.uses >= 1))
+          && (request.resource.data.kind != 'discount' || (request.resource.data.amount is number && request.resource.data.amount > 0))
+          && (request.resource.data.expiresAt == null || request.resource.data.expiresAt is timestamp)
+          && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
+        allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+        allow update: if signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used'])
+          && request.resource.data.used == resource.data.used + 1
+          && (resource.data.uses == null || resource.data.used < resource.data.uses)
+          && (resource.data.expiresAt == null || resource.data.expiresAt > request.time)
+          && ((existsAfter(regPath(eventId, request.auth.uid))
+                && getAfter(regPath(eventId, request.auth.uid)).data.get('code', null) == codeId
+                && (!exists(regPath(eventId, request.auth.uid))
+                  || get(regPath(eventId, request.auth.uid)).data.status == 'cancelled'
+                  || get(regPath(eventId, request.auth.uid)).data.get('code', null) != codeId))
+            || (resource.data.kind == 'unlock'
+                && !exists(/databases/$(database)/documents/events/$(eventId)/unlocks/$(request.auth.uid))
+                && getAfter(/databases/$(database)/documents/events/$(eventId)/unlocks/$(request.auth.uid)).data.code == codeId));
+      }
+
+      // What a code does, under the SHA-256 of the code, so the volunteer's app can tell from the code they typed.
+      // It can be fetched only by someone who knows the code, and never listed.
+      match /codeHints/{hash} {
+        allow get: if signedIn();
+        allow create: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
+          && hash.matches('[0-9a-f]{64}')
+          && request.resource.data.keys().hasOnly(['kind', 'amount'])
+          && request.resource.data.kind in ['reserve', 'skip', 'unlock', 'discount'];
+        allow delete: if isEventAdmin(eventId, get(eventPath(eventId)).data.orgId);
+      }
+
+      // An access code that unlocks a followers-only or draft event for one volunteer: they can then see the event
+      // and register for it.
+      match /unlocks/{uid} {
+        allow read: if isSelf(uid) || isEventMember(eventId, get(eventPath(eventId)).data.orgId);
+        allow create: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['code', 'at'])
+          && get(codePath(eventId, request.resource.data.code)).data.kind == 'unlock'
+          && getAfter(codePath(eventId, request.resource.data.code)).data.used == get(codePath(eventId, request.resource.data.code)).data.used + 1
+          && request.resource.data.at == request.time;
       }
 
       // Hosts (Phase 2), one per email: co-hosts and event staff. The organisation's admins add and remove them;
@@ -556,8 +628,13 @@ service cloud.firestore {
           let e = get(eventPath(eventId)).data;
           let r = request.resource.data;
           let t = e.get('ticketTypes', []).size() == 0 ? null : ticketFor(e, r.ticketTypeId);
-          let status = joinStatus(e, t);
-          return canSee(e) && openForJoining(e) && status != 'full'
+          let code = r.get('code', null);
+          let c = code == null ? null : get(codePath(eventId, code)).data;
+          let status = c == null ? joinStatus(e, t) : codeStatus(e, t, c.kind);
+          let open = unlocked(eventId);
+          return (canSee(e) || open) && openForJoining(e, open) && status != 'full'
+            && (c == null || getAfter(codePath(eventId, code)).data.used == c.used + 1)
+            && (!('discount' in r) || (c != null && c.kind == 'discount' && r.discount == c.amount))
             && (e.get('ticketTypes', []).size() == 0 ? r.ticketTypeId == null : t != null) && typeOpen(t)
             && r.status == status && r.uid == uid
             && r.name is string && r.name.size() > 0 && r.name.size() <= 100
@@ -612,13 +689,13 @@ service cloud.firestore {
         }
 
         allow create: if isSelf(uid)
-          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'registeredAt', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'status', 'ticketTypeId', 'answers', 'code', 'discount', 'registeredAt', 'createdAt', 'updatedAt'])
           && request.resource.data.createdAt == request.time
           && joinAllowed('none');
 
         allow update: if (isSelf(uid) && (
             (resource.data.status == 'cancelled'
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'registeredAt', 'updatedAt'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'name', 'email', 'ticketTypeId', 'answers', 'code', 'discount', 'registeredAt', 'updatedAt'])
               && joinAllowed('cancelled'))
             || cancelAllowed()))
           || decisionAllowed()
@@ -628,7 +705,7 @@ service cloud.firestore {
       // Who's going: a first name per approved volunteer, readable by anyone who can see the event. Written by the
       // volunteer, by an admin approving them, or by the cancelling volunteer whose write moves them up.
       match /going/{uid} {
-        allow read: if canSee(get(eventPath(eventId)).data);
+        allow read: if canSee(get(eventPath(eventId)).data) || unlocked(eventId);
         allow create: if (isSelf(uid) || isEventAdmin(eventId, get(eventPath(eventId)).data.orgId)
             || (getAfter(eventPath(eventId)).data.get('movedUp', null) == uid
               && getAfter(eventPath(eventId)).data.get('movedUpAt', null) == request.time))

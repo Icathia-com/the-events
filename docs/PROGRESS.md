@@ -138,6 +138,24 @@ Choices made without Theersha's input, each tagged with the slice that made it.
   - The spots sheet saves with a Save button; on the canvas, changes apply as you tap. The page's own switches save straight away.
   - Vouchers and access codes, and Registration questions, show as Soon rows until their slices.
   - The page is for admins only, and staff don't see its row on Manage.
+- Phase 2, slice G: Reserved spots are extra spots for code holders, on top of the event's own. A code with 2 uses lets 2 people in even when the event is full, and the public "spots left" doesn't count them.
+  - Holding spots back out of the event's own number would need a running total that the rules can check. That can come later if you'd rather have it that way.
+  - A reserved-spot code needs a number of uses, which is its number of spots. Its holders are going straight away, without approval.
+- Phase 2, slice G: The other kinds:
+  - Skip approval: going straight away when there's a spot, otherwise the waiting list or "Full".
+  - Unlock: the volunteer opens the event's link and sees "This event isn't available." with an access code box. The code opens the event to them alone (`events/{id}/unlocks/{uid}`), and they register as usual. Opening the link before the code logs one refused read (403) in the browser console, as with pending organisations.
+  - Discount: the event page shows the on-site amount less the discount ("S$3, paid at the event (S$2 off)"). The registration records the code and the amount, and the organiser sees them in the volunteer's details.
+- Phase 2, slice G (security): How a volunteer's app knows what a code does:
+  - Each code has a hint stored under its SHA-256 hash. Only someone who already knows the code can fetch the hint (the kind and any discount), and nobody can list the hints.
+  - Uses left and expiry stay private, and the rules check them when the code is used.
+  - Each guess at a code costs one request, and the rules can't limit how many requests someone makes. Codes should be long enough not to be guessed; the canvas allows 3 characters or more. Should the app ask for at least 8?
+- Phase 2, slice G: Code rules:
+  - Codes are 3 to 20 capital letters and digits.
+  - The expiry date starts on the event's day, as on the canvas. A code works until the end of that day in Singapore.
+  - A use is counted when someone registers or unlocks with the code. Cancelling doesn't give the use back, and registering again with the same code uses another.
+  - Codes can be deleted but not edited, as on the canvas.
+  - Left out: the placeholder's "for example TEAMABC".
+- Phase 2, slice G: The volunteer's "Have a code?" isn't on the canvas. It's a text button under Register, and an accepted code shows in a line such as "TEAMABC · A reserved spot".
 - Phase 2, slice F: Applications:
   - A declined application gets the status "declined". Section 6 lists only pending, approved and suspended. The applicant's Profile shows "Declined"; nothing else changes.
   - The organisation's id is made from its name and four random letters, for example `kampong-kitchens-x7k2`. Its two logo colours are picked from a fixed set by its name.
@@ -855,3 +873,41 @@ Choices made without Theersha's input, each tagged with the slice that made it.
 
 **Next**
 - Slice G: Vouchers and access codes.
+
+## 28 Oct 2026: Phase 2, slice G: Vouchers and access codes
+
+**Done**
+- `vouchers.html` from design/Vouchers.dc.html, for the event's admins (co-hosts too), opened from Manage and from Access and registration. It covers:
+  - New code: the code, what it does (the canvas's four kinds), a discount amount, how many times it can be used, and an expiry date.
+  - Active codes, each with "N of M used", and Delete.
+  - The empty state.
+- Event page:
+  - "Have a code?" applies a code, and the Register button and the price follow it.
+  - A followers-only or draft event that's hidden from someone offers an access code box.
+- Rules:
+  - Volunteers can't read or list codes.
+  - A code is checked inside the rules with `get()`: it must exist, have uses left and not have expired, and the same write must use one of its uses.
+  - Each kind's effect is checked: a reserved spot past the event's spots; going without approval; reading and registering for an unlocked event; the code's own discount amount.
+  - The hints can be fetched by hash but never listed.
+
+**Tested**
+- Rules tests: 158 of 158 pass (132 rules tests, 26 QR tests), run against the emulator. New tests:
+  - Volunteers can't read or list codes, and admins can. A hint can be fetched, but not listed.
+  - A reserved-spot code gets its holder into a full event, which is refused without the code.
+  - A guessed code is refused, and so is a real code presented without using one of its uses.
+  - Skip approval gives going, which is refused without the code.
+  - A code past its use limit or its expiry is refused.
+  - A discount must be the code's own amount.
+  - A code already used on a registration can't be used again by it.
+  - An access code opens a draft event to one volunteer, who can then read it and register; another volunteer still can't. An unlock with a skip-approval code is refused.
+- At 390 px against the emulators:
+  1. Mei Lin made TEAMABC (reserved, 2 spots), REGULAR (skip approval) and SECRET (unlock, 5 uses).
+  2. With the visit full, Jun applied TEAMABC ("TEAMABC · A reserved spot"), and the button changed from "Join waiting list" to "Register". He registered: TEAMABC was then 1 used, and 8 were going.
+  3. Hari cancelled his request ("Request to join"), applied REGULAR ("Register") and was registered with the code.
+  4. A guessed code got "That code didn't work."
+  5. With the visit made followers-only, Ivy got "This event isn't available." She typed the access code, the page opened, and SECRET was 1 used.
+- Found and fixed: once a volunteer had unlocked an event, who's going and the questions were still refused. They're readable now.
+- The only console error left is the refused read before the unlock (see Decisions to confirm).
+
+**Next**
+- Slice H: Invite and Insights.

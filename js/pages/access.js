@@ -64,7 +64,6 @@ function ticketRow(t, i) {
 function render() {
   const vis = VIS.find(([id]) => id === event.visibility) || VIS[0];
   const [capLabel, capHelp] = capText();
-  const soon = (iconName, label) => `<div class="form-row is-static is-soon" aria-disabled="true">${icon(iconName, 19, 2)}<span class="row-label">${label}<span class="soon">Soon</span></span></div>`;
   main.innerHTML = `
     <header class="mg-head"><a class="ib" href="manage.html${q}" aria-label="Back to Manage event">${icon('back', 20)}</a>
       <span class="mg-head-text"><h1>Access and registration</h1></span></header>
@@ -84,7 +83,7 @@ function render() {
         <button type="button" class="add-btn hit" data-action="add-ticket" aria-label="Add a ticket type">${icon('plus', 16, 2.4)}</button></div>
       <div class="form-card">${types().map(ticketRow).join('')}</div>
     </div>
-    <div class="form-card">${soon('voucher', 'Vouchers and access codes')}
+    <div class="form-card"><a class="form-row" href="vouchers.html${q}">${icon('voucher', 19, 2)}<span class="row-label">Vouchers and access codes</span>${icon('chevron', 16)}</a>
       <a class="form-row" href="questions.html${q}">${icon('doc', 19, 2)}<span class="row-label">Registration questions</span>${icon('chevron', 16)}</a></div>`;
 }
 

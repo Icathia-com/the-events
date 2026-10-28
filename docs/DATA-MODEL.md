@@ -69,6 +69,12 @@ events/{eventId}
   announcedAt: { audience: timestamp }  when each audience last got an announcement (Phase 2, the unread dot)
   speakers: [name]                      guest speakers, shown on the event page (Phase 2)
   partners: [{ id, name, logoColors }]  partner organisations, shown on the event page (Phase 2)
+events/{eventId}/codes/{CODE}           kind ("reserve" | "skip" | "unlock" | "discount"), amount?, uses (null for
+                                        unlimited), used, expiresAt, createdBy, createdAt (Phase 2; admins only)
+events/{eventId}/codeHints/{sha256}     kind, amount?: what a code does, fetched by the hash of the code typed
+events/{eventId}/unlocks/{uid}          code, at: an access code that opened a hidden event to this volunteer
+events/{eventId}/registrations/{uid}
+  code, discount                        the code registered with, and any discount from it (Phase 2)
 events/{eventId}/hosts/{email}          email, role ("cohost" | "staff"), addedBy, addedAt (Phase 2). A co-host has
                                         admin powers for this event only; event staff check in and out
 events/{eventId}/announcements/{id}     text, audience ("going" | "waiting" | "attended"), by, byName, count,

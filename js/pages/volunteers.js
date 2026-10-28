@@ -49,7 +49,7 @@ async function load() {
   people = regs.filter((r) => ['going', 'pending', 'waitlist'].includes(r.status))
     .map((r) => ({
       uid: r.id, name: r.name || 'Volunteer', status: r.status, registeredAt: r.registeredAt?.toDate?.() || new Date(), att: att[r.id],
-      email: r.email || '', ticketTypeId: r.ticketTypeId || null, answers: r.answers || {},
+      email: r.email || '', ticketTypeId: r.ticketTypeId || null, answers: r.answers || {}, code: r.code || '', discount: r.discount || 0,
     }))
     .sort((a, b) => a.registeredAt - b.registeredAt);
 }
@@ -65,6 +65,7 @@ function showPerson(p) {
   const rows = [
     ['Email', p.email || 'Not given'],
     ...(type ? [['Ticket', type.name]] : []),
+    ...(p.code ? [['Code', p.discount ? `${p.code} · S$${p.discount} off` : p.code]] : []),
     ...questions.map((q) => [q.type === 'terms' ? 'Terms' : questionLabel(q), answer(q)]),
   ];
   openModal({ title: p.name, body: `<div class="detail-card is-flat">${rows.map(([label, value]) => `<div class="detail-row">

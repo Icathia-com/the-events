@@ -1,7 +1,8 @@
 // Event page (design/Event-Detail.dc.html): one page for volunteers and for the hosting organisation's admins.
 import { requireUser } from '../auth.js';
 import {
-  AGE_GROUPS, AREAS, approvalFor, audiencesFor, CAUSES, cancelRegistration, checkOutWithCode, ensureUserDoc, followOrg, getEvent,
+  AGE_GROUPS, AREAS, approvalFor, audiencesFor, CAUSES, cancelRegistration, checkOutWithCode, codeStatus, ensureUserDoc, followOrg,
+  getEvent, lookUpCode, unlockEvent,
   getEventRole, getExactVenue, getMyAttendance, getMyRegistration, getOrganisation, joinEvent, joinStatus, listAnnouncements, listGoing,
   listQuestions, questionLabel, syncHours, ticketFor, typeOpen, unfollowOrg,
 } from '../data.js';
@@ -20,8 +21,23 @@ const profile = await ensureUserDoc(user);
 let event = eventId ? await getEvent(eventId).catch(() => null) : null;
 
 if (!event) {
+  // A followers-only or draft event can be opened with an access code from the organisation (Phase 2).
   main.innerHTML = `<div class="top-row"><a class="ib" href="index.html" aria-label="Back">${icon('back', 20)}</a></div>
-    <div class="glass empty-note">This event isn’t available.</div>`;
+    <div class="glass empty-note">This event isn’t available.</div>
+    ${eventId ? `<form class="glass staff-add" id="unlock">
+      <input class="field-flat" name="code" aria-label="Access code" placeholder="Access code" autocomplete="off" autocapitalize="characters" maxlength="20" required>
+      <button type="submit" class="approve-btn">Open</button></form>` : ''}`;
+  main.querySelector('#unlock')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = String(new FormData(e.target).get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    try {
+      await unlockEvent(eventId, user.uid, code);
+      location.reload();
+    } catch (err) {
+      console.warn(err);
+      toast('That code didn’t work.');
+    }
+  });
   reveal();
   await new Promise(() => {}); // nothing more to show
 }
@@ -118,11 +134,42 @@ function joinButton() {
 
 const joinLabel = (status) => (status === 'waitlist' ? 'Join waiting list' : status === 'pending' ? 'Request to join' : 'Register');
 
-// Ticket types (Phase 2) and what joining each gives now; one choice with no type when the event has none.
+// Ticket types (Phase 2) and what joining each gives now, with any code the volunteer entered; one choice with no
+// type when the event has none.
+let appliedCode = null;
 const types = () => event.ticketTypes || [];
-const choices = () => (types().length ? types() : [null])
-  .map((t) => ({ t, status: typeOpen(t) ? joinStatus(event, t) : 'closed' }));
-const priceText = (t) => (t?.paid ? `S$${Number(t.amountOnSite || 0).toLocaleString('en-SG')}, paid at the event` : 'Free');
+const choices = () => (types().length ? types() : [null]).map((t) => ({
+  t, status: !typeOpen(t) ? 'closed' : appliedCode ? codeStatus(event, t, appliedCode.kind) : joinStatus(event, t),
+}));
+function priceText(t, discount = appliedCode?.kind === 'discount' ? appliedCode.amount : 0) {
+  if (!t?.paid) return 'Free';
+  const amount = Math.max(0, Number(t.amountOnSite || 0) - (Number(discount) || 0));
+  return `S$${amount.toLocaleString('en-SG')}, paid at the event${discount ? ` (S$${Number(discount).toLocaleString('en-SG')} off)` : ''}`;
+}
+const CODE_LINE = { reserve: 'A reserved spot', skip: 'No approval needed', unlock: 'Access code', discount: 'Off the on-site fee' };
+
+// "Have a code?": what the code does is looked up from its hint; whether it has uses left shows when joining.
+function codeSheet() {
+  const sheet = openModal({ title: 'Have a code?', body: `<form class="staff-add is-flat" id="code-form">
+    <input class="field-flat" name="code" aria-label="Code" placeholder="Code" autocomplete="off" autocapitalize="characters" maxlength="20" required>
+    <button type="submit" class="approve-btn">Apply</button></form>` });
+  sheet.element.querySelector('#code-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = String(new FormData(e.target).get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const found = code.length >= 3 ? await lookUpCode(eventId, code).catch(() => null) : null;
+    if (!found || found.kind === 'unlock') { toast('That code didn’t work.'); return; }
+    appliedCode = found;
+    sheet.close();
+    render();
+  });
+}
+
+function codeLine() {
+  if (isAdmin || ACTIVE.includes(reg?.status)) return '';
+  if (!appliedCode) return '<button type="button" class="text-btn code-link" data-action="code">Have a code?</button>';
+  const off = appliedCode.kind === 'discount' ? `S$${Number(appliedCode.amount).toLocaleString('en-SG')} ` : '';
+  return `<span class="code-line">${icon('voucher', 16, 2)}${esc(`${appliedCode.code} · ${off}${CODE_LINE[appliedCode.kind]}`)}</span>`;
+}
 
 function choiceLine({ t, status }) {
   if (status === 'closed') {
@@ -201,9 +248,9 @@ function askQuestions(ticketTypeId, questions) {
 
 async function join(ticketTypeId, answers = {}) {
   await run(async () => {
-    const status = await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId, { answers, email: user.email || '' });
+    const status = await joinEvent(eventId, user.uid, profile.name || user.email, ticketTypeId, { answers, email: user.email || '', code: appliedCode });
     if (status === 'full') toast('This event just filled up.');
-  }, 'Couldn’t register.');
+  }, appliedCode ? 'That code can’t be used any more.' : 'Couldn’t register.');
 }
 
 const menuItem = (action, label, iconName, sep = false) =>
@@ -235,7 +282,7 @@ function actions() {
   return `<div class="act-row">
       <button type="button" class="reg-btn ${b.cls}" data-action="join"${b.disabled || busy ? ' disabled' : ''}>${b.check ? icon('check', 18, 2.6) : ''}${esc(b.label)}</button>
       <a class="act act-narrow" href="${orgHref()}#contact">${icon('mail', 20, 2)}Contact</a>${moreButton('act-narrow')}${menu()}
-    </div>${role ? checkinBar() : ''}`;
+    </div>${codeLine()}${role ? checkinBar() : ''}`;
 }
 
 const checkinBar = () => `<a class="checkin-bar" href="checkin.html?id=${encodeURIComponent(eventId)}">
@@ -251,10 +298,11 @@ function locationCard() {
 
 function details() {
   // The on-site amount: of the volunteer's own ticket type once registered, otherwise of the event's only type.
-  const mine = reg && ACTIVE.includes(reg.status) ? ticketFor(event, reg.ticketTypeId) : null;
+  const active = reg && ACTIVE.includes(reg.status);
+  const mine = active ? ticketFor(event, reg.ticketTypeId) : null;
   const shown = mine || (types().length === 1 ? types()[0] : null);
   const rows = [
-    ['dollar', mine && types().length > 1 ? mine.name : 'Price', shown?.paid ? priceText(shown) : ''],
+    ['dollar', mine && types().length > 1 ? mine.name : 'Price', shown?.paid ? priceText(shown, active ? reg.discount : undefined) : ''],
     ['pin', 'Meeting point', event.meetingPoint],
     ['bag', 'What to bring', event.bring],
     ['clock', 'Volunteer hours', event.hours ? `${hoursText(event.hours)} counted after the organisation confirms you attended` : ''],
@@ -393,6 +441,7 @@ main.addEventListener('click', async (e) => {
     return;
   }
   if (action === 'menu') { menuOpen = !menuOpen; render(); return; }
+  if (action === 'code') { codeSheet(); return; }
   if (['calendar', 'share', 'qr', 'cancel'].includes(action)) { menuOpen = false; render(); }
   if (action === 'calendar') downloadCalendar();
   if (action === 'share') shareLink();

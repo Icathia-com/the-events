@@ -82,12 +82,63 @@ export function typeOpen(type, now = Date.now()) {
 
 // What joining gives right now, with the chosen ticket type; the rules apply the same test. While people are on the
 // waiting list, newcomers join the end of it, even if a spot is free.
-export function joinStatus(event, type = null) {
+export function joinStatus(event, type = null, approval = approvalFor(event, type)) {
   const { capacity, waitlist } = event.registration || {};
   const full = capacity != null && (event.counts?.going || 0) >= capacity;
   if (full || (waitlist && event.waitingList?.length)) return waitlist && !typeFull(event, type) ? 'waitlist' : 'full';
   if (typeFull(event, type)) return 'full';
-  return approvalFor(event, type) ? 'pending' : 'going';
+  return approval ? 'pending' : 'going';
+}
+
+// Vouchers and access codes (Phase 2). Only the event's admins read codes. Each code also has a hint under its
+// SHA-256, so a volunteer's app can tell what a code they typed does without listing or reading any code.
+export const CODE_KINDS = { reserve: 'Reserved spots', skip: 'Skip approval', unlock: 'Unlock a hidden event', discount: 'Discount' };
+
+// What joining gives with a code: a reserved spot is going, even past the event's spots; skip approval joins without
+// approval; a discount or an unlock leaves it as it is.
+export function codeStatus(event, type, kind) {
+  if (kind === 'reserve') return 'going';
+  return kind === 'skip' ? joinStatus(event, type, false) : joinStatus(event, type);
+}
+
+async function codeHash(code) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code)));
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function listCodes(eventId) {
+  return allWithIds(await getDocs(collection(db, 'events', eventId, 'codes')))
+    .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+}
+
+export async function createCode(eventId, code, { kind, amount, uses, expiresAt }, by) {
+  const extra = kind === 'discount' ? { amount } : {};
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'events', eventId, 'codes', code), { kind, ...extra, uses, used: 0, expiresAt, createdBy: by, createdAt: serverTimestamp() });
+  batch.set(doc(db, 'events', eventId, 'codeHints', await codeHash(code)), { kind, ...extra });
+  return batch.commit();
+}
+
+export async function deleteCode(eventId, code) {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'events', eventId, 'codes', code));
+  batch.delete(doc(db, 'events', eventId, 'codeHints', await codeHash(code)));
+  return batch.commit();
+}
+
+// What a code someone typed does ({ code, kind, amount? }), or null. Whether it still has uses left is only known
+// when it's used.
+export async function lookUpCode(eventId, code) {
+  const snap = await getDoc(doc(db, 'events', eventId, 'codeHints', await codeHash(code)));
+  return snap.exists() ? { code, ...snap.data() } : null;
+}
+
+// An access code opens a followers-only or draft event to this volunteer, using one of the code's uses.
+export function unlockEvent(eventId, uid, code) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'events', eventId, 'unlocks', uid), { code, at: serverTimestamp() });
+  batch.update(doc(db, 'events', eventId, 'codes', code), { used: increment(1) });
+  return batch.commit();
 }
 
 const COUNTED = ['going', 'pending', 'waitlist'];
@@ -164,7 +215,7 @@ export const removeQuestion = (eventId, id) => deleteDoc(doc(db, 'events', event
 
 // Joins an event with a ticket type (null when the event has none) and the answers to its questions, or joins again
 // after cancelling. The sign-in email goes with the registration, for the organisation. Returns the new status, or 'full'.
-export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {}, email = '' } = {}) {
+export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {}, email = '', code = null } = {}) {
   return runTransaction(db, async (tx) => {
     const eventRef = doc(db, 'events', eventId);
     const regRef = doc(db, 'events', eventId, 'registrations', uid);
@@ -174,13 +225,19 @@ export function joinEvent(eventId, uid, name, ticketTypeId = null, { answers = {
     if (before !== 'none' && before !== 'cancelled') return before;
 
     const type = ticketFor(event, ticketTypeId);
-    const status = joinStatus(event, type);
+    const status = code ? codeStatus(event, type, code.kind) : joinStatus(event, type);
     if (status === 'full') return 'full';
     tx.update(eventRef, followFields(event, uid, before, status, type?.id, name));
+    // A code goes on the registration and uses one of its uses (the rules check it's real, current and not used up).
+    if (code) tx.update(doc(db, 'events', eventId, 'codes', code.code), { used: increment(1) });
     const fields = {
       status, name, ...(email ? { email } : {}), ticketTypeId: type?.id || null, answers,
+      ...(code ? { code: code.code, ...(code.kind === 'discount' ? { discount: code.amount } : {}) } : {}),
       registeredAt: serverTimestamp(), updatedAt: serverTimestamp(),
     };
+    // Joining again after cancelling: a code from the earlier registration doesn't carry over.
+    if (regSnap.exists() && !code) Object.assign(fields, { code: deleteField(), discount: deleteField() });
+    else if (regSnap.exists() && code.kind !== 'discount') fields.discount = deleteField();
     if (regSnap.exists()) tx.update(regRef, fields);
     else tx.set(regRef, { uid, answers: {}, createdAt: serverTimestamp(), ...fields });
     if (status === 'going') tx.set(doc(db, 'events', eventId, 'going', uid), { name: shortName(name), since: serverTimestamp() });

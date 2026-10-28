@@ -115,6 +115,11 @@
   --tile-questions: #B04A6A;
   --tile-announce: #C2704F;
   --tile-insights: #3E5A1E;
+  --kind-on-bg: rgba(36,65,47,.07);
+  --code-reserve: #1F4E6E;
+  --code-skip: #2E7D5B;
+  --code-unlock: #5A3E7A;
+  --code-discount: #8A5A1E;
   --send-off-bg: rgba(255,255,255,.35);
   --send-off-text: rgba(255,255,255,.7);
   --qtype-text: #1F4E6E;

@@ -1268,3 +1268,102 @@ describe('organisation applications', () => {
     await assertSucceeds(newEvent('mei', 'open', 'Open Org'));
   });
 });
+
+describe('vouchers and access codes', () => {
+  const later = new Date(Date.now() + 7 * 86400e3), earlier = new Date(Date.now() - 86400e3);
+  const st = serverTimestamp;
+  const counts = (over = {}) => ({ going: 0, pending: 0, waitlist: 0, attended: 0, ...over });
+  const ev = (over = {}) => ({
+    orgId: 'open', visibility: 'public', status: 'scheduled', endAt: later, counts: counts(),
+    registration: { open: true, approval: true, capacity: 10, waitlist: false, group: false }, ...over,
+  });
+  const code = (kind, over = {}) => ({ kind, uses: null, used: 0, expiresAt: null, createdBy: 'mei', ...over });
+
+  beforeEach(async () => {
+    await orgFixtures();
+    await seedDocs({
+      'events/e-full': ev({ registration: { open: true, approval: true, capacity: 1, waitlist: false, group: false }, counts: counts({ going: 1 }) }),
+      'events/e-full/codes/TEAMABC': code('reserve', { uses: 2 }),
+      'events/e-v': ev(),
+      'events/e-v/codes/REGULAR': code('skip'),
+      'events/e-v/codes/DISC': code('discount', { amount: 3 }),
+      'events/e-v/codes/USEDUP': code('skip', { uses: 1, used: 1 }),
+      'events/e-v/codes/OLDCODE': code('skip', { expiresAt: earlier }),
+      'events/e-v/codeHints/abc123': { kind: 'skip' },
+      'events/e-hidden': ev({ visibility: 'draft', registration: { open: true, approval: false, capacity: 10, waitlist: false, group: false } }),
+      'events/e-hidden/codes/SECRET': code('unlock', { uses: 5 }),
+      'events/e-hidden/codes/REGULAR': code('skip'),
+    });
+  });
+
+  // Joins the way the app does: the registration with the code, the counts, who's going and one use of the code.
+  function join(uid, eventId, { status, code: c, next, discount, use = true }) {
+    const db = dbAs(uid);
+    const batch = writeBatch(db);
+    batch.update(doc(db, `events/${eventId}`), { counts: next, countsBy: uid });
+    batch.set(doc(db, `events/${eventId}/registrations/${uid}`), {
+      uid, name: `${uid} A.`, status, ticketTypeId: null, answers: {}, ...(c ? { code: c } : {}), ...(discount != null ? { discount } : {}),
+      registeredAt: st(), createdAt: st(), updatedAt: st(),
+    });
+    if (status === 'going') batch.set(doc(db, `events/${eventId}/going/${uid}`), { name: `${uid} A.`, since: st() });
+    if (c && use) batch.update(doc(db, `events/${eventId}/codes/${c}`), { used: increment(1) });
+    return batch.commit();
+  }
+
+  it('volunteers can\'t read or list codes; the event\'s admins can', async () => {
+    await assertFails(getDoc(doc(dbAs('alice'), 'events/e-v/codes/REGULAR')));
+    await assertFails(getDocs(collection(dbAs('alice'), 'events/e-v/codes')));
+    await assertSucceeds(getDocs(collection(dbAs('mei'), 'events/e-v/codes')));
+  });
+
+  it('a hint is fetched by the hash of its code, and never listed', async () => {
+    await assertSucceeds(getDoc(doc(dbAs('alice'), 'events/e-v/codeHints/abc123')));
+    await assertFails(getDocs(collection(dbAs('alice'), 'events/e-v/codeHints')));
+  });
+
+  it('a reserved-spot code lets its holder in when the event is full', async () => {
+    await assertFails(join('alice', 'e-full', { status: 'going', next: counts({ going: 2 }) }));
+    await assertSucceeds(join('alice', 'e-full', { status: 'going', code: 'TEAMABC', next: counts({ going: 2 }) }));
+  });
+
+  it('a guessed code, or one presented without using it, is refused', async () => {
+    await assertFails(join('alice', 'e-full', { status: 'going', code: 'GUESS1', next: counts({ going: 2 }) }));
+    await assertFails(join('alice', 'e-full', { status: 'going', code: 'TEAMABC', next: counts({ going: 2 }), use: false }));
+  });
+
+  it('skip approval: going straight away with the code, a request without it', async () => {
+    await assertFails(join('alice', 'e-v', { status: 'going', next: counts({ going: 1 }) }));
+    await assertSucceeds(join('alice', 'e-v', { status: 'going', code: 'REGULAR', next: counts({ going: 1 }) }));
+  });
+
+  it('a code past its use limit or its expiry is refused', async () => {
+    await assertFails(join('alice', 'e-v', { status: 'going', code: 'USEDUP', next: counts({ going: 1 }) }));
+    await assertFails(join('alice', 'e-v', { status: 'going', code: 'OLDCODE', next: counts({ going: 1 }) }));
+  });
+
+  it('a discount code records the code\'s own amount off', async () => {
+    await assertFails(join('alice', 'e-v', { status: 'pending', code: 'DISC', discount: 5, next: counts({ pending: 1 }) }));
+    await assertSucceeds(join('alice', 'e-v', { status: 'pending', code: 'DISC', discount: 3, next: counts({ pending: 1 }) }));
+  });
+
+  it('a code already used on a registration can\'t be used again by it', async () => {
+    await seedDocs({ 'events/e-v/registrations/alice': { uid: 'alice', name: 'alice A.', status: 'going', code: 'REGULAR', ticketTypeId: null, answers: {} } });
+    await assertFails(updateDoc(doc(dbAs('alice'), 'events/e-v/codes/REGULAR'), { used: increment(1) }));
+  });
+
+  it('an access code unlocks a draft event for one volunteer, who can then see it and register', async () => {
+    const unlock = (c) => {
+      const db = dbAs('bob');
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'events/e-hidden/unlocks/bob'), { code: c, at: st() });
+      batch.update(doc(db, `events/e-hidden/codes/${c}`), { used: increment(1) });
+      return batch.commit();
+    };
+    await assertFails(getDoc(doc(dbAs('bob'), 'events/e-hidden')));
+    await assertFails(unlock('REGULAR'));
+    await assertSucceeds(unlock('SECRET'));
+    await assertSucceeds(getDoc(doc(dbAs('bob'), 'events/e-hidden')));
+    await assertSucceeds(join('bob', 'e-hidden', { status: 'going', next: counts({ going: 1 }) }));
+    await assertFails(getDoc(doc(dbAs('carol'), 'events/e-hidden')));
+  });
+});
